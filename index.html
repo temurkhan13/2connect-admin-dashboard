@@ -24,9 +24,12 @@
                 <p class="text-gray-400 mt-2">User Journey Diagnostics</p>
                 <p class="text-yellow-500 text-sm mt-1">Test Users Password: <code class="bg-gray-700 px-2 py-1 rounded">Test123!@#</code> <span class="text-gray-500">(only for users created via scripts, not self-registered users)</span></p>
             </div>
-            <button onclick="loadUsers()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
-                Refresh
-            </button>
+            <div class="text-right">
+                <button onclick="loadUsers()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+                    Refresh
+                </button>
+                <p id="lastRefresh" class="text-gray-500 text-xs mt-1">Auto-refresh: 30s</p>
+            </div>
         </div>
 
         <!-- Summary Cards -->
@@ -114,11 +117,24 @@
     <script>
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
         const ADMIN_KEY = 'migrate-2connect-2026';
+        const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
         let allUsers = [];
         let currentUserId = null;
+        let refreshTimer = null;
 
-        // Load users on page load
-        document.addEventListener('DOMContentLoaded', loadUsers);
+        // Load users on page load and start auto-refresh
+        document.addEventListener('DOMContentLoaded', () => {
+            loadUsers();
+            startAutoRefresh();
+        });
+
+        function startAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = setInterval(() => {
+                console.log('Auto-refreshing dashboard...');
+                loadUsers();
+            }, AUTO_REFRESH_INTERVAL);
+        }
 
         async function loadUsers() {
             document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
@@ -131,6 +147,8 @@
                     allUsers = data.result;
                     updateSummary(data.summary);
                     renderUsers(allUsers);
+                    document.getElementById('lastRefresh').textContent =
+                        `Last: ${new Date().toLocaleTimeString()} (auto-refresh: 30s)`;
                 } else {
                     document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
                 }
@@ -167,19 +185,24 @@
                         </span>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="${user.slots_filled === user.slots_total ? 'text-green-400' : user.slots_filled > 0 ? 'text-yellow-400' : 'text-gray-400'}">
-                            ${user.slots_filled || 0}/${user.slots_total || 11}
-                        </span>
+                        <div class="${user.slots_filled === user.slots_total ? 'text-green-400' : user.slots_filled > 0 ? 'text-yellow-400' : 'text-gray-400'}">
+                            <span class="font-medium">${user.slots_filled || 0}/${user.slots_total || 11}</span>
+                            <div class="text-xs text-gray-500 truncate max-w-32" title="${user.filled_slots?.join(', ') || 'None'}">
+                                ${user.filled_slots?.join(', ') || 'None'}
+                            </div>
+                        </div>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="${user.persona_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">
-                            ${user.persona_status || 'unknown'}
-                        </span>
+                        <div class="${user.persona_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">
+                            <span>${user.persona_status || 'unknown'}</span>
+                            ${user.persona_name ? `<div class="text-xs text-gray-500 truncate max-w-24" title="${user.persona_name}">${user.persona_name}</div>` : ''}
+                        </div>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">
-                            ${user.embeddings_count}
-                        </span>
+                        <div class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">
+                            <span>${user.embeddings_count}</span>
+                            ${user.embedding_types?.length > 0 ? `<div class="text-xs text-gray-500">${user.embedding_types.join(', ')}</div>` : ''}
+                        </div>
                     </td>
                     <td class="px-4 py-3">
                         <span class="${user.matches_count > 0 ? 'text-green-400' : 'text-yellow-400'}">
