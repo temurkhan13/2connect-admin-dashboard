@@ -78,7 +78,8 @@
                     <tr class="text-left text-gray-400 text-sm">
                         <th class="px-4 py-3">User</th>
                         <th class="px-4 py-3">Status</th>
-                        <th class="px-4 py-3">Onboarding</th>
+                        <th class="px-4 py-3">Questions</th>
+                        <th class="px-4 py-3">Slots</th>
                         <th class="px-4 py-3">Persona</th>
                         <th class="px-4 py-3">Embeddings</th>
                         <th class="px-4 py-3">Matches</th>
@@ -86,7 +87,7 @@
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
-                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -120,7 +121,7 @@
         document.addEventListener('DOMContentLoaded', loadUsers);
 
         async function loadUsers() {
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
+            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
 
             try {
                 const response = await fetch(`${API_BASE}/admin/list-users`);
@@ -131,10 +132,10 @@
                     updateSummary(data.summary);
                     renderUsers(allUsers);
                 } else {
-                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
+                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
                 }
             } catch (error) {
-                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
             }
         }
 
@@ -150,7 +151,7 @@
             const tbody = document.getElementById('usersTableBody');
 
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
                 return;
             }
 
@@ -166,8 +167,13 @@
                         </span>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="${user.onboarding_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">
-                            ${user.onboarding_status || 'unknown'}
+                        <span class="${user.questions_answered > 0 ? 'text-blue-400' : 'text-gray-400'}">
+                            ${user.questions_answered || 0}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${user.slots_filled === user.slots_total ? 'text-green-400' : user.slots_filled > 0 ? 'text-yellow-400' : 'text-gray-400'}">
+                            ${user.slots_filled || 0}/${user.slots_total || 11}
                         </span>
                     </td>
                     <td class="px-4 py-3">
@@ -268,13 +274,27 @@
         function renderModalContent(result) {
             const html = `
                 <!-- Status Grid -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="w-2 h-2 rounded-full ${result.account?.status === 'found' ? 'bg-green-500' : 'bg-red-500'}"></div>
                             <span class="text-gray-400 text-sm">Account</span>
                         </div>
                         <p class="text-white font-medium">${result.account?.status === 'found' ? 'Found' : 'Not Found'}</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${result.onboarding?.details?.questions_answered > 0 ? 'bg-blue-500' : 'bg-gray-500'}"></div>
+                            <span class="text-gray-400 text-sm">Questions</span>
+                        </div>
+                        <p class="text-white font-medium">${result.onboarding?.details?.questions_answered || 0} answered</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${(result.onboarding?.details?.slots_filled || 0) === (result.onboarding?.details?.slots_total || 11) ? 'bg-green-500' : (result.onboarding?.details?.slots_filled || 0) > 0 ? 'bg-yellow-500' : 'bg-gray-500'}"></div>
+                            <span class="text-gray-400 text-sm">Slots Filled</span>
+                        </div>
+                        <p class="text-white font-medium">${result.onboarding?.details?.slots_filled || 0}/${result.onboarding?.details?.slots_total || 11}</p>
                     </div>
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
