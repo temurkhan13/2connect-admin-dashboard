@@ -25,10 +25,10 @@
                 <p class="text-yellow-500 text-sm mt-1">Test Users Password: <code class="bg-gray-700 px-2 py-1 rounded">Test123!@#</code> <span class="text-gray-500">(only for users created via scripts, not self-registered users)</span></p>
             </div>
             <div class="text-right">
-                <button onclick="loadUsers()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
-                    Refresh
+                <button onclick="loadUsers()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                    🔄 Refresh
                 </button>
-                <p id="lastRefresh" class="text-gray-500 text-xs mt-1">Auto-refresh: 30s</p>
+                <p id="lastRefresh" class="text-gray-500 text-xs mt-1"></p>
             </div>
         </div>
 
@@ -117,24 +117,13 @@
     <script>
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
         const ADMIN_KEY = 'migrate-2connect-2026';
-        const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
         let allUsers = [];
         let currentUserId = null;
-        let refreshTimer = null;
 
-        // Load users on page load and start auto-refresh
+        // Load users on page load
         document.addEventListener('DOMContentLoaded', () => {
             loadUsers();
-            startAutoRefresh();
         });
-
-        function startAutoRefresh() {
-            if (refreshTimer) clearInterval(refreshTimer);
-            refreshTimer = setInterval(() => {
-                console.log('Auto-refreshing dashboard...');
-                loadUsers();
-            }, AUTO_REFRESH_INTERVAL);
-        }
 
         async function loadUsers() {
             document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
@@ -148,7 +137,7 @@
                     updateSummary(data.summary);
                     renderUsers(allUsers);
                     document.getElementById('lastRefresh').textContent =
-                        `Last: ${new Date().toLocaleTimeString()} (auto-refresh: 30s)`;
+                        `Last refresh: ${new Date().toLocaleTimeString()}`;
                 } else {
                     document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
                 }
@@ -187,7 +176,7 @@
                     <td class="px-4 py-3">
                         <div class="${user.slots_filled === user.slots_total ? 'text-green-400' : user.slots_filled > 0 ? 'text-yellow-400' : 'text-gray-400'}">
                             <span class="font-medium">${user.slots_filled || 0}/${user.slots_total || 11}</span>
-                            <div class="text-xs text-gray-500 truncate max-w-32" title="${user.filled_slots?.join(', ') || 'None'}">
+                            <div class="text-xs text-gray-500">
                                 ${user.filled_slots?.join(', ') || 'None'}
                             </div>
                         </div>
