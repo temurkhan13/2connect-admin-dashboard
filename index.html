@@ -10,240 +10,459 @@
         .status-warning { background-color: #f59e0b; }
         .status-error { background-color: #ef4444; }
         .status-unknown { background-color: #6b7280; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: white; }
+        .tab-inactive { color: #9ca3af; }
+        .user-row:hover { background-color: #374151; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="container mx-auto px-4 py-8 max-w-6xl">
         <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-white">2Connect Admin Dashboard</h1>
-            <p class="text-gray-400 mt-2">User Journey Diagnostics</p>
-        </div>
-
-        <!-- Search Box -->
-        <div class="bg-gray-800 rounded-lg p-6 mb-6">
-            <div class="flex gap-4">
-                <input
-                    type="email"
-                    id="emailInput"
-                    placeholder="Enter user email..."
-                    class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                >
-                <button
-                    onclick="searchUser()"
-                    class="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
-                >
-                    Search
-                </button>
+        <div class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-white">2Connect Admin Dashboard</h1>
+                <p class="text-gray-400 mt-2">User Journey Diagnostics</p>
             </div>
-            <div id="searchStatus" class="mt-3 text-sm text-gray-400"></div>
+            <button onclick="loadUsers()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm">
+                Refresh
+            </button>
         </div>
 
-        <!-- Results -->
-        <div id="results" class="hidden">
-            <!-- Summary Card -->
-            <div id="summaryCard" class="bg-gray-800 rounded-lg p-6 mb-6">
-                <div class="flex items-center justify-between">
+        <!-- Summary Cards -->
+        <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Total Users</p>
+                <p id="totalUsers" class="text-2xl font-bold">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Healthy</p>
+                <p id="healthyUsers" class="text-2xl font-bold text-green-500">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Embeddings Missing</p>
+                <p id="embeddingsMissing" class="text-2xl font-bold text-red-500">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Matches Missing</p>
+                <p id="matchesMissing" class="text-2xl font-bold text-yellow-500">-</p>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4">
+                <p class="text-gray-400 text-sm">Onboarding Incomplete</p>
+                <p id="onboardingIncomplete" class="text-2xl font-bold text-gray-500">-</p>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="flex gap-4 mb-4">
+            <select id="statusFilter" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                <option value="all">All Statuses</option>
+                <option value="healthy">Healthy</option>
+                <option value="embeddings_missing">Embeddings Missing</option>
+                <option value="matches_missing">Matches Missing</option>
+                <option value="persona_missing">Persona Missing</option>
+                <option value="onboarding_incomplete">Onboarding Incomplete</option>
+            </select>
+            <input
+                type="text"
+                id="searchFilter"
+                placeholder="Filter by email..."
+                onkeyup="filterUsers()"
+                class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1"
+            >
+        </div>
+
+        <!-- Users Table -->
+        <div class="bg-gray-800 rounded-lg overflow-hidden">
+            <table class="w-full">
+                <thead class="bg-gray-750">
+                    <tr class="text-left text-gray-400 text-sm">
+                        <th class="px-4 py-3">User</th>
+                        <th class="px-4 py-3">Status</th>
+                        <th class="px-4 py-3">Onboarding</th>
+                        <th class="px-4 py-3">Persona</th>
+                        <th class="px-4 py-3">Embeddings</th>
+                        <th class="px-4 py-3">Matches</th>
+                        <th class="px-4 py-3">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- User Detail Modal -->
+        <div id="userModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50" onclick="closeModal(event)">
+            <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+                <div class="flex justify-between items-start mb-6">
                     <div>
-                        <h2 id="userName" class="text-xl font-semibold"></h2>
-                        <p id="userEmail" class="text-gray-400"></p>
-                        <p id="userId" class="text-gray-500 text-sm mt-1 font-mono"></p>
+                        <h2 id="modalUserName" class="text-xl font-semibold"></h2>
+                        <p id="modalUserEmail" class="text-gray-400"></p>
+                        <p id="modalUserId" class="text-gray-500 text-sm mt-1 font-mono"></p>
                     </div>
-                    <div id="summaryBadge" class="px-4 py-2 rounded-full text-sm font-medium"></div>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+                </div>
+
+                <div id="modalContent">
+                    <p class="text-gray-400">Loading...</p>
                 </div>
             </div>
-
-            <!-- Status Grid -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div id="accountStatus" class="w-3 h-3 rounded-full"></div>
-                        <span class="text-gray-400 text-sm">Account</span>
-                    </div>
-                    <p id="accountDetail" class="text-white font-medium"></p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div id="personaStatus" class="w-3 h-3 rounded-full"></div>
-                        <span class="text-gray-400 text-sm">Persona</span>
-                    </div>
-                    <p id="personaDetail" class="text-white font-medium"></p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div id="embeddingsStatus" class="w-3 h-3 rounded-full"></div>
-                        <span class="text-gray-400 text-sm">Embeddings</span>
-                    </div>
-                    <p id="embeddingsDetail" class="text-white font-medium"></p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <div class="flex items-center gap-2 mb-2">
-                        <div id="matchesStatus" class="w-3 h-3 rounded-full"></div>
-                        <span class="text-gray-400 text-sm">Matches</span>
-                    </div>
-                    <p id="matchesDetail" class="text-white font-medium"></p>
-                </div>
-            </div>
-
-            <!-- Issues -->
-            <div id="issuesSection" class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6 hidden">
-                <h3 class="text-red-400 font-medium mb-2">Issues Detected</h3>
-                <ul id="issuesList" class="text-red-300 text-sm space-y-1"></ul>
-            </div>
-
-            <!-- Actions -->
-            <div id="actionsSection" class="bg-gray-800 rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-4">Actions</h3>
-                <div class="flex flex-wrap gap-3">
-                    <button
-                        onclick="regenerateEmbeddings()"
-                        id="regenEmbeddingsBtn"
-                        class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Regenerate Embeddings
-                    </button>
-                    <button
-                        onclick="regenerateMatches()"
-                        id="regenMatchesBtn"
-                        class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        Recalculate Matches
-                    </button>
-                </div>
-                <div id="actionStatus" class="mt-3 text-sm"></div>
-            </div>
-
-            <!-- Timeline -->
-            <div id="timelineSection" class="bg-gray-800 rounded-lg p-6 mb-6">
-                <h3 class="text-lg font-medium mb-4">Timeline</h3>
-                <div id="timeline" class="space-y-3"></div>
-            </div>
-
-            <!-- Raw Data -->
-            <details class="bg-gray-800 rounded-lg">
-                <summary class="p-4 cursor-pointer text-gray-400 hover:text-white">View Raw Response</summary>
-                <pre id="rawData" class="p-4 text-xs text-gray-400 overflow-x-auto border-t border-gray-700"></pre>
-            </details>
-        </div>
-
-        <!-- No Results -->
-        <div id="noResults" class="hidden bg-gray-800 rounded-lg p-8 text-center">
-            <p class="text-gray-400">No user found with that email</p>
         </div>
     </div>
 
     <script>
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
         const ADMIN_KEY = 'migrate-2connect-2026';
+        let allUsers = [];
         let currentUserId = null;
 
-        async function searchUser() {
-            const email = document.getElementById('emailInput').value.trim();
-            if (!email) return;
+        // Load users on page load
+        document.addEventListener('DOMContentLoaded', loadUsers);
 
-            document.getElementById('searchStatus').textContent = 'Searching...';
-            document.getElementById('results').classList.add('hidden');
-            document.getElementById('noResults').classList.add('hidden');
+        async function loadUsers() {
+            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
 
             try {
-                const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(email)}`);
+                const response = await fetch(`${API_BASE}/admin/list-users`);
                 const data = await response.json();
 
-                if (data.code === 200 && data.result) {
-                    displayResults(data.result);
-                    document.getElementById('searchStatus').textContent = '';
+                if (data.code === 200) {
+                    allUsers = data.result;
+                    updateSummary(data.summary);
+                    renderUsers(allUsers);
                 } else {
-                    document.getElementById('noResults').classList.remove('hidden');
-                    document.getElementById('searchStatus').textContent = 'User not found';
+                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
                 }
             } catch (error) {
-                document.getElementById('searchStatus').textContent = `Error: ${error.message}`;
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
             }
         }
 
-        function displayResults(result) {
-            document.getElementById('results').classList.remove('hidden');
-            currentUserId = result.account?.details?.user_id;
+        function updateSummary(summary) {
+            document.getElementById('totalUsers').textContent = summary.total || 0;
+            document.getElementById('healthyUsers').textContent = summary.healthy || 0;
+            document.getElementById('embeddingsMissing').textContent = summary.embeddings_missing || 0;
+            document.getElementById('matchesMissing').textContent = summary.matches_missing || 0;
+            document.getElementById('onboardingIncomplete').textContent = summary.onboarding_incomplete || 0;
+        }
 
-            // Summary
-            const name = result.account?.details?.name || 'Unknown';
-            document.getElementById('userName').textContent = name || result.email;
-            document.getElementById('userEmail').textContent = result.email;
-            document.getElementById('userId').textContent = currentUserId ? `ID: ${currentUserId}` : '';
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTableBody');
 
-            // Summary badge
-            const summaryBadge = document.getElementById('summaryBadge');
-            const summaryMap = {
-                'HEALTHY': { text: 'Healthy', class: 'bg-green-600' },
-                'EMBEDDINGS_MISSING': { text: 'Embeddings Missing', class: 'bg-red-600' },
-                'MATCHES_NOT_CALCULATED': { text: 'No Matches', class: 'bg-yellow-600' },
-                'USER_NOT_FOUND': { text: 'Not Found', class: 'bg-gray-600' },
-                'ISSUES_DETECTED': { text: 'Issues', class: 'bg-orange-600' }
+            if (users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => `
+                <tr class="user-row border-t border-gray-700 cursor-pointer" onclick="showUserDetail('${user.user_id}')">
+                    <td class="px-4 py-3">
+                        <div class="font-medium">${user.name || 'No name'}</div>
+                        <div class="text-gray-400 text-sm">${user.email}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(user.status)}">
+                            ${formatStatus(user.status)}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${user.onboarding_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">
+                            ${user.onboarding_status || 'unknown'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${user.persona_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">
+                            ${user.persona_status || 'unknown'}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">
+                            ${user.embeddings_count}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${user.matches_count > 0 ? 'text-green-400' : 'text-yellow-400'}">
+                            ${user.matches_count}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex gap-2" onclick="event.stopPropagation()">
+                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `
+                                <button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs">
+                                    Gen Embed
+                                </button>
+                            ` : ''}
+                            ${user.embeddings_count > 0 && user.matches_count === 0 ? `
+                                <button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">
+                                    Gen Match
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function getStatusClass(status) {
+            const classes = {
+                'healthy': 'bg-green-600',
+                'embeddings_missing': 'bg-red-600',
+                'matches_missing': 'bg-yellow-600',
+                'persona_missing': 'bg-orange-600',
+                'onboarding_incomplete': 'bg-gray-600'
             };
-            const summary = summaryMap[result.summary] || { text: result.summary, class: 'bg-gray-600' };
-            summaryBadge.textContent = summary.text;
-            summaryBadge.className = `px-4 py-2 rounded-full text-sm font-medium ${summary.class}`;
-
-            // Status indicators
-            setStatus('account', result.account?.status === 'found' ? 'healthy' : 'error',
-                result.account?.status === 'found' ? 'Found' : 'Not Found');
-
-            setStatus('persona',
-                result.persona?.status === 'completed' ? 'healthy' :
-                result.persona?.status === 'not_found' ? 'error' : 'warning',
-                result.persona?.details?.name || result.persona?.status || 'Not Generated');
-
-            setStatus('embeddings',
-                result.embeddings?.count > 0 ? 'healthy' : 'error',
-                result.embeddings?.count > 0 ? `${result.embeddings.count} vectors` : 'Missing');
-
-            setStatus('matches',
-                result.matches?.count > 0 ? 'healthy' :
-                result.embeddings?.count === 0 ? 'unknown' : 'warning',
-                result.matches?.count > 0 ? `${result.matches.count} matches` : 'None');
-
-            // Issues
-            const issuesSection = document.getElementById('issuesSection');
-            const issuesList = document.getElementById('issuesList');
-            if (result.issues && result.issues.length > 0) {
-                issuesSection.classList.remove('hidden');
-                issuesList.innerHTML = result.issues.map(i => `<li>• ${i}</li>`).join('');
-            } else {
-                issuesSection.classList.add('hidden');
-            }
-
-            // Timeline
-            const timeline = document.getElementById('timeline');
-            if (result.timeline && result.timeline.length > 0) {
-                timeline.innerHTML = result.timeline.map(t => `
-                    <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                        <span class="text-gray-400 text-sm">${formatDate(t.timestamp)}</span>
-                        <span class="text-white">${formatEvent(t.event)}</span>
-                    </div>
-                `).join('');
-            } else {
-                timeline.innerHTML = '<p class="text-gray-500">No timeline events</p>';
-            }
-
-            // Enable/disable action buttons
-            document.getElementById('regenEmbeddingsBtn').disabled = !currentUserId;
-            document.getElementById('regenMatchesBtn').disabled = !currentUserId || result.embeddings?.count === 0;
-
-            // Raw data
-            document.getElementById('rawData').textContent = JSON.stringify(result, null, 2);
+            return classes[status] || 'bg-gray-600';
         }
 
-        function setStatus(id, status, text) {
-            const statusEl = document.getElementById(`${id}Status`);
-            const detailEl = document.getElementById(`${id}Detail`);
+        function formatStatus(status) {
+            const labels = {
+                'healthy': 'Healthy',
+                'embeddings_missing': 'No Embeddings',
+                'matches_missing': 'No Matches',
+                'persona_missing': 'No Persona',
+                'onboarding_incomplete': 'Onboarding...'
+            };
+            return labels[status] || status;
+        }
 
-            statusEl.className = `w-3 h-3 rounded-full ${
-                status === 'healthy' ? 'bg-green-500' :
-                status === 'warning' ? 'bg-yellow-500' :
-                status === 'error' ? 'bg-red-500' : 'bg-gray-500'
-            }`;
-            detailEl.textContent = text;
+        function filterUsers() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
+
+            const filtered = allUsers.filter(user => {
+                const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+                const matchesSearch = !searchFilter || user.email.toLowerCase().includes(searchFilter);
+                return matchesStatus && matchesSearch;
+            });
+
+            renderUsers(filtered);
+        }
+
+        async function showUserDetail(userId) {
+            currentUserId = userId;
+            const user = allUsers.find(u => u.user_id === userId);
+            if (!user) return;
+
+            document.getElementById('modalUserName').textContent = user.name || 'No name';
+            document.getElementById('modalUserEmail').textContent = user.email;
+            document.getElementById('modalUserId').textContent = `ID: ${userId}`;
+            document.getElementById('modalContent').innerHTML = '<p class="text-gray-400">Loading diagnostics...</p>';
+            document.getElementById('userModal').classList.remove('hidden');
+            document.getElementById('userModal').classList.add('flex');
+
+            // Fetch full diagnostics
+            try {
+                const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(user.email)}`);
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    renderModalContent(data.result);
+                } else {
+                    document.getElementById('modalContent').innerHTML = `<p class="text-red-400">Error: ${data.message}</p>`;
+                }
+            } catch (error) {
+                document.getElementById('modalContent').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+            }
+        }
+
+        function renderModalContent(result) {
+            const html = `
+                <!-- Status Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${result.account?.status === 'found' ? 'bg-green-500' : 'bg-red-500'}"></div>
+                            <span class="text-gray-400 text-sm">Account</span>
+                        </div>
+                        <p class="text-white font-medium">${result.account?.status === 'found' ? 'Found' : 'Not Found'}</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${result.persona?.status === 'completed' ? 'bg-green-500' : 'bg-red-500'}"></div>
+                            <span class="text-gray-400 text-sm">Persona</span>
+                        </div>
+                        <p class="text-white font-medium">${result.persona?.details?.name || result.persona?.status || 'Not Generated'}</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${result.embeddings?.count > 0 ? 'bg-green-500' : 'bg-red-500'}"></div>
+                            <span class="text-gray-400 text-sm">Embeddings</span>
+                        </div>
+                        <p class="text-white font-medium">${result.embeddings?.count > 0 ? result.embeddings.count + ' vectors' : 'Missing'}</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${result.matches?.count > 0 ? 'bg-green-500' : 'bg-yellow-500'}"></div>
+                            <span class="text-gray-400 text-sm">Matches</span>
+                        </div>
+                        <p class="text-white font-medium">${result.matches?.count > 0 ? result.matches.count + ' matches' : 'None'}</p>
+                    </div>
+                </div>
+
+                ${result.issues && result.issues.length > 0 ? `
+                    <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
+                        <h3 class="text-red-400 font-medium mb-2">Issues Detected</h3>
+                        <ul class="text-red-300 text-sm space-y-1">
+                            ${result.issues.map(i => `<li>• ${i}</li>`).join('')}
+                        </ul>
+                    </div>
+                ` : ''}
+
+                <!-- Actions -->
+                <div class="flex flex-wrap gap-3 mb-4">
+                    <button
+                        onclick="regenerateEmbeddingsModal()"
+                        class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        Regenerate Embeddings
+                    </button>
+                    <button
+                        onclick="regenerateMatchesModal()"
+                        class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors ${result.embeddings?.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+                        ${result.embeddings?.count === 0 ? 'disabled' : ''}
+                    >
+                        Recalculate Matches
+                    </button>
+                </div>
+                <div id="modalActionStatus" class="text-sm mb-6"></div>
+
+                <!-- Timeline -->
+                ${result.timeline && result.timeline.length > 0 ? `
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Timeline</h3>
+                        <div class="space-y-2">
+                            ${result.timeline.map(t => `
+                                <div class="flex items-center gap-3">
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <span class="text-gray-400 text-sm">${formatDate(t.timestamp)}</span>
+                                    <span class="text-white">${formatEvent(t.event)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- Raw Data -->
+                <details class="bg-gray-700 rounded-lg">
+                    <summary class="p-3 cursor-pointer text-gray-400 hover:text-white text-sm">View Raw Response</summary>
+                    <pre class="p-3 text-xs text-gray-400 overflow-x-auto border-t border-gray-600">${JSON.stringify(result, null, 2)}</pre>
+                </details>
+            `;
+            document.getElementById('modalContent').innerHTML = html;
+        }
+
+        function closeModal(event) {
+            if (!event || event.target === document.getElementById('userModal')) {
+                document.getElementById('userModal').classList.add('hidden');
+                document.getElementById('userModal').classList.remove('flex');
+            }
+        }
+
+        async function regenerateEmbeddings(userId, btn) {
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    btn.textContent = 'Done!';
+                    btn.classList.remove('bg-purple-600');
+                    btn.classList.add('bg-green-600');
+                    setTimeout(() => loadUsers(), 30000);
+                } else {
+                    btn.textContent = 'Error';
+                    btn.classList.remove('bg-purple-600');
+                    btn.classList.add('bg-red-600');
+                }
+            } catch (error) {
+                btn.textContent = 'Error';
+                btn.classList.remove('bg-purple-600');
+                btn.classList.add('bg-red-600');
+            }
+        }
+
+        async function regenerateMatches(userId, btn) {
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    btn.textContent = data.result?.count || '0';
+                    btn.classList.remove('bg-green-600');
+                    btn.classList.add('bg-blue-600');
+                    setTimeout(() => loadUsers(), 2000);
+                } else {
+                    btn.textContent = 'Error';
+                    btn.classList.remove('bg-green-600');
+                    btn.classList.add('bg-red-600');
+                }
+            } catch (error) {
+                btn.textContent = 'Error';
+                btn.classList.remove('bg-green-600');
+                btn.classList.add('bg-red-600');
+            }
+        }
+
+        async function regenerateEmbeddingsModal() {
+            const statusEl = document.getElementById('modalActionStatus');
+            statusEl.innerHTML = '<span class="text-yellow-400">Generating embeddings...</span>';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    statusEl.innerHTML = '<span class="text-green-400">Embeddings generation triggered! Refresh in 30 seconds.</span>';
+                    setTimeout(loadUsers, 30000);
+                } else {
+                    statusEl.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
+                }
+            } catch (error) {
+                statusEl.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
+            }
+        }
+
+        async function regenerateMatchesModal() {
+            const statusEl = document.getElementById('modalActionStatus');
+            statusEl.innerHTML = '<span class="text-yellow-400">Calculating matches...</span>';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    const matchCount = data.result?.count || 0;
+                    statusEl.innerHTML = `<span class="text-green-400">Matches recalculated! Found ${matchCount} matches.</span>`;
+                    setTimeout(loadUsers, 2000);
+                } else {
+                    statusEl.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
+                }
+            } catch (error) {
+                statusEl.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
+            }
         }
 
         function formatDate(dateStr) {
@@ -262,72 +481,9 @@
             return eventMap[event] || event;
         }
 
-        async function regenerateEmbeddings() {
-            if (!currentUserId) return;
-
-            const btn = document.getElementById('regenEmbeddingsBtn');
-            const status = document.getElementById('actionStatus');
-
-            btn.disabled = true;
-            btn.textContent = 'Generating...';
-            status.textContent = '';
-
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-
-                if (data.code === 200) {
-                    status.innerHTML = '<span class="text-green-400">Embeddings generation triggered! Refresh in 30 seconds.</span>';
-                } else {
-                    status.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
-                }
-            } catch (error) {
-                status.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
-            }
-
-            btn.disabled = false;
-            btn.textContent = 'Regenerate Embeddings';
-        }
-
-        async function regenerateMatches() {
-            if (!currentUserId) return;
-
-            const btn = document.getElementById('regenMatchesBtn');
-            const status = document.getElementById('actionStatus');
-
-            btn.disabled = true;
-            btn.textContent = 'Calculating...';
-            status.textContent = '';
-
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-
-                if (data.code === 200) {
-                    const matchCount = data.result?.count || 0;
-                    status.innerHTML = `<span class="text-green-400">Matches recalculated! Found ${matchCount} matches. Refresh to see updated status.</span>`;
-                } else {
-                    status.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
-                }
-            } catch (error) {
-                status.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
-            }
-
-            btn.disabled = false;
-            btn.textContent = 'Recalculate Matches';
-        }
-
-        // Enter key to search
-        document.getElementById('emailInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') searchUser();
+        // ESC to close modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
         });
     </script>
 </body>
