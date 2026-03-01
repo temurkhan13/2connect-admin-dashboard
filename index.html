@@ -371,7 +371,11 @@
                 const response = await fetch(`${ADMIN_BASE}/admin/system-health`);
                 const data = await response.json();
 
-                if (data.code === 200) {
+                // API returns health object directly (not wrapped)
+                if (data.timestamp || data.overall_status) {
+                    renderSystemHealth(data);
+                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+                } else if (data.code === 200) {
                     renderSystemHealth(data.result);
                     document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
                 } else {
