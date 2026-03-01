@@ -332,6 +332,7 @@
 
     <script>
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
+        const ADMIN_BASE = 'https://twoconnectv1-ai.onrender.com'; // Admin endpoints at root
         const ADMIN_KEY = 'migrate-2connect-2026';
         let allUsers = [];
         let allMatchingUsers = [];
@@ -367,7 +368,7 @@
         // ==================== PAGE 1: SYSTEM HEALTH ====================
         async function loadSystemHealth() {
             try {
-                const response = await fetch(`${API_BASE}/admin/system-health`);
+                const response = await fetch(`${ADMIN_BASE}/admin/system-health`);
                 const data = await response.json();
 
                 if (data.code === 200) {
@@ -583,7 +584,7 @@
             document.getElementById('matchingTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading matching data...</td></tr>';
 
             try {
-                const response = await fetch(`${API_BASE}/admin/matching-diagnostics`);
+                const response = await fetch(`${ADMIN_BASE}/admin/matching-diagnostics`);
                 const data = await response.json();
 
                 if (data.code === 200) {
