@@ -372,6 +372,50 @@
                     </div>
                 </div>
 
+                <!-- Multi-Vector Breakdown -->
+                ${(() => {
+                    const types = result.embeddings?.details?.types || [];
+                    const MV_DIMS = ['primary_goal', 'industry', 'stage', 'geography', 'engagement_style', 'dealbreakers'];
+                    const present = [];
+                    const missing = [];
+                    MV_DIMS.forEach(dim => {
+                        const hasReq = types.includes('requirements_' + dim);
+                        const hasOff = types.includes('offerings_' + dim);
+                        if (hasReq && hasOff) {
+                            present.push(dim);
+                        } else if (hasReq || hasOff) {
+                            present.push(dim + ' (partial)');
+                        } else {
+                            missing.push(dim);
+                        }
+                    });
+                    const count = present.filter(p => !p.includes('partial')).length;
+                    const isComplete = missing.length === 0 && !present.some(p => p.includes('partial'));
+                    const bgColor = isComplete ? 'bg-purple-900/30 border-purple-700' : count > 0 ? 'bg-yellow-900/30 border-yellow-700' : 'bg-gray-700 border-gray-600';
+                    const textColor = isComplete ? 'text-purple-300' : count > 0 ? 'text-yellow-300' : 'text-gray-400';
+
+                    return `
+                        <div class="${bgColor} border rounded-lg p-4 mb-6">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="${textColor} font-medium">Multi-Vector Embeddings (${count}/6)</h3>
+                                <span class="px-2 py-1 rounded text-xs ${isComplete ? 'bg-purple-600' : count > 0 ? 'bg-yellow-600' : 'bg-gray-600'}">${isComplete ? 'Complete' : count > 0 ? 'Partial' : 'None'}</span>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                ${MV_DIMS.map(dim => {
+                                    const hasReq = types.includes('requirements_' + dim);
+                                    const hasOff = types.includes('offerings_' + dim);
+                                    const status = hasReq && hasOff ? 'complete' : hasReq || hasOff ? 'partial' : 'missing';
+                                    const statusColor = status === 'complete' ? 'text-purple-400' : status === 'partial' ? 'text-yellow-400' : 'text-gray-500';
+                                    const statusIcon = status === 'complete' ? '✓' : status === 'partial' ? '½' : '✗';
+                                    const bgClass = status === 'complete' ? 'bg-purple-900/50' : status === 'partial' ? 'bg-yellow-900/50' : 'bg-gray-800';
+                                    return '<div class="' + bgClass + ' rounded px-2 py-1 flex items-center justify-between"><span class="text-sm text-gray-300">' + dim.replace('_', ' ') + '</span><span class="' + statusColor + ' text-xs font-medium">' + statusIcon + '</span></div>';
+                                }).join('')}
+                            </div>
+                            ${missing.length > 0 ? '<p class="text-gray-500 text-xs mt-2">Missing: ' + missing.join(', ') + '</p>' : ''}
+                        </div>
+                    `;
+                })()}
+
                 ${result.issues && result.issues.length > 0 ? `
                     <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
                         <h3 class="text-red-400 font-medium mb-2">Issues Detected</h3>
