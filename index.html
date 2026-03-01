@@ -3,114 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2Connect Admin - User Diagnostics</title>
+    <title>2Connect Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .status-healthy { background-color: #10b981; }
         .status-warning { background-color: #f59e0b; }
         .status-error { background-color: #ef4444; }
         .status-unknown { background-color: #6b7280; }
-        .tab-active { border-bottom: 2px solid #3b82f6; color: white; }
+        .tab-active { border-bottom: 2px solid #3b82f6; color: white; background-color: #1f2937; }
         .tab-inactive { color: #9ca3af; }
+        .tab-inactive:hover { color: white; background-color: #374151; }
         .user-row:hover { background-color: #374151; }
+        .health-card { transition: all 0.2s ease; }
+        .health-card:hover { transform: translateY(-2px); }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
         <!-- Header -->
-        <div class="mb-8 flex items-center justify-between">
+        <div class="mb-6 flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-white">2Connect Admin Dashboard</h1>
-                <p class="text-gray-400 mt-2">User Journey Diagnostics</p>
-                <p class="text-yellow-500 text-sm mt-1">Test Users Password: <code class="bg-gray-700 px-2 py-1 rounded">Test123!@#</code> <span class="text-gray-500">(only for users created via scripts, not self-registered users)</span></p>
+                <p class="text-gray-400 mt-1">System monitoring and user diagnostics</p>
             </div>
             <div class="text-right">
-                <button onclick="loadUsers()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                    🔄 Refresh
+                <p id="lastRefresh" class="text-gray-500 text-xs"></p>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-gray-700 mb-6">
+            <button onclick="switchTab('health')" id="tab-health" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-active">
+                System Health
+            </button>
+            <button onclick="switchTab('users')" id="tab-users" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                User Journey
+            </button>
+            <button onclick="switchTab('matching')" id="tab-matching" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Matching Diagnostics
+            </button>
+        </div>
+
+        <!-- Tab Content -->
+
+        <!-- PAGE 1: System Health -->
+        <div id="page-health" class="tab-content">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">System Health Status</h2>
+                <button onclick="loadSystemHealth()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                    Refresh
                 </button>
-                <p id="lastRefresh" class="text-gray-500 text-xs mt-1"></p>
+            </div>
+
+            <!-- Overall Status Banner -->
+            <div id="overallStatusBanner" class="p-6 rounded-xl border mb-6 bg-gray-800 border-gray-700">
+                <div class="flex items-center gap-4">
+                    <div id="overallStatusIcon" class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
+                        <span class="text-xl">...</span>
+                    </div>
+                    <div>
+                        <h3 id="overallStatusText" class="font-semibold text-lg">Loading...</h3>
+                        <p id="overallStatusTime" class="text-sm text-gray-400"></p>
+                    </div>
+                </div>
+                <div id="issuesList" class="mt-4 hidden">
+                    <p class="text-sm font-medium text-gray-300 mb-2">Issues:</p>
+                    <ul id="issuesContent" class="list-disc list-inside text-sm text-gray-400"></ul>
+                </div>
+            </div>
+
+            <!-- Health Categories Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <!-- AI Service Card -->
+                <div id="card-ai-service" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-white">AI Service</h3>
+                        <div id="ai-service-badge" class="flex items-center gap-2">
+                            <span class="text-sm text-gray-400">-/-</span>
+                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                        </div>
+                    </div>
+                    <div id="ai-service-components" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Onboarding Card -->
+                <div id="card-onboarding" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-white">Onboarding</h3>
+                        <div id="onboarding-badge" class="flex items-center gap-2">
+                            <span class="text-sm text-gray-400">-/-</span>
+                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                        </div>
+                    </div>
+                    <div id="onboarding-components" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Matching Card -->
+                <div id="card-matching" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-white">Matching</h3>
+                        <div id="matching-badge" class="flex items-center gap-2">
+                            <span class="text-sm text-gray-400">-/-</span>
+                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                        </div>
+                    </div>
+                    <div id="matching-components" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="p-4 bg-gray-800 rounded-lg text-sm text-gray-400">
+                <p class="font-medium mb-2">Status indicators:</p>
+                <div class="flex flex-wrap gap-6">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        Healthy - Operational
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        Warning - Non-critical issue
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        Error - Component has issues
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Summary Cards -->
-        <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div class="bg-gray-800 rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Total Users</p>
-                <p id="totalUsers" class="text-2xl font-bold">-</p>
+        <!-- PAGE 2: User Journey -->
+        <div id="page-users" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-xl font-semibold">User Journey Diagnostics</h2>
+                    <p class="text-yellow-500 text-sm mt-1">Test Users Password: <code class="bg-gray-700 px-2 py-1 rounded">Test123!@#</code></p>
+                </div>
+                <button onclick="loadUsers()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                    Refresh
+                </button>
             </div>
-            <div class="bg-gray-800 rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Healthy</p>
-                <p id="healthyUsers" class="text-2xl font-bold text-green-500">-</p>
+
+            <!-- Summary Cards -->
+            <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Total Users</p>
+                    <p id="totalUsers" class="text-2xl font-bold">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Healthy</p>
+                    <p id="healthyUsers" class="text-2xl font-bold text-green-500">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Embeddings Missing</p>
+                    <p id="embeddingsMissing" class="text-2xl font-bold text-red-500">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Matches Missing</p>
+                    <p id="matchesMissing" class="text-2xl font-bold text-yellow-500">-</p>
+                </div>
             </div>
-            <div class="bg-gray-800 rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Embeddings Missing</p>
-                <p id="embeddingsMissing" class="text-2xl font-bold text-red-500">-</p>
+
+            <!-- Multi-Vector Summary -->
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
+                    <p class="text-purple-400 text-sm">Multi-Vector Complete (6/6)</p>
+                    <p id="mvComplete" class="text-2xl font-bold text-purple-300">-</p>
+                </div>
+                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
+                    <p class="text-yellow-400 text-sm">Multi-Vector Partial</p>
+                    <p id="mvPartial" class="text-2xl font-bold text-yellow-300">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">No Multi-Vector</p>
+                    <p id="mvNone" class="text-2xl font-bold text-gray-400">-</p>
+                </div>
             </div>
-            <div class="bg-gray-800 rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Matches Missing</p>
-                <p id="matchesMissing" class="text-2xl font-bold text-yellow-500">-</p>
+
+            <!-- Filter -->
+            <div class="flex gap-4 mb-4">
+                <select id="statusFilter" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                    <option value="all">All Statuses</option>
+                    <option value="healthy">Healthy</option>
+                    <option value="embeddings_missing">Embeddings Missing</option>
+                    <option value="matches_missing">Matches Missing</option>
+                    <option value="persona_missing">Persona Missing</option>
+                    <option value="onboarding_incomplete">Onboarding Incomplete</option>
+                </select>
+                <input type="text" id="searchFilter" placeholder="Filter by email..." onkeyup="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
+            </div>
+
+            <!-- Users Table -->
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <table class="w-full">
+                    <thead class="bg-gray-750">
+                        <tr class="text-left text-gray-400 text-sm">
+                            <th class="px-4 py-3">User</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Slots</th>
+                            <th class="px-4 py-3">Persona</th>
+                            <th class="px-4 py-3">Embeddings</th>
+                            <th class="px-4 py-3">Multi-Vector</th>
+                            <th class="px-4 py-3">Matches</th>
+                            <th class="px-4 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Multi-Vector Summary -->
-        <div class="grid grid-cols-3 gap-4 mb-6">
-            <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
-                <p class="text-purple-400 text-sm">Multi-Vector Complete (6/6)</p>
-                <p id="mvComplete" class="text-2xl font-bold text-purple-300">-</p>
+        <!-- PAGE 3: Matching Diagnostics -->
+        <div id="page-matching" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold">Matching Diagnostics</h2>
+                <button onclick="loadMatchingDiagnostics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                    Refresh
+                </button>
             </div>
-            <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
-                <p class="text-yellow-400 text-sm">Multi-Vector Partial</p>
-                <p id="mvPartial" class="text-2xl font-bold text-yellow-300">-</p>
-            </div>
-            <div class="bg-gray-800 rounded-lg p-4">
-                <p class="text-gray-400 text-sm">No Multi-Vector</p>
-                <p id="mvNone" class="text-2xl font-bold text-gray-400">-</p>
-            </div>
-        </div>
 
-        <!-- Filter -->
-        <div class="flex gap-4 mb-4">
-            <select id="statusFilter" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
-                <option value="all">All Statuses</option>
-                <option value="healthy">Healthy</option>
-                <option value="embeddings_missing">Embeddings Missing</option>
-                <option value="matches_missing">Matches Missing</option>
-                <option value="persona_missing">Persona Missing</option>
-                <option value="onboarding_incomplete">Onboarding Incomplete</option>
-            </select>
-            <input
-                type="text"
-                id="searchFilter"
-                placeholder="Filter by email..."
-                onkeyup="filterUsers()"
-                class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1"
-            >
-        </div>
+            <!-- Matching Summary -->
+            <div class="grid grid-cols-4 gap-4 mb-4">
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Total Users</p>
+                    <p id="matchingTotalUsers" class="text-2xl font-bold">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">With Multi-Vector</p>
+                    <p id="matchingWithMV" class="text-2xl font-bold text-purple-400">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">With Basic Embeddings</p>
+                    <p id="matchingWithBasic" class="text-2xl font-bold text-blue-400">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">With Matches</p>
+                    <p id="matchingWithMatches" class="text-2xl font-bold text-green-400">-</p>
+                </div>
+            </div>
 
-        <!-- Users Table -->
-        <div class="bg-gray-800 rounded-lg overflow-hidden">
-            <table class="w-full">
-                <thead class="bg-gray-750">
-                    <tr class="text-left text-gray-400 text-sm">
-                        <th class="px-4 py-3">User</th>
-                        <th class="px-4 py-3">Status</th>
-                        <th class="px-4 py-3">Slots</th>
-                        <th class="px-4 py-3">Persona</th>
-                        <th class="px-4 py-3">Embeddings</th>
-                        <th class="px-4 py-3">Multi-Vector</th>
-                        <th class="px-4 py-3">Matches</th>
-                        <th class="px-4 py-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="usersTableBody">
-                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
-                </tbody>
-            </table>
+            <!-- Intent Breakdown -->
+            <div id="intentBreakdown" class="bg-gray-800 rounded-lg p-4 mb-4 hidden">
+                <h3 class="font-semibold mb-3">Intent Distribution</h3>
+                <div id="intentTags" class="flex flex-wrap gap-3"></div>
+            </div>
+
+            <!-- Filter -->
+            <div class="flex gap-4 mb-4">
+                <input type="text" id="matchingSearchFilter" placeholder="Search by name, email, or ID..." onkeyup="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
+                <select id="intentFilter" onchange="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                    <option value="all">All Intents</option>
+                </select>
+            </div>
+
+            <!-- Matching Table -->
+            <div class="bg-gray-800 rounded-lg overflow-hidden">
+                <table class="w-full">
+                    <thead class="bg-gray-750">
+                        <tr class="text-left text-gray-400 text-sm">
+                            <th class="px-4 py-3 w-8"></th>
+                            <th class="px-4 py-3">User</th>
+                            <th class="px-4 py-3">Embeddings</th>
+                            <th class="px-4 py-3">Intent</th>
+                            <th class="px-4 py-3">Dealbreakers</th>
+                            <th class="px-4 py-3">Activity Boost</th>
+                            <th class="px-4 py-3">Blocking</th>
+                            <th class="px-4 py-3">Matches</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matchingTableBody">
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading matching data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Legend -->
+            <div class="mt-4 p-4 bg-gray-800 rounded-lg text-sm text-gray-400">
+                <p class="font-medium mb-2">Legend:</p>
+                <div class="flex flex-wrap gap-x-6 gap-y-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        Healthy / Has Data
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        Warning / Blocking Active
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        Error / Missing Data
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-xs bg-gray-700 px-1 rounded">MV</span>
+                        Multi-Vector Embeddings
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono text-xs bg-gray-700 px-1 rounded">F/R</span>
+                        Forward/Reverse Score
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- User Detail Modal -->
         <div id="userModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50" onclick="closeModal(event)">
-            <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
                 <div class="flex justify-between items-start mb-6">
                     <div>
                         <h2 id="modalUserName" class="text-xl font-semibold"></h2>
@@ -119,7 +323,6 @@
                     </div>
                     <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
                 </div>
-
                 <div id="modalContent">
                     <p class="text-gray-400">Loading...</p>
                 </div>
@@ -131,15 +334,135 @@
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
         const ADMIN_KEY = 'migrate-2connect-2026';
         let allUsers = [];
+        let allMatchingUsers = [];
         let currentUserId = null;
+        let expandedRows = new Set();
 
-        // Load users on page load
+        // Tab switching
+        function switchTab(tab) {
+            // Hide all pages
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Deactivate all tabs
+            document.querySelectorAll('[id^="tab-"]').forEach(el => {
+                el.classList.remove('tab-active');
+                el.classList.add('tab-inactive');
+            });
+
+            // Show selected page
+            document.getElementById(`page-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.remove('tab-inactive');
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+
+            // Load data for tab
+            if (tab === 'health') loadSystemHealth();
+            else if (tab === 'users') loadUsers();
+            else if (tab === 'matching') loadMatchingDiagnostics();
+        }
+
+        // Load on page load
         document.addEventListener('DOMContentLoaded', () => {
-            loadUsers();
+            loadSystemHealth();
         });
 
+        // ==================== PAGE 1: SYSTEM HEALTH ====================
+        async function loadSystemHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/system-health`);
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    renderSystemHealth(data.result);
+                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    showHealthError(data.message || 'Failed to load health data');
+                }
+            } catch (error) {
+                showHealthError(error.message);
+            }
+        }
+
+        function showHealthError(message) {
+            document.getElementById('overallStatusText').textContent = 'Error Loading Health Data';
+            document.getElementById('overallStatusIcon').innerHTML = '<span class="text-red-500">!</span>';
+            document.getElementById('overallStatusBanner').className = 'p-6 rounded-xl border mb-6 bg-red-900/20 border-red-700';
+        }
+
+        function renderSystemHealth(health) {
+            // Overall status
+            const statusConfig = {
+                healthy: { icon: '✓', text: 'All Systems Operational', bg: 'bg-green-900/20', border: 'border-green-700', iconBg: 'bg-green-500' },
+                warning: { icon: '!', text: 'Some Issues Detected', bg: 'bg-yellow-900/20', border: 'border-yellow-700', iconBg: 'bg-yellow-500' },
+                error: { icon: '✗', text: 'System Issues', bg: 'bg-red-900/20', border: 'border-red-700', iconBg: 'bg-red-500' }
+            };
+            const config = statusConfig[health.overall_status] || statusConfig.error;
+
+            document.getElementById('overallStatusBanner').className = `p-6 rounded-xl border mb-6 ${config.bg} ${config.border}`;
+            document.getElementById('overallStatusIcon').className = `w-10 h-10 rounded-full ${config.iconBg} flex items-center justify-center`;
+            document.getElementById('overallStatusIcon').innerHTML = `<span class="text-xl text-white">${config.icon}</span>`;
+            document.getElementById('overallStatusText').textContent = config.text;
+            document.getElementById('overallStatusTime').textContent = health.timestamp ? `Last checked: ${new Date(health.timestamp).toLocaleString()}` : '';
+
+            // Issues
+            if (health.issues && health.issues.length > 0) {
+                document.getElementById('issuesList').classList.remove('hidden');
+                document.getElementById('issuesContent').innerHTML = health.issues.map(i => `<li>${i}</li>`).join('');
+            } else {
+                document.getElementById('issuesList').classList.add('hidden');
+            }
+
+            // Render each category
+            renderHealthCategory('ai-service', 'AI Service', health.ai_service);
+            renderHealthCategory('onboarding', 'Onboarding', health.onboarding);
+            renderHealthCategory('matching', 'Matching', health.matching);
+        }
+
+        function renderHealthCategory(id, title, category) {
+            if (!category) return;
+
+            const components = Object.entries(category.components || {});
+            const healthyCount = components.filter(([_, c]) => c.status === 'healthy').length;
+
+            const statusColors = {
+                healthy: 'bg-green-500',
+                warning: 'bg-yellow-500',
+                error: 'bg-red-500'
+            };
+            const borderColors = {
+                healthy: 'border-green-700',
+                warning: 'border-yellow-700',
+                error: 'border-red-700'
+            };
+
+            // Update card border
+            document.getElementById(`card-${id}`).className = `health-card bg-gray-800 rounded-xl border ${borderColors[category.status] || 'border-gray-700'} p-5`;
+
+            // Update badge
+            document.getElementById(`${id}-badge`).innerHTML = `
+                <span class="text-sm text-gray-400">${healthyCount}/${components.length}</span>
+                <div class="w-3 h-3 rounded-full ${statusColors[category.status] || 'bg-gray-600'}"></div>
+            `;
+
+            // Render components
+            const componentsHtml = components.map(([name, comp]) => `
+                <div class="flex items-center justify-between text-sm">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2 h-2 rounded-full ${statusColors[comp.status] || 'bg-gray-600'}"></div>
+                        <span class="text-gray-300">${formatComponentName(name)}</span>
+                    </div>
+                    <span class="text-gray-500 text-xs truncate max-w-32" title="${comp.detail}">${comp.detail}</span>
+                </div>
+            `).join('');
+
+            document.getElementById(`${id}-components`).innerHTML = componentsHtml || '<p class="text-gray-500 text-sm">No components</p>';
+        }
+
+        function formatComponentName(name) {
+            return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // ==================== PAGE 2: USER JOURNEY ====================
         async function loadUsers() {
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
+            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
 
             try {
                 const response = await fetch(`${API_BASE}/admin/list-users`);
@@ -149,13 +472,12 @@
                     allUsers = data.result;
                     updateSummary(data.summary);
                     renderUsers(allUsers);
-                    document.getElementById('lastRefresh').textContent =
-                        `Last refresh: ${new Date().toLocaleTimeString()}`;
+                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
                 } else {
-                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
+                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
                 }
             } catch (error) {
-                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="7" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
             }
         }
 
@@ -164,7 +486,6 @@
             document.getElementById('healthyUsers').textContent = summary.healthy || 0;
             document.getElementById('embeddingsMissing').textContent = summary.embeddings_missing || 0;
             document.getElementById('matchesMissing').textContent = summary.matches_missing || 0;
-            // Multi-vector summary
             document.getElementById('mvComplete').textContent = summary.multi_vector_complete || 0;
             document.getElementById('mvPartial').textContent = summary.multi_vector_partial || 0;
             document.getElementById('mvNone').textContent = summary.multi_vector_none || 0;
@@ -197,51 +518,25 @@
                     <td class="px-4 py-3">
                         <div class="${user.slots_filled === user.slots_total ? 'text-green-400' : user.slots_filled > 0 ? 'text-yellow-400' : 'text-gray-400'}">
                             <span class="font-medium">${user.slots_filled || 0}/${user.slots_total || 11}</span>
-                            <div class="text-xs text-gray-500">
-                                ${user.filled_slots?.join(', ') || 'None'}
-                            </div>
                         </div>
                     </td>
                     <td class="px-4 py-3">
-                        <div class="${user.persona_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">
-                            <span>${user.persona_status || 'unknown'}</span>
-                            ${user.persona_name ? `<div class="text-xs text-gray-500 truncate max-w-24" title="${user.persona_name}">${user.persona_name}</div>` : ''}
-                        </div>
+                        <span class="${user.persona_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">${user.persona_status || 'unknown'}</span>
                     </td>
                     <td class="px-4 py-3">
-                        <div class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">
-                            <span>${user.embeddings_count}</span>
-                            ${user.embedding_types?.length > 0 ? `<div class="text-xs text-gray-500">${user.embedding_types.slice(0, 3).join(', ')}${user.embedding_types.length > 3 ? '...' : ''}</div>` : ''}
-                        </div>
+                        <span class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">${user.embeddings_count}</span>
                     </td>
                     <td class="px-4 py-3">
-                        <div class="${mvColor}">
-                            <span class="px-2 py-0.5 rounded text-xs ${mvBg}">${mv.count}/${mv.total}</span>
-                            ${mv.present?.length > 0 ? `<div class="text-xs text-gray-500 mt-1" title="${mv.present.join(', ')}">${mv.present.slice(0, 2).join(', ')}${mv.present.length > 2 ? '...' : ''}</div>` : '<div class="text-xs text-gray-500 mt-1">None</div>'}
-                        </div>
+                        <span class="px-2 py-0.5 rounded text-xs ${mvBg} ${mvColor}">${mv.count}/${mv.total}</span>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="${user.matches_count > 0 ? 'text-green-400' : 'text-yellow-400'}">
-                            ${user.matches_count}
-                        </span>
+                        <span class="${user.matches_count > 0 ? 'text-green-400' : 'text-yellow-400'}">${user.matches_count}</span>
                     </td>
                     <td class="px-4 py-3">
                         <div class="flex gap-2" onclick="event.stopPropagation()">
-                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `
-                                <button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs">
-                                    Gen Embed
-                                </button>
-                            ` : ''}
-                            ${mv.count < 6 && user.persona_status === 'completed' ? `
-                                <button onclick="generateMultiVector('${user.user_id}', this)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">
-                                    Gen MV
-                                </button>
-                            ` : ''}
-                            ${user.embeddings_count > 0 && user.matches_count === 0 ? `
-                                <button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">
-                                    Gen Match
-                                </button>
-                            ` : ''}
+                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs">Gen Embed</button>` : ''}
+                            ${mv.count < 6 && user.persona_status === 'completed' ? `<button onclick="generateMultiVector('${user.user_id}', this)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">Gen MV</button>` : ''}
+                            ${user.embeddings_count > 0 && user.matches_count === 0 ? `<button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">Gen Match</button>` : ''}
                         </div>
                     </td>
                 </tr>
@@ -270,27 +565,6 @@
             return labels[status] || status;
         }
 
-        function getFilledSlotNames(persona) {
-            if (!persona) return 'None';
-            // All 11 persona slots
-            const slots = [
-                { key: 'name', label: 'Name' },
-                { key: 'archetype', label: 'Archetype' },
-                { key: 'designation', label: 'Designation' },
-                { key: 'experience', label: 'Experience' },
-                { key: 'focus', label: 'Focus' },
-                { key: 'profile_essence', label: 'Essence' },
-                { key: 'investment_philosophy', label: 'Philosophy' },
-                { key: 'what_theyre_looking_for', label: 'Seeking' },
-                { key: 'engagement_style', label: 'Style' },
-                { key: 'has_requirements', label: 'Requirements', check: true },
-                { key: 'has_offerings', label: 'Offerings', check: true }
-            ];
-            const filled = slots.filter(s => s.check ? persona[s.key] : persona[s.key])
-                                .map(s => s.label);
-            return filled.length > 0 ? filled.join(', ') : 'None';
-        }
-
         function filterUsers() {
             const statusFilter = document.getElementById('statusFilter').value;
             const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
@@ -304,6 +578,227 @@
             renderUsers(filtered);
         }
 
+        // ==================== PAGE 3: MATCHING DIAGNOSTICS ====================
+        async function loadMatchingDiagnostics() {
+            document.getElementById('matchingTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading matching data...</td></tr>';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/matching-diagnostics`);
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    allMatchingUsers = data.result || [];
+                    updateMatchingSummary(data.summary);
+                    renderMatchingUsers(allMatchingUsers);
+                    populateIntentFilter(allMatchingUsers);
+                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+                } else {
+                    document.getElementById('matchingTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
+                }
+            } catch (error) {
+                document.getElementById('matchingTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        function updateMatchingSummary(summary) {
+            if (!summary) return;
+            document.getElementById('matchingTotalUsers').textContent = summary.total_users || 0;
+            document.getElementById('matchingWithMV').textContent = summary.with_multi_vector || 0;
+            document.getElementById('matchingWithBasic').textContent = summary.with_basic_embeddings || 0;
+            document.getElementById('matchingWithMatches').textContent = summary.with_matches || 0;
+
+            // Intent breakdown
+            if (summary.intent_breakdown && Object.keys(summary.intent_breakdown).length > 0) {
+                document.getElementById('intentBreakdown').classList.remove('hidden');
+                document.getElementById('intentTags').innerHTML = Object.entries(summary.intent_breakdown)
+                    .map(([intent, count]) => `
+                        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-700 rounded-full">
+                            <span class="text-sm font-medium">${intent}</span>
+                            <span class="text-xs bg-gray-600 px-2 py-0.5 rounded-full">${count}</span>
+                        </div>
+                    `).join('');
+            }
+        }
+
+        function populateIntentFilter(users) {
+            const intents = new Set(users.map(u => u.intent_classification?.inferred_intent).filter(Boolean));
+            const select = document.getElementById('intentFilter');
+            select.innerHTML = '<option value="all">All Intents</option>' +
+                Array.from(intents).map(i => `<option value="${i}">${i}</option>`).join('');
+        }
+
+        function renderMatchingUsers(users) {
+            const tbody = document.getElementById('matchingTableBody');
+
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = users.map(user => {
+                const emb = user.embeddings || {};
+                const intent = user.intent_classification || {};
+                const temporal = user.temporal_weighting || {};
+                const blocking = user.same_objective_blocking || {};
+                const matches = user.matches || {};
+                const matchCount = matches.backend_count || matches.dynamo_matches?.length || 0;
+                const isExpanded = expandedRows.has(user.user_id);
+
+                const hasBasic = emb.has_basic;
+                const hasMV = (emb.multi_vector_complete || 0) >= 4;
+                const boostPct = Math.round((temporal.activity_boost || 1) * 100);
+
+                return `
+                <tr class="user-row border-t border-gray-700 cursor-pointer ${isExpanded ? 'bg-gray-750' : ''}" onclick="toggleMatchingRow('${user.user_id}')">
+                    <td class="px-4 py-3">
+                        <span class="text-gray-400">${isExpanded ? '▼' : '▶'}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="font-medium">${user.name || 'No name'}</div>
+                        <div class="text-gray-400 text-sm">${user.email}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="flex flex-col gap-1">
+                            <span class="px-2 py-0.5 rounded text-xs ${hasBasic ? 'bg-green-600' : 'bg-red-600'}">${hasBasic ? 'Basic' : 'None'}</span>
+                            <span class="px-2 py-0.5 rounded text-xs ${hasMV ? 'bg-purple-600' : 'bg-gray-600'}">MV: ${emb.multi_vector_complete || 0}/${emb.multi_vector_total || 6}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="font-medium text-sm">${intent.inferred_intent || 'Unknown'}</div>
+                        ${intent.archetype ? `<div class="text-xs text-gray-500">${intent.archetype}</div>` : ''}
+                    </td>
+                    <td class="px-4 py-3">
+                        ${user.dealbreakers?.length > 0
+                            ? `<span class="text-red-400 text-sm font-medium">${user.dealbreakers.length} set</span>`
+                            : '<span class="text-gray-500 text-sm">None</span>'}
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="${boostPct >= 100 ? 'text-green-400' : boostPct >= 80 ? 'text-yellow-400' : 'text-red-400'} font-mono text-sm">${boostPct}%</div>
+                        <div class="text-xs text-gray-500">${temporal.boost_reason || ''}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded text-xs ${blocking.enabled ? 'bg-yellow-600' : 'bg-gray-600'}">${blocking.enabled ? 'Active' : 'Off'}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="${matchCount > 0 ? 'text-green-400' : 'text-gray-400'} font-medium">${matchCount}</span>
+                    </td>
+                </tr>
+                ${isExpanded ? renderExpandedRow(user) : ''}
+            `}).join('');
+        }
+
+        function renderExpandedRow(user) {
+            const emb = user.embeddings || {};
+            const intent = user.intent_classification || {};
+            const temporal = user.temporal_weighting || {};
+            const blocking = user.same_objective_blocking || {};
+            const matches = user.matches || {};
+            const persona = user.persona || {};
+            const matchCount = matches.backend_count || matches.dynamo_matches?.length || 0;
+
+            const mvDetails = emb.multi_vector_details || {};
+
+            return `
+            <tr class="bg-gray-850 border-t border-gray-600">
+                <td colspan="8" class="px-4 py-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <!-- Embeddings Detail -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <h4 class="font-semibold text-sm mb-3">Embeddings</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-400">Count:</span><span>${emb.count || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Types:</span><span>${emb.types?.join(', ') || 'None'}</span></div>
+                                <div class="mt-3">
+                                    <span class="text-gray-400 block mb-2">Multi-Vector:</span>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        ${Object.entries(mvDetails).map(([dim, info]) => `
+                                            <div class="flex items-center gap-2 text-xs">
+                                                <div class="w-2 h-2 rounded-full ${info.req && info.off ? 'bg-green-500' : 'bg-red-500'}"></div>
+                                                <span class="capitalize">${dim.replace('_', ' ')}</span>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Intent & Persona -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <h4 class="font-semibold text-sm mb-3">Intent & Persona</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-400">Intent:</span><span>${intent.inferred_intent || 'Unknown'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span>${intent.archetype || 'None'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">User Type:</span><span>${intent.user_type || 'None'}</span></div>
+                                ${persona.requirements_preview ? `<div class="mt-2"><span class="text-gray-400 block">Requirements:</span><p class="text-xs mt-1">${persona.requirements_preview}</p></div>` : ''}
+                                ${persona.offerings_preview ? `<div><span class="text-gray-400 block">Offerings:</span><p class="text-xs mt-1">${persona.offerings_preview}</p></div>` : ''}
+                            </div>
+                        </div>
+
+                        <!-- Matches -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <h4 class="font-semibold text-sm mb-3">Matches (${matchCount})</h4>
+                            ${matchCount === 0 ? '<p class="text-gray-500 text-sm">No matches</p>' : `
+                                <div class="space-y-2 max-h-40 overflow-y-auto">
+                                    ${(matches.bidirectional_scores || matches.backend_matches || matches.dynamo_matches || []).slice(0, 5).map(m => `
+                                        <div class="text-xs p-2 bg-gray-700 rounded">
+                                            <div class="flex justify-between">
+                                                <span class="truncate max-w-24">${m.matched_user_name || m.matched_user_id?.slice(0, 8) || 'Unknown'}</span>
+                                                <span class="text-green-400 font-mono">${Math.round((m.final_score || m.similarity_score || m.compatibility_score || 0) * 100)}%</span>
+                                            </div>
+                                            ${m.forward_score ? `<div class="text-gray-500 mt-1">F: ${Math.round(m.forward_score * 100)}% R: ${Math.round(m.reverse_score * 100)}%</div>` : ''}
+                                        </div>
+                                    `).join('')}
+                                    ${matchCount > 5 ? `<p class="text-gray-500 text-xs text-center">+${matchCount - 5} more</p>` : ''}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Temporal & Blocking Info -->
+                    <div class="mt-4 flex gap-4">
+                        <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 flex-1 text-sm">
+                            <span class="text-gray-400">Temporal:</span>
+                            <span class="ml-2">${temporal.days_inactive || 0} days inactive, ${Math.round((temporal.activity_boost || 1) * 100)}% boost (${temporal.boost_reason || 'N/A'})</span>
+                        </div>
+                        ${blocking.enabled ? `
+                            <div class="bg-yellow-900/30 p-3 rounded-lg border border-yellow-700 flex-1 text-sm">
+                                <span class="text-yellow-400">Blocking:</span>
+                                <span class="ml-2">Same intent (${blocking.intent}), would block ${blocking.would_block?.length || 0} users</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </td>
+            </tr>
+            `;
+        }
+
+        function toggleMatchingRow(userId) {
+            if (expandedRows.has(userId)) {
+                expandedRows.delete(userId);
+            } else {
+                expandedRows.add(userId);
+            }
+            renderMatchingUsers(allMatchingUsers);
+        }
+
+        function filterMatchingUsers() {
+            const searchFilter = document.getElementById('matchingSearchFilter').value.toLowerCase();
+            const intentFilter = document.getElementById('intentFilter').value;
+
+            const filtered = allMatchingUsers.filter(user => {
+                const matchesSearch = !searchFilter ||
+                    user.email?.toLowerCase().includes(searchFilter) ||
+                    user.name?.toLowerCase().includes(searchFilter) ||
+                    user.user_id.toLowerCase().includes(searchFilter);
+                const matchesIntent = intentFilter === 'all' ||
+                    user.intent_classification?.inferred_intent === intentFilter;
+                return matchesSearch && matchesIntent;
+            });
+
+            renderMatchingUsers(filtered);
+        }
+
+        // ==================== SHARED: USER MODAL ====================
         async function showUserDetail(userId) {
             currentUserId = userId;
             const user = allUsers.find(u => u.user_id === userId);
@@ -316,7 +811,6 @@
             document.getElementById('userModal').classList.remove('hidden');
             document.getElementById('userModal').classList.add('flex');
 
-            // Fetch full diagnostics
             try {
                 const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(user.email)}`);
                 const data = await response.json();
@@ -333,7 +827,6 @@
 
         function renderModalContent(result) {
             const html = `
-                <!-- Status Grid -->
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
@@ -341,13 +834,6 @@
                             <span class="text-gray-400 text-sm">Account</span>
                         </div>
                         <p class="text-white font-medium">${result.account?.status === 'found' ? 'Found' : 'Not Found'}</p>
-                    </div>
-                    <div class="bg-gray-700 rounded-lg p-3 col-span-2">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${(result.onboarding?.details?.slots_filled || 0) === (result.onboarding?.details?.slots_total || 11) ? 'bg-green-500' : (result.onboarding?.details?.slots_filled || 0) > 0 ? 'bg-yellow-500' : 'bg-gray-500'}"></div>
-                            <span class="text-gray-400 text-sm">Slots Filled (${result.onboarding?.details?.slots_filled || 0}/${result.onboarding?.details?.slots_total || 11})</span>
-                        </div>
-                        <p class="text-white text-sm">${getFilledSlotNames(result.persona?.details)}</p>
                     </div>
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
@@ -359,107 +845,27 @@
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="w-2 h-2 rounded-full ${result.embeddings?.count > 0 ? 'bg-green-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-sm">Embeddings (${result.embeddings?.count || 0})</span>
+                            <span class="text-gray-400 text-sm">Embeddings</span>
                         </div>
-                        <p class="text-white font-medium">${result.embeddings?.count > 0 ? (result.embeddings.details?.types?.join(', ') || 'Unknown types') : 'Missing'}</p>
-                    </div>
-                    <div class="bg-gray-700 rounded-lg p-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${result.matches?.count > 0 ? 'bg-green-500' : 'bg-yellow-500'}"></div>
-                            <span class="text-gray-400 text-sm">Matches</span>
-                        </div>
-                        <p class="text-white font-medium">${result.matches?.count > 0 ? result.matches.count + ' matches' : 'None'}</p>
+                        <p class="text-white font-medium">${result.embeddings?.count || 0}</p>
                     </div>
                 </div>
 
-                <!-- Multi-Vector Breakdown -->
-                ${(() => {
-                    const types = result.embeddings?.details?.types || [];
-                    const MV_DIMS = ['primary_goal', 'industry', 'stage', 'geography', 'engagement_style', 'dealbreakers'];
-                    const present = [];
-                    const missing = [];
-                    MV_DIMS.forEach(dim => {
-                        const hasReq = types.includes('requirements_' + dim);
-                        const hasOff = types.includes('offerings_' + dim);
-                        if (hasReq && hasOff) {
-                            present.push(dim);
-                        } else if (hasReq || hasOff) {
-                            present.push(dim + ' (partial)');
-                        } else {
-                            missing.push(dim);
-                        }
-                    });
-                    const count = present.filter(p => !p.includes('partial')).length;
-                    const isComplete = missing.length === 0 && !present.some(p => p.includes('partial'));
-                    const bgColor = isComplete ? 'bg-purple-900/30 border-purple-700' : count > 0 ? 'bg-yellow-900/30 border-yellow-700' : 'bg-gray-700 border-gray-600';
-                    const textColor = isComplete ? 'text-purple-300' : count > 0 ? 'text-yellow-300' : 'text-gray-400';
-
-                    return `
-                        <div class="${bgColor} border rounded-lg p-4 mb-6">
-                            <div class="flex items-center justify-between mb-3">
-                                <h3 class="${textColor} font-medium">Multi-Vector Embeddings (${count}/6)</h3>
-                                <span class="px-2 py-1 rounded text-xs ${isComplete ? 'bg-purple-600' : count > 0 ? 'bg-yellow-600' : 'bg-gray-600'}">${isComplete ? 'Complete' : count > 0 ? 'Partial' : 'None'}</span>
-                            </div>
-                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                ${MV_DIMS.map(dim => {
-                                    const hasReq = types.includes('requirements_' + dim);
-                                    const hasOff = types.includes('offerings_' + dim);
-                                    const status = hasReq && hasOff ? 'complete' : hasReq || hasOff ? 'partial' : 'missing';
-                                    const statusColor = status === 'complete' ? 'text-purple-400' : status === 'partial' ? 'text-yellow-400' : 'text-gray-500';
-                                    const statusIcon = status === 'complete' ? '✓' : status === 'partial' ? '½' : '✗';
-                                    const bgClass = status === 'complete' ? 'bg-purple-900/50' : status === 'partial' ? 'bg-yellow-900/50' : 'bg-gray-800';
-                                    return '<div class="' + bgClass + ' rounded px-2 py-1 flex items-center justify-between"><span class="text-sm text-gray-300">' + dim.replace('_', ' ') + '</span><span class="' + statusColor + ' text-xs font-medium">' + statusIcon + '</span></div>';
-                                }).join('')}
-                            </div>
-                            ${missing.length > 0 ? '<p class="text-gray-500 text-xs mt-2">Missing: ' + missing.join(', ') + '</p>' : ''}
-                        </div>
-                    `;
-                })()}
-
                 ${result.issues && result.issues.length > 0 ? `
                     <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
-                        <h3 class="text-red-400 font-medium mb-2">Issues Detected</h3>
+                        <h3 class="text-red-400 font-medium mb-2">Issues</h3>
                         <ul class="text-red-300 text-sm space-y-1">
                             ${result.issues.map(i => `<li>• ${i}</li>`).join('')}
                         </ul>
                     </div>
                 ` : ''}
 
-                <!-- Actions -->
                 <div class="flex flex-wrap gap-3 mb-4">
-                    <button
-                        onclick="regenerateEmbeddingsModal()"
-                        class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors"
-                    >
-                        Regenerate Embeddings
-                    </button>
-                    <button
-                        onclick="regenerateMatchesModal()"
-                        class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium transition-colors ${result.embeddings?.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}"
-                        ${result.embeddings?.count === 0 ? 'disabled' : ''}
-                    >
-                        Recalculate Matches
-                    </button>
+                    <button onclick="regenerateEmbeddingsModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm">Regenerate Embeddings</button>
+                    <button onclick="regenerateMatchesModal()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm ${result.embeddings?.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${result.embeddings?.count === 0 ? 'disabled' : ''}>Recalculate Matches</button>
                 </div>
                 <div id="modalActionStatus" class="text-sm mb-6"></div>
 
-                <!-- Timeline -->
-                ${result.timeline && result.timeline.length > 0 ? `
-                    <div class="mb-6">
-                        <h3 class="text-lg font-medium mb-3">Timeline</h3>
-                        <div class="space-y-2">
-                            ${result.timeline.map(t => `
-                                <div class="flex items-center gap-3">
-                                    <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
-                                    <span class="text-gray-400 text-sm">${formatDate(t.timestamp)}</span>
-                                    <span class="text-white">${formatEvent(t.event)}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-
-                <!-- Raw Data -->
                 <details class="bg-gray-700 rounded-lg">
                     <summary class="p-3 cursor-pointer text-gray-400 hover:text-white text-sm">View Raw Response</summary>
                     <pre class="p-3 text-xs text-gray-400 overflow-x-auto border-t border-gray-600">${JSON.stringify(result, null, 2)}</pre>
@@ -475,11 +881,10 @@
             }
         }
 
+        // ==================== ACTIONS ====================
         async function regenerateEmbeddings(userId, btn) {
-            const origText = btn.textContent;
             btn.disabled = true;
             btn.textContent = '...';
-
             try {
                 const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
                     method: 'POST',
@@ -487,29 +892,23 @@
                     body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
                 });
                 const data = await response.json();
-
                 if (data.code === 200) {
                     btn.textContent = 'Done!';
-                    btn.classList.remove('bg-purple-600');
-                    btn.classList.add('bg-green-600');
+                    btn.className = 'px-2 py-1 bg-green-600 rounded text-xs';
                     setTimeout(() => loadUsers(), 30000);
                 } else {
                     btn.textContent = 'Error';
-                    btn.classList.remove('bg-purple-600');
-                    btn.classList.add('bg-red-600');
+                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
                 }
             } catch (error) {
                 btn.textContent = 'Error';
-                btn.classList.remove('bg-purple-600');
-                btn.classList.add('bg-red-600');
+                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
             }
         }
 
         async function regenerateMatches(userId, btn) {
-            const origText = btn.textContent;
             btn.disabled = true;
             btn.textContent = '...';
-
             try {
                 const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
                     method: 'POST',
@@ -517,29 +916,23 @@
                     body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
                 });
                 const data = await response.json();
-
                 if (data.code === 200) {
                     btn.textContent = data.result?.count || '0';
-                    btn.classList.remove('bg-green-600');
-                    btn.classList.add('bg-blue-600');
+                    btn.className = 'px-2 py-1 bg-blue-600 rounded text-xs';
                     setTimeout(() => loadUsers(), 2000);
                 } else {
                     btn.textContent = 'Error';
-                    btn.classList.remove('bg-green-600');
-                    btn.classList.add('bg-red-600');
+                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
                 }
             } catch (error) {
                 btn.textContent = 'Error';
-                btn.classList.remove('bg-green-600');
-                btn.classList.add('bg-red-600');
+                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
             }
         }
 
         async function generateMultiVector(userId, btn) {
-            const origText = btn.textContent;
             btn.disabled = true;
             btn.textContent = '...';
-
             try {
                 const response = await fetch(`${API_BASE}/admin/generate-multi-vector-embeddings`, {
                     method: 'POST',
@@ -547,30 +940,23 @@
                     body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
                 });
                 const data = await response.json();
-
                 if (data.code === 200) {
                     btn.textContent = `${data.total_embeddings || 0}`;
-                    btn.classList.remove('bg-indigo-600');
-                    btn.classList.add('bg-purple-600');
+                    btn.className = 'px-2 py-1 bg-purple-600 rounded text-xs';
                     setTimeout(() => loadUsers(), 2000);
                 } else {
                     btn.textContent = 'Error';
-                    btn.classList.remove('bg-indigo-600');
-                    btn.classList.add('bg-red-600');
-                    console.error('Multi-vector error:', data);
+                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
                 }
             } catch (error) {
                 btn.textContent = 'Error';
-                btn.classList.remove('bg-indigo-600');
-                btn.classList.add('bg-red-600');
-                console.error('Multi-vector error:', error);
+                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
             }
         }
 
         async function regenerateEmbeddingsModal() {
             const statusEl = document.getElementById('modalActionStatus');
             statusEl.innerHTML = '<span class="text-yellow-400">Generating embeddings...</span>';
-
             try {
                 const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
                     method: 'POST',
@@ -578,9 +964,8 @@
                     body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
                 });
                 const data = await response.json();
-
                 if (data.code === 200) {
-                    statusEl.innerHTML = '<span class="text-green-400">Embeddings generation triggered! Refresh in 30 seconds.</span>';
+                    statusEl.innerHTML = '<span class="text-green-400">Embeddings triggered! Refresh in 30s.</span>';
                     setTimeout(loadUsers, 30000);
                 } else {
                     statusEl.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
@@ -593,7 +978,6 @@
         async function regenerateMatchesModal() {
             const statusEl = document.getElementById('modalActionStatus');
             statusEl.innerHTML = '<span class="text-yellow-400">Calculating matches...</span>';
-
             try {
                 const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
                     method: 'POST',
@@ -601,10 +985,8 @@
                     body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
                 });
                 const data = await response.json();
-
                 if (data.code === 200) {
-                    const matchCount = data.result?.count || 0;
-                    statusEl.innerHTML = `<span class="text-green-400">Matches recalculated! Found ${matchCount} matches.</span>`;
+                    statusEl.innerHTML = `<span class="text-green-400">Found ${data.result?.count || 0} matches.</span>`;
                     setTimeout(loadUsers, 2000);
                 } else {
                     statusEl.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
@@ -612,22 +994,6 @@
             } catch (error) {
                 statusEl.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
             }
-        }
-
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            const date = new Date(dateStr);
-            return date.toLocaleString();
-        }
-
-        function formatEvent(event) {
-            const eventMap = {
-                'account_created': 'Account Created',
-                'persona_generated': 'Persona Generated',
-                'embeddings_created': 'Embeddings Created',
-                'matches_calculated': 'Matches Calculated'
-            };
-            return eventMap[event] || event;
         }
 
         // ESC to close modal
