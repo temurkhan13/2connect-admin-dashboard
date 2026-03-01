@@ -33,7 +33,7 @@
         </div>
 
         <!-- Summary Cards -->
-        <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div class="bg-gray-800 rounded-lg p-4">
                 <p class="text-gray-400 text-sm">Total Users</p>
                 <p id="totalUsers" class="text-2xl font-bold">-</p>
@@ -50,9 +50,21 @@
                 <p class="text-gray-400 text-sm">Matches Missing</p>
                 <p id="matchesMissing" class="text-2xl font-bold text-yellow-500">-</p>
             </div>
+        </div>
+
+        <!-- Multi-Vector Summary -->
+        <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
+                <p class="text-purple-400 text-sm">Multi-Vector Complete (6/6)</p>
+                <p id="mvComplete" class="text-2xl font-bold text-purple-300">-</p>
+            </div>
+            <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
+                <p class="text-yellow-400 text-sm">Multi-Vector Partial</p>
+                <p id="mvPartial" class="text-2xl font-bold text-yellow-300">-</p>
+            </div>
             <div class="bg-gray-800 rounded-lg p-4">
-                <p class="text-gray-400 text-sm">Onboarding Incomplete</p>
-                <p id="onboardingIncomplete" class="text-2xl font-bold text-gray-500">-</p>
+                <p class="text-gray-400 text-sm">No Multi-Vector</p>
+                <p id="mvNone" class="text-2xl font-bold text-gray-400">-</p>
             </div>
         </div>
 
@@ -85,12 +97,13 @@
                         <th class="px-4 py-3">Slots</th>
                         <th class="px-4 py-3">Persona</th>
                         <th class="px-4 py-3">Embeddings</th>
+                        <th class="px-4 py-3">Multi-Vector</th>
                         <th class="px-4 py-3">Matches</th>
                         <th class="px-4 py-3">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="usersTableBody">
-                    <tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -151,18 +164,26 @@
             document.getElementById('healthyUsers').textContent = summary.healthy || 0;
             document.getElementById('embeddingsMissing').textContent = summary.embeddings_missing || 0;
             document.getElementById('matchesMissing').textContent = summary.matches_missing || 0;
-            document.getElementById('onboardingIncomplete').textContent = summary.onboarding_incomplete || 0;
+            // Multi-vector summary
+            document.getElementById('mvComplete').textContent = summary.multi_vector_complete || 0;
+            document.getElementById('mvPartial').textContent = summary.multi_vector_partial || 0;
+            document.getElementById('mvNone').textContent = summary.multi_vector_none || 0;
         }
 
         function renderUsers(users) {
             const tbody = document.getElementById('usersTableBody');
 
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = users.map(user => `
+            tbody.innerHTML = users.map(user => {
+                const mv = user.multi_vector || { count: 0, total: 6, present: [], missing: [], complete: false };
+                const mvColor = mv.complete ? 'text-purple-400' : mv.count > 0 ? 'text-yellow-400' : 'text-gray-500';
+                const mvBg = mv.complete ? 'bg-purple-600' : mv.count > 0 ? 'bg-yellow-600' : 'bg-gray-600';
+
+                return `
                 <tr class="user-row border-t border-gray-700 cursor-pointer" onclick="showUserDetail('${user.user_id}')">
                     <td class="px-4 py-3">
                         <div class="font-medium">${user.name || 'No name'}</div>
@@ -190,7 +211,13 @@
                     <td class="px-4 py-3">
                         <div class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">
                             <span>${user.embeddings_count}</span>
-                            ${user.embedding_types?.length > 0 ? `<div class="text-xs text-gray-500">${user.embedding_types.join(', ')}</div>` : ''}
+                            ${user.embedding_types?.length > 0 ? `<div class="text-xs text-gray-500">${user.embedding_types.slice(0, 3).join(', ')}${user.embedding_types.length > 3 ? '...' : ''}</div>` : ''}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="${mvColor}">
+                            <span class="px-2 py-0.5 rounded text-xs ${mvBg}">${mv.count}/${mv.total}</span>
+                            ${mv.present?.length > 0 ? `<div class="text-xs text-gray-500 mt-1" title="${mv.present.join(', ')}">${mv.present.slice(0, 2).join(', ')}${mv.present.length > 2 ? '...' : ''}</div>` : '<div class="text-xs text-gray-500 mt-1">None</div>'}
                         </div>
                     </td>
                     <td class="px-4 py-3">
@@ -205,6 +232,11 @@
                                     Gen Embed
                                 </button>
                             ` : ''}
+                            ${mv.count < 6 && user.persona_status === 'completed' ? `
+                                <button onclick="generateMultiVector('${user.user_id}', this)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">
+                                    Gen MV
+                                </button>
+                            ` : ''}
                             ${user.embeddings_count > 0 && user.matches_count === 0 ? `
                                 <button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">
                                     Gen Match
@@ -213,7 +245,7 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         function getStatusClass(status) {
@@ -456,6 +488,38 @@
                 btn.textContent = 'Error';
                 btn.classList.remove('bg-green-600');
                 btn.classList.add('bg-red-600');
+            }
+        }
+
+        async function generateMultiVector(userId, btn) {
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/generate-multi-vector-embeddings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    btn.textContent = `${data.total_embeddings || 0}`;
+                    btn.classList.remove('bg-indigo-600');
+                    btn.classList.add('bg-purple-600');
+                    setTimeout(() => loadUsers(), 2000);
+                } else {
+                    btn.textContent = 'Error';
+                    btn.classList.remove('bg-indigo-600');
+                    btn.classList.add('bg-red-600');
+                    console.error('Multi-vector error:', data);
+                }
+            } catch (error) {
+                btn.textContent = 'Error';
+                btn.classList.remove('bg-indigo-600');
+                btn.classList.add('bg-red-600');
+                console.error('Multi-vector error:', error);
             }
         }
 
