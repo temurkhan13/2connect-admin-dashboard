@@ -14,8 +14,11 @@
         .tab-inactive { color: #9ca3af; }
         .tab-inactive:hover { color: white; background-color: #374151; }
         .user-row:hover { background-color: #374151; }
-        .health-card { transition: all 0.2s ease; }
+        .health-card { transition: all 0.2s ease; overflow: visible; }
         .health-card:hover { transform: translateY(-2px); }
+        /* Tooltip positioning fix */
+        .health-card .space-y-2 { overflow: visible; }
+        .group:hover .group-hover\:block { display: block; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
@@ -73,7 +76,7 @@
             </div>
 
             <!-- Health Categories Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <!-- Services Card -->
                 <div id="card-services" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
                     <div class="flex items-center justify-between mb-4">
@@ -84,6 +87,20 @@
                         </div>
                     </div>
                     <div id="services-components" class="space-y-2">
+                        <p class="text-gray-500 text-sm">Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Onboarding Card -->
+                <div id="card-onboarding" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-white">Onboarding</h3>
+                        <div id="onboarding-badge" class="flex items-center gap-2">
+                            <span class="text-sm text-gray-400">-/-</span>
+                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
+                        </div>
+                    </div>
+                    <div id="onboarding-components" class="space-y-2">
                         <p class="text-gray-500 text-sm">Loading...</p>
                     </div>
                 </div>
@@ -403,8 +420,36 @@
 
             // Render each category
             renderHealthCategory('services', 'Services', health.services);
+            renderHealthCategory('onboarding', 'Onboarding', health.onboarding);
             renderHealthCategory('matching', 'Matching', health.matching);
         }
+
+        // Component descriptions for tooltips
+        const componentDescriptions = {
+            // Services
+            'ai_service': 'The main AI service that powers matching, persona generation, and LLM interactions. This is the FastAPI backend on Render.',
+            'backend_service': 'Node.js backend handling authentication, user management, chat, and database operations. Connects to Supabase.',
+            'frontend': 'React frontend deployed on Vercel. Provides the user interface for onboarding, matching, and chat.',
+            'supabase_database': 'Supabase PostgreSQL database storing user accounts, matches, messages, and application data.',
+            'render_database': 'Render PostgreSQL database with pgvector extension. Stores embeddings for vector similarity search.',
+            'cronjobs_redis': 'Redis for Celery task queue. Powers background jobs like scheduled matching and embedding generation.',
+            'dynamodb': 'AWS DynamoDB storing user profiles, personas, and match records for fast NoSQL access.',
+
+            // Onboarding
+            'slot_extractor': 'LLM-powered slot extraction that parses user responses during onboarding into structured data (industry, goals, requirements, offerings). Uses AI to understand natural language.',
+            'persona_generation': 'AI service that generates user personas from onboarding data. Creates requirements, offerings, archetype, and user profile summary.',
+            'conversational_onboarding': 'Chat-based onboarding flow that adapts questions based on user responses. Provides a natural conversational experience instead of rigid forms.',
+            'progressive_disclosure': 'Adaptive questioning system that only asks relevant follow-up questions based on previous answers. Reduces onboarding friction.',
+            'resume_processing': 'Extracts professional information from uploaded PDF/DOCX resumes. Auto-fills onboarding fields with work history, skills, and experience.',
+
+            // Matching
+            'intent_classification': 'Classifies users into intent types: INVESTOR_FOUNDER, FOUNDER_INVESTOR, MENTOR_MENTEE, COFOUNDER, NETWORKING. Ensures complementary matches.',
+            'bidirectional_scoring': 'Calculates both forward score (how well A matches B\'s needs) and reverse score (how well B matches A\'s needs). Ensures mutually beneficial connections.',
+            'dealbreaker_filtering': 'Filters out matches that violate user-specified dealbreakers like geography restrictions, industry exclusions, or minimum investment amounts.',
+            'same_objective_blocking': 'Prevents matching users with identical intents (e.g., two investors looking for founders won\'t match). Ensures complementary connections.',
+            'activity_boost': 'Gives a 10% score boost to active users (logged in within 7 days). Promotes engagement and timely connections.',
+            'temporal_boost': 'Applies a 15% score decay for inactive users (>30 days). Prevents matching with users who may not respond.'
+        };
 
         function renderHealthCategory(id, title, category) {
             if (!category) return;
@@ -432,16 +477,25 @@
                 <div class="w-3 h-3 rounded-full ${statusColors[category.status] || 'bg-gray-600'}"></div>
             `;
 
-            // Render components
-            const componentsHtml = components.map(([name, comp]) => `
-                <div class="flex items-center justify-between text-sm">
+            // Render components with tooltips
+            const componentsHtml = components.map(([name, comp]) => {
+                const description = componentDescriptions[name] || comp.detail;
+                return `
+                <div class="flex items-center justify-between text-sm group relative cursor-help" title="${description}">
                     <div class="flex items-center gap-2">
                         <div class="w-2 h-2 rounded-full ${statusColors[comp.status] || 'bg-gray-600'}"></div>
-                        <span class="text-gray-300">${formatComponentName(name)}</span>
+                        <span class="text-gray-300 border-b border-dashed border-gray-600">${formatComponentName(name)}</span>
                     </div>
-                    <span class="text-gray-500 text-xs truncate max-w-32" title="${comp.detail}">${comp.detail}</span>
+                    <span class="text-gray-500 text-xs truncate max-w-32">${comp.detail}</span>
+                    <!-- Tooltip -->
+                    <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72">
+                        <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl text-xs text-gray-300">
+                            <div class="font-semibold text-white mb-1">${formatComponentName(name)}</div>
+                            <p>${description}</p>
+                        </div>
+                    </div>
                 </div>
-            `).join('');
+            `}).join('');
 
             document.getElementById(`${id}-components`).innerHTML = componentsHtml || '<p class="text-gray-500 text-sm">No components</p>';
         }
