@@ -776,13 +776,17 @@
                             </div>
                             ${persona.name ? `
                             <div class="mt-3 pt-3 border-t border-gray-700">
-                                <h5 class="text-xs text-gray-400 mb-2">Persona Slots:</h5>
+                                <h5 class="text-xs text-gray-400 mb-2">Persona Slots (11):</h5>
                                 <div class="grid grid-cols-2 gap-1 text-xs">
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.name ? 'bg-green-500' : 'bg-red-500'}"></div><span>Name</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.archetype ? 'bg-green-500' : 'bg-red-500'}"></div><span>Archetype</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.designation ? 'bg-green-500' : 'bg-red-500'}"></div><span>Designation</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.experience ? 'bg-green-500' : 'bg-red-500'}"></div><span>Experience</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.focus ? 'bg-green-500' : 'bg-red-500'}"></div><span>Focus</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.profile_essence ? 'bg-green-500' : 'bg-red-500'}"></div><span>Profile Essence</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.investment_philosophy ? 'bg-green-500' : 'bg-red-500'}"></div><span>Strategy</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.what_theyre_looking_for ? 'bg-green-500' : 'bg-red-500'}"></div><span>Looking For</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.engagement_style ? 'bg-green-500' : 'bg-red-500'}"></div><span>Engagement Style</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_requirements ? 'bg-green-500' : 'bg-red-500'}"></div><span>Requirements</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_offerings ? 'bg-green-500' : 'bg-red-500'}"></div><span>Offerings</span></div>
                                 </div>
@@ -805,14 +809,22 @@
                                         return `<span class="px-2 py-0.5 rounded text-xs ${hasIt ? 'bg-green-600' : 'bg-gray-600'}">${t}</span>`;
                                     }).join('')}
                                 </div>
-                                <h5 class="text-xs text-gray-400 mb-2">Multi-Vector (6):</h5>
+                                <h5 class="text-xs text-gray-400 mb-2">Multi-Vector (6 dimensions):</h5>
                                 <div class="grid grid-cols-2 gap-1 text-xs">
-                                    ${['Primary Goal', 'Industry', 'Stage', 'Geography', 'Engagement', 'Dealbreakers'].map((dim, i) => {
-                                        const mvPresent = mv.present || [];
-                                        const hasIt = mvPresent.includes(dim.toLowerCase().replace(' ', '_'));
-                                        return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${hasIt ? 'bg-green-500' : 'bg-red-500'}"></div><span>${dim}</span></div>`;
+                                    ${['primary_goal', 'industry', 'stage', 'geography', 'engagement_style', 'dealbreakers'].map(dim => {
+                                        const hasReq = embTypes.some(t => t.toLowerCase().includes(`requirements_${dim}`) || t.toLowerCase().includes(`req_${dim}`));
+                                        const hasOff = embTypes.some(t => t.toLowerCase().includes(`offerings_${dim}`) || t.toLowerCase().includes(`off_${dim}`));
+                                        const status = hasReq && hasOff ? 'bg-green-500' : (hasReq || hasOff) ? 'bg-yellow-500' : 'bg-red-500';
+                                        const label = dim.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                        return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${status}"></div><span>${label}</span></div>`;
                                     }).join('')}
                                 </div>
+                                ${embTypes.length > 3 ? `
+                                <details class="mt-2">
+                                    <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-400">View all ${embTypes.length} types</summary>
+                                    <div class="mt-1 text-xs text-gray-400 max-h-20 overflow-y-auto">${embTypes.join(', ')}</div>
+                                </details>
+                                ` : ''}
                             </div>
                         </div>
 
