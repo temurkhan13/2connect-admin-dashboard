@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-03-02T00:22:00Z - Caching + detailed user diagnostics -->
+<!-- Build: 2026-03-02T00:35:00Z - Expandable rows for User Journey + matching components -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -343,7 +343,8 @@
         let allUsers = [];
         let allMatchingUsers = [];
         let currentUserId = null;
-        let expandedRows = new Set();
+        let expandedRows = new Set();  // For matching diagnostics
+        let expandedUserRows = new Set();  // For user journey
 
         // Cache objects
         let cache = {
@@ -530,6 +531,8 @@
             'resume_processing': 'Extracts professional information from uploaded PDF/DOCX resumes. Auto-fills onboarding fields with work history, skills, and experience.',
 
             // Matching
+            'embedding_service': 'Core service that generates vector embeddings from user text using OpenAI. Powers all similarity-based matching.',
+            'multi_vector_matcher': '6-dimensional matching across: primary_goal, industry, stage, geography, engagement_style, and dealbreakers. More nuanced than single-vector matching.',
             'intent_classification': 'Classifies users into intent types: INVESTOR_FOUNDER, FOUNDER_INVESTOR, MENTOR_MENTEE, COFOUNDER, NETWORKING. Ensures complementary matches.',
             'bidirectional_scoring': 'Calculates both forward score (how well A matches B\'s needs) and reverse score (how well B matches A\'s needs). Ensures mutually beneficial connections.',
             'dealbreaker_filtering': 'Filters out matches that violate user-specified dealbreakers like geography restrictions, industry exclusions, or minimum investment amounts.',
@@ -661,12 +664,18 @@
                 const mv = user.multi_vector || { count: 0, total: 6, present: [], missing: [], complete: false };
                 const mvColor = mv.complete ? 'text-purple-400' : mv.count > 0 ? 'text-yellow-400' : 'text-gray-500';
                 const mvBg = mv.complete ? 'bg-purple-600' : mv.count > 0 ? 'bg-yellow-600' : 'bg-gray-600';
+                const isExpanded = expandedUserRows.has(user.user_id);
 
                 return `
-                <tr class="user-row border-t border-gray-700 cursor-pointer" onclick="showUserDetail('${user.user_id}')">
+                <tr class="user-row border-t border-gray-700 cursor-pointer hover:bg-gray-800" onclick="toggleUserRow('${user.user_id}')">
                     <td class="px-4 py-3">
-                        <div class="font-medium">${user.name || 'No name'}</div>
-                        <div class="text-gray-400 text-sm">${user.email}</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-400 ${isExpanded ? 'rotate-90' : ''}" style="transition: transform 0.2s">▶</span>
+                            <div>
+                                <div class="font-medium">${user.name || 'No name'}</div>
+                                <div class="text-gray-400 text-sm">${user.email}</div>
+                            </div>
+                        </div>
                     </td>
                     <td class="px-4 py-3">
                         <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(user.status)}">
@@ -698,7 +707,150 @@
                         </div>
                     </td>
                 </tr>
+                ${isExpanded ? renderUserExpandedRow(user) : ''}
             `}).join('');
+        }
+
+        function toggleUserRow(userId) {
+            if (expandedUserRows.has(userId)) {
+                expandedUserRows.delete(userId);
+            } else {
+                expandedUserRows.add(userId);
+                // Fetch detailed diagnostics for this user
+                loadUserDiagnostics(userId);
+            }
+            renderUsers(allUsers);
+        }
+
+        // Cache for user diagnostics
+        let userDiagnosticsCache = {};
+
+        async function loadUserDiagnostics(userId) {
+            const user = allUsers.find(u => u.user_id === userId);
+            if (!user || userDiagnosticsCache[userId]) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(user.email)}`);
+                const data = await response.json();
+                if (data.code === 200) {
+                    userDiagnosticsCache[userId] = data.result;
+                    renderUsers(allUsers);  // Re-render to show loaded data
+                }
+            } catch (e) {
+                console.error('Failed to load user diagnostics:', e);
+            }
+        }
+
+        function renderUserExpandedRow(user) {
+            const diag = userDiagnosticsCache[user.user_id];
+            const mv = user.multi_vector || { count: 0, total: 6, present: [], missing: [] };
+
+            // If diagnostics not loaded yet, show loading
+            if (!diag) {
+                return `
+                <tr class="bg-gray-850 border-t border-gray-600">
+                    <td colspan="8" class="px-4 py-6 text-center text-gray-400">
+                        <span class="animate-pulse">Loading detailed diagnostics...</span>
+                    </td>
+                </tr>`;
+            }
+
+            const onb = diag.onboarding?.details || {};
+            const persona = diag.persona?.details || {};
+            const emb = diag.embeddings || {};
+            const matches = diag.matches || {};
+            const embTypes = emb.details?.types || [];
+
+            return `
+            <tr class="bg-gray-850 border-t border-gray-600">
+                <td colspan="8" class="px-4 py-4">
+                    <div class="grid grid-cols-3 gap-4">
+                        <!-- Onboarding & Slots -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <h4 class="font-semibold text-sm mb-3 text-blue-400">Onboarding & Slots</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="${onb.backend_status === 'completed' ? 'text-green-400' : 'text-yellow-400'}">${onb.backend_status || user.status || 'unknown'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Questions:</span><span>${onb.questions_answered || '?'}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Slots:</span><span class="${(onb.slots_filled || user.slots_filled) >= 8 ? 'text-green-400' : 'text-yellow-400'}">${onb.slots_filled || user.slots_filled || 0}/${onb.slots_total || user.slots_total || 11}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Persona:</span><span>${onb.persona_status || user.persona_status || 'N/A'}</span></div>
+                            </div>
+                            ${persona.name ? `
+                            <div class="mt-3 pt-3 border-t border-gray-700">
+                                <h5 class="text-xs text-gray-400 mb-2">Persona Slots:</h5>
+                                <div class="grid grid-cols-2 gap-1 text-xs">
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.name ? 'bg-green-500' : 'bg-red-500'}"></div><span>Name</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.archetype ? 'bg-green-500' : 'bg-red-500'}"></div><span>Archetype</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.designation ? 'bg-green-500' : 'bg-red-500'}"></div><span>Designation</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.experience ? 'bg-green-500' : 'bg-red-500'}"></div><span>Experience</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.focus ? 'bg-green-500' : 'bg-red-500'}"></div><span>Focus</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_requirements ? 'bg-green-500' : 'bg-red-500'}"></div><span>Requirements</span></div>
+                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_offerings ? 'bg-green-500' : 'bg-red-500'}"></div><span>Offerings</span></div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Embeddings -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <h4 class="font-semibold text-sm mb-3 text-purple-400">Embeddings</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-400">Count:</span><span class="${(emb.count || user.embeddings_count) > 0 ? 'text-green-400' : 'text-red-400'}">${emb.count || user.embeddings_count || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Last Created:</span><span class="text-xs">${emb.details?.last_created ? new Date(emb.details.last_created).toLocaleDateString() : 'N/A'}</span></div>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-gray-700">
+                                <h5 class="text-xs text-gray-400 mb-2">Basic:</h5>
+                                <div class="flex flex-wrap gap-1 mb-2">
+                                    ${['Requirements', 'Offerings', 'Combined'].map(t => {
+                                        const hasIt = embTypes.some(et => et.toLowerCase() === t.toLowerCase());
+                                        return `<span class="px-2 py-0.5 rounded text-xs ${hasIt ? 'bg-green-600' : 'bg-gray-600'}">${t}</span>`;
+                                    }).join('')}
+                                </div>
+                                <h5 class="text-xs text-gray-400 mb-2">Multi-Vector (6):</h5>
+                                <div class="grid grid-cols-2 gap-1 text-xs">
+                                    ${['Primary Goal', 'Industry', 'Stage', 'Geography', 'Engagement', 'Dealbreakers'].map((dim, i) => {
+                                        const mvPresent = mv.present || [];
+                                        const hasIt = mvPresent.includes(dim.toLowerCase().replace(' ', '_'));
+                                        return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${hasIt ? 'bg-green-500' : 'bg-red-500'}"></div><span>${dim}</span></div>`;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Matches & Persona -->
+                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                            <h4 class="font-semibold text-sm mb-3 text-green-400">Persona & Matches</h4>
+                            ${persona.name ? `
+                            <div class="space-y-2 text-sm mb-3">
+                                <div class="flex justify-between"><span class="text-gray-400">Name:</span><span class="truncate max-w-32">${persona.name}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span class="text-xs">${persona.archetype || 'N/A'}</span></div>
+                            </div>
+                            ` : '<p class="text-gray-500 text-sm mb-3">Persona not generated</p>'}
+                            <div class="pt-3 border-t border-gray-700 space-y-1 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-400">DynamoDB:</span><span>${matches.count || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Backend:</span><span>${matches.details?.backend_count || user.matches_count || 0}</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Issues & Actions -->
+                    <div class="mt-4 flex gap-4">
+                        ${diag.issues && diag.issues.length > 0 ? `
+                            <div class="bg-red-900/30 p-3 rounded-lg border border-red-700 flex-1">
+                                <span class="text-red-400 text-sm font-medium">Issues: </span>
+                                <span class="text-red-300 text-sm">${diag.issues.join(', ')}</span>
+                            </div>
+                        ` : `
+                            <div class="bg-green-900/30 p-3 rounded-lg border border-green-700 flex-1">
+                                <span class="text-green-400 text-sm">✓ No issues - user journey complete</span>
+                            </div>
+                        `}
+                        <div class="flex gap-2" onclick="event.stopPropagation()">
+                            <button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-xs">Regen Embeddings</button>
+                            <button onclick="regenerateMatches('${user.user_id}', this)" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-xs">Regen Matches</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>`;
         }
 
         function getStatusClass(status) {
