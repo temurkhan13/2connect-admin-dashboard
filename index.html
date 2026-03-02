@@ -1090,8 +1090,10 @@
                         <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
                             <h4 class="font-semibold text-sm mb-3">Matches (${matchCount})</h4>
                             ${matchCount === 0 ? '<p class="text-gray-500 text-sm">No matches</p>' : `
-                                <div class="space-y-2 max-h-40 overflow-y-auto">
-                                    ${(matches.bidirectional_scores || matches.backend_matches || matches.dynamo_matches || []).slice(0, 5).map(m => `
+                                <div class="space-y-2 max-h-48 overflow-y-auto">
+                                    ${(matches.bidirectional_scores?.length ? matches.bidirectional_scores :
+                                       matches.backend_matches?.length ? matches.backend_matches :
+                                       matches.dynamo_matches || []).slice(0, 5).map(m => `
                                         <div class="text-xs p-2 bg-gray-700 rounded">
                                             <div class="flex justify-between">
                                                 <span class="truncate max-w-32 font-medium">${m.matched_user_name || m.user_id?.slice(0, 8) || 'Unknown'}</span>
