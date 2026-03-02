@@ -1090,20 +1090,33 @@
                         <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
                             <h4 class="font-semibold text-sm mb-3">Matches (${matchCount})</h4>
                             ${matchCount === 0 ? '<p class="text-gray-500 text-sm">No matches</p>' : `
-                                <div class="space-y-2 max-h-48 overflow-y-auto">
+                                <div class="space-y-3 max-h-64 overflow-y-auto">
                                     ${(matches.bidirectional_scores?.length ? matches.bidirectional_scores :
                                        matches.backend_matches?.length ? matches.backend_matches :
                                        matches.dynamo_matches || []).slice(0, 5).map(m => `
-                                        <div class="text-xs p-2 bg-gray-700 rounded">
-                                            <div class="flex justify-between">
-                                                <span class="truncate max-w-32 font-medium">${m.matched_user_name || m.user_id?.slice(0, 8) || 'Unknown'}</span>
-                                                <span class="text-green-400 font-mono">${Math.round((m.final_score || m.similarity_score || m.compatibility_score || 0) * 100)}%</span>
+                                        <div class="text-xs p-3 bg-gray-700 rounded border border-gray-600">
+                                            <div class="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <span class="font-medium text-white">${m.matched_user_name || m.user_id?.slice(0, 8) || 'Unknown'}</span>
+                                                    ${m.matched_archetype ? `<span class="ml-2 text-purple-400 text-xs">${m.matched_archetype}</span>` : ''}
+                                                </div>
+                                                ${(m.final_score || m.similarity_score || m.compatibility_score) ? `<span class="text-green-400 font-mono">${Math.round((m.final_score || m.similarity_score || m.compatibility_score) * 100)}%</span>` : ''}
                                             </div>
-                                            ${m.forward_score ? `<div class="text-gray-500 mt-1">F: ${Math.round(m.forward_score * 100)}% R: ${Math.round(m.reverse_score * 100)}%</div>` : ''}
+                                            ${m.match_reason ? `<div class="text-yellow-400 text-xs mb-2 bg-yellow-900/20 px-2 py-1 rounded">${m.match_reason}</div>` : ''}
+                                            ${m.forward_score ? `<div class="text-gray-500 text-xs">F: ${Math.round(m.forward_score * 100)}% R: ${Math.round(m.reverse_score * 100)}%</div>` : ''}
                                             ${m.explanation ? `<div class="text-blue-400 text-xs mt-1">${m.explanation}</div>` : ''}
+                                            ${m.matched_offerings ? `
+                                            <details class="mt-2">
+                                                <summary class="text-gray-400 cursor-pointer hover:text-gray-300 text-xs">View persona details</summary>
+                                                <div class="mt-2 pl-2 border-l-2 border-gray-600 text-xs space-y-1">
+                                                    ${m.matched_offerings ? `<div><span class="text-green-400">Offers:</span> <span class="text-gray-300">${m.matched_offerings}</span></div>` : ''}
+                                                    ${m.matched_requirements ? `<div><span class="text-orange-400">Needs:</span> <span class="text-gray-300">${m.matched_requirements}</span></div>` : ''}
+                                                </div>
+                                            </details>
+                                            ` : ''}
                                         </div>
                                     `).join('')}
-                                    ${matchCount > 5 ? `<p class="text-gray-500 text-xs text-center">+${matchCount - 5} more</p>` : ''}
+                                    ${matchCount > 5 ? `<p class="text-gray-500 text-xs text-center mt-2">+${matchCount - 5} more matches</p>` : ''}
                                 </div>
                             `}
                         </div>
