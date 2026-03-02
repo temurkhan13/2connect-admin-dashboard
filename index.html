@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-03-02T00:15:00Z - 3 columns with onboarding -->
+<!-- Build: 2026-03-02T00:22:00Z - Caching + detailed user diagnostics -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -54,7 +54,7 @@
         <div id="page-health" class="tab-content">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">System Health Status</h2>
-                <button onclick="loadSystemHealth()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                <button onclick="loadSystemHealth(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
                     Refresh
                 </button>
             </div>
@@ -148,7 +148,7 @@
                     <h2 class="text-xl font-semibold">User Journey Diagnostics</h2>
                     <p class="text-yellow-500 text-sm mt-1">Test Users Password: <code class="bg-gray-700 px-2 py-1 rounded">Test123!@#</code></p>
                 </div>
-                <button onclick="loadUsers()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                <button onclick="loadUsers(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
                     Refresh
                 </button>
             </div>
@@ -228,7 +228,7 @@
         <div id="page-matching" class="tab-content hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-semibold">Matching Diagnostics</h2>
-                <button onclick="loadMatchingDiagnostics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                <button onclick="loadMatchingDiagnostics(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
                     Refresh
                 </button>
             </div>
@@ -338,12 +338,57 @@
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
         const ADMIN_BASE = 'https://twoconnectv1-ai.onrender.com'; // Admin endpoints at root
         const ADMIN_KEY = 'migrate-2connect-2026';
+        const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
         let allUsers = [];
         let allMatchingUsers = [];
         let currentUserId = null;
         let expandedRows = new Set();
 
-        // Tab switching
+        // Cache objects
+        let cache = {
+            health: { data: null, timestamp: 0 },
+            users: { data: null, timestamp: 0 },
+            matching: { data: null, timestamp: 0 }
+        };
+
+        // Load cache from localStorage on startup
+        function loadCacheFromStorage() {
+            try {
+                const stored = localStorage.getItem('2connect_admin_cache');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    // Only use cache if it's less than 10 minutes old
+                    const maxAge = 10 * 60 * 1000;
+                    const now = Date.now();
+                    if (parsed.health?.timestamp && (now - parsed.health.timestamp) < maxAge) {
+                        cache.health = parsed.health;
+                    }
+                    if (parsed.users?.timestamp && (now - parsed.users.timestamp) < maxAge) {
+                        cache.users = parsed.users;
+                        allUsers = parsed.users.data || [];
+                    }
+                    if (parsed.matching?.timestamp && (now - parsed.matching.timestamp) < maxAge) {
+                        cache.matching = parsed.matching;
+                        allMatchingUsers = parsed.matching.data || [];
+                    }
+                }
+            } catch (e) { console.warn('Cache load failed:', e); }
+        }
+
+        // Save cache to localStorage
+        function saveCacheToStorage() {
+            try {
+                localStorage.setItem('2connect_admin_cache', JSON.stringify(cache));
+            } catch (e) { console.warn('Cache save failed:', e); }
+        }
+
+        // Check if cache is valid
+        function isCacheValid(key) {
+            return cache[key]?.data && (Date.now() - cache[key].timestamp) < CACHE_DURATION;
+        }
+
+        // Tab switching - USE CACHE, don't always reload
         function switchTab(tab) {
             // Hide all pages
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -358,29 +403,70 @@
             document.getElementById(`tab-${tab}`).classList.remove('tab-inactive');
             document.getElementById(`tab-${tab}`).classList.add('tab-active');
 
-            // Load data for tab
-            if (tab === 'health') loadSystemHealth();
-            else if (tab === 'users') loadUsers();
-            else if (tab === 'matching') loadMatchingDiagnostics();
+            // Load data for tab - USE CACHE if available
+            if (tab === 'health') {
+                if (isCacheValid('health')) {
+                    renderSystemHealth(cache.health.data);
+                } else {
+                    loadSystemHealth();
+                }
+            } else if (tab === 'users') {
+                if (isCacheValid('users') && allUsers.length > 0) {
+                    renderUsers(allUsers);
+                    updateUserStats(allUsers);
+                } else {
+                    loadUsers();
+                }
+            } else if (tab === 'matching') {
+                if (isCacheValid('matching') && allMatchingUsers.length > 0) {
+                    renderMatchingUsers(allMatchingUsers);
+                    updateMatchingStats(allMatchingUsers);
+                } else {
+                    loadMatchingDiagnostics();
+                }
+            }
         }
 
         // Load on page load
         document.addEventListener('DOMContentLoaded', () => {
-            loadSystemHealth();
+            loadCacheFromStorage();
+
+            // If we have cached health data, render it immediately
+            if (isCacheValid('health')) {
+                renderSystemHealth(cache.health.data);
+                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.health.timestamp).toLocaleTimeString()}`;
+            } else {
+                loadSystemHealth();
+            }
         });
 
         // ==================== PAGE 1: SYSTEM HEALTH ====================
-        async function loadSystemHealth() {
+        async function loadSystemHealth(forceRefresh = false) {
+            // Use cache if valid and not forcing refresh
+            if (!forceRefresh && isCacheValid('health')) {
+                renderSystemHealth(cache.health.data);
+                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.health.timestamp).toLocaleTimeString()}`;
+                return;
+            }
+
             try {
                 const response = await fetch(`${ADMIN_BASE}/admin/system-health`);
                 const data = await response.json();
 
                 // API returns health object directly (not wrapped)
+                let healthData = null;
                 if (data.timestamp || data.overall_status) {
-                    renderSystemHealth(data);
-                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
+                    healthData = data;
                 } else if (data.code === 200) {
-                    renderSystemHealth(data.result);
+                    healthData = data.result;
+                }
+
+                if (healthData) {
+                    // Save to cache
+                    cache.health = { data: healthData, timestamp: Date.now() };
+                    saveCacheToStorage();
+
+                    renderSystemHealth(healthData);
                     document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
                 } else {
                     showHealthError(data.message || 'Failed to load health data');
@@ -506,7 +592,15 @@
         }
 
         // ==================== PAGE 2: USER JOURNEY ====================
-        async function loadUsers() {
+        async function loadUsers(forceRefresh = false) {
+            // Use cache if valid and not forcing refresh
+            if (!forceRefresh && isCacheValid('users') && allUsers.length > 0) {
+                renderUsers(allUsers);
+                updateUserStats(allUsers);
+                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.users.timestamp).toLocaleTimeString()}`;
+                return;
+            }
+
             document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
 
             try {
@@ -515,6 +609,11 @@
 
                 if (data.code === 200) {
                     allUsers = data.result;
+
+                    // Save to cache
+                    cache.users = { data: allUsers, summary: data.summary, timestamp: Date.now() };
+                    saveCacheToStorage();
+
                     updateSummary(data.summary);
                     renderUsers(allUsers);
                     document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
@@ -524,6 +623,20 @@
             } catch (error) {
                 document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
             }
+        }
+
+        function updateUserStats(users) {
+            // Recalculate stats from cached data
+            const summary = {
+                total: users.length,
+                healthy: users.filter(u => u.embeddings_count > 0 && u.match_count > 0).length,
+                embeddings_missing: users.filter(u => !u.embeddings_count).length,
+                matches_missing: users.filter(u => !u.match_count && u.embeddings_count > 0).length,
+                multi_vector_complete: users.filter(u => u.multi_vector?.complete).length,
+                multi_vector_partial: users.filter(u => u.multi_vector?.count > 0 && !u.multi_vector?.complete).length,
+                multi_vector_none: users.filter(u => !u.multi_vector?.count).length
+            };
+            updateSummary(summary);
         }
 
         function updateSummary(summary) {
@@ -624,7 +737,16 @@
         }
 
         // ==================== PAGE 3: MATCHING DIAGNOSTICS ====================
-        async function loadMatchingDiagnostics() {
+        async function loadMatchingDiagnostics(forceRefresh = false) {
+            // Use cache if valid and not forcing refresh
+            if (!forceRefresh && isCacheValid('matching') && allMatchingUsers.length > 0) {
+                renderMatchingUsers(allMatchingUsers);
+                updateMatchingStats(allMatchingUsers);
+                populateIntentFilter(allMatchingUsers);
+                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.matching.timestamp).toLocaleTimeString()}`;
+                return;
+            }
+
             document.getElementById('matchingTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading matching data...</td></tr>';
 
             try {
@@ -633,6 +755,11 @@
 
                 if (data.code === 200) {
                     allMatchingUsers = data.result || [];
+
+                    // Save to cache
+                    cache.matching = { data: allMatchingUsers, summary: data.summary, timestamp: Date.now() };
+                    saveCacheToStorage();
+
                     updateMatchingSummary(data.summary);
                     renderMatchingUsers(allMatchingUsers);
                     populateIntentFilter(allMatchingUsers);
@@ -643,6 +770,22 @@
             } catch (error) {
                 document.getElementById('matchingTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
             }
+        }
+
+        function updateMatchingStats(users) {
+            // Recalculate stats from cached data
+            const summary = {
+                total_users: users.length,
+                with_multi_vector: users.filter(u => u.embeddings?.multi_vector_complete === 6).length,
+                with_basic_embeddings: users.filter(u => u.embeddings?.has_basic).length,
+                with_matches: users.filter(u => u.matches?.backend_count > 0).length,
+                intent_breakdown: {}
+            };
+            users.forEach(u => {
+                const intent = u.intent_classification?.inferred_intent || 'unknown';
+                summary.intent_breakdown[intent] = (summary.intent_breakdown[intent] || 0) + 1;
+            });
+            updateMatchingSummary(summary);
         }
 
         function updateMatchingSummary(summary) {
@@ -872,49 +1015,172 @@
         }
 
         function renderModalContent(result) {
+            const onb = result.onboarding?.details || {};
+            const persona = result.persona?.details || {};
+            const emb = result.embeddings || {};
+            const matches = result.matches || {};
+
+            // Parse embedding types to categorize basic vs multi-vector
+            const embTypes = emb.details?.types || [];
+            const basicTypes = embTypes.filter(t => ['Requirements', 'Offerings', 'Combined', 'requirements', 'offerings', 'combined'].includes(t));
+            const mvTypes = embTypes.filter(t =>
+                t.includes('primary_goal') || t.includes('industry') || t.includes('stage') ||
+                t.includes('geography') || t.includes('engagement') || t.includes('dealbreaker')
+            );
+
             const html = `
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                <!-- Summary Cards Row -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
                             <div class="w-2 h-2 rounded-full ${result.account?.status === 'found' ? 'bg-green-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-sm">Account</span>
+                            <span class="text-gray-400 text-xs">Account</span>
                         </div>
-                        <p class="text-white font-medium">${result.account?.status === 'found' ? 'Found' : 'Not Found'}</p>
+                        <p class="text-white font-medium text-sm">${result.account?.status === 'found' ? 'Found' : 'Not Found'}</p>
                     </div>
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${result.persona?.status === 'completed' ? 'bg-green-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-sm">Persona</span>
+                            <div class="w-2 h-2 rounded-full ${onb.slots_filled >= 8 ? 'bg-green-500' : onb.slots_filled >= 5 ? 'bg-yellow-500' : 'bg-red-500'}"></div>
+                            <span class="text-gray-400 text-xs">Slots Filled</span>
                         </div>
-                        <p class="text-white font-medium">${result.persona?.details?.name || result.persona?.status || 'Not Generated'}</p>
+                        <p class="text-white font-medium text-sm">${onb.slots_filled || 0} / ${onb.slots_total || 11}</p>
                     </div>
                     <div class="bg-gray-700 rounded-lg p-3">
                         <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${result.embeddings?.count > 0 ? 'bg-green-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-sm">Embeddings</span>
+                            <div class="w-2 h-2 rounded-full ${emb.count > 0 ? 'bg-green-500' : 'bg-red-500'}"></div>
+                            <span class="text-gray-400 text-xs">Embeddings</span>
                         </div>
-                        <p class="text-white font-medium">${result.embeddings?.count || 0}</p>
+                        <p class="text-white font-medium text-sm">${emb.count || 0}</p>
+                    </div>
+                    <div class="bg-gray-700 rounded-lg p-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-2 h-2 rounded-full ${matches.count > 0 ? 'bg-green-500' : 'bg-yellow-500'}"></div>
+                            <span class="text-gray-400 text-xs">Matches</span>
+                        </div>
+                        <p class="text-white font-medium text-sm">${matches.count || 0}</p>
                     </div>
                 </div>
 
+                <!-- Detailed 3-Column Grid (like Matching Diagnostics) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Onboarding & Slots -->
+                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <h4 class="font-semibold text-sm mb-3 text-blue-400">Onboarding & Slots</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="${onb.backend_status === 'completed' ? 'text-green-400' : 'text-yellow-400'}">${onb.backend_status || 'unknown'}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Questions:</span><span>${onb.questions_answered || 0}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Slots Filled:</span><span class="${onb.slots_filled >= 8 ? 'text-green-400' : 'text-yellow-400'}">${onb.slots_filled || 0}/${onb.slots_total || 11}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Persona Status:</span><span>${onb.persona_status || 'N/A'}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Needs Matching:</span><span>${onb.needs_matchmaking ? 'Yes' : 'No'}</span></div>
+                        </div>
+                        ${persona.name ? `
+                        <div class="mt-4 pt-3 border-t border-gray-700">
+                            <h5 class="text-xs text-gray-400 mb-2">Persona Slots:</h5>
+                            <div class="grid grid-cols-2 gap-1 text-xs">
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.name ? 'bg-green-500' : 'bg-red-500'}"></div><span>Name</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.archetype ? 'bg-green-500' : 'bg-red-500'}"></div><span>Archetype</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.designation ? 'bg-green-500' : 'bg-red-500'}"></div><span>Designation</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.experience ? 'bg-green-500' : 'bg-red-500'}"></div><span>Experience</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.focus ? 'bg-green-500' : 'bg-red-500'}"></div><span>Focus</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.profile_essence ? 'bg-green-500' : 'bg-red-500'}"></div><span>Profile Essence</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.investment_philosophy ? 'bg-green-500' : 'bg-red-500'}"></div><span>Strategy</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.what_theyre_looking_for ? 'bg-green-500' : 'bg-red-500'}"></div><span>Looking For</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.engagement_style ? 'bg-green-500' : 'bg-red-500'}"></div><span>Style</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_requirements ? 'bg-green-500' : 'bg-red-500'}"></div><span>Requirements</span></div>
+                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_offerings ? 'bg-green-500' : 'bg-red-500'}"></div><span>Offerings</span></div>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Embeddings Detail -->
+                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <h4 class="font-semibold text-sm mb-3 text-purple-400">Embeddings</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-gray-400">Total Count:</span><span class="${emb.count > 0 ? 'text-green-400' : 'text-red-400'}">${emb.count || 0}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Last Created:</span><span class="text-xs">${emb.details?.last_created ? new Date(emb.details.last_created).toLocaleDateString() : 'Never'}</span></div>
+                        </div>
+                        ${embTypes.length > 0 ? `
+                        <div class="mt-4 pt-3 border-t border-gray-700">
+                            <h5 class="text-xs text-gray-400 mb-2">Basic Embeddings:</h5>
+                            <div class="flex flex-wrap gap-1 mb-3">
+                                ${['Requirements', 'Offerings', 'Combined'].map(t => {
+                                    const hasIt = basicTypes.some(bt => bt.toLowerCase() === t.toLowerCase());
+                                    return `<span class="px-2 py-0.5 rounded text-xs ${hasIt ? 'bg-green-600' : 'bg-gray-600'}">${t}</span>`;
+                                }).join('')}
+                            </div>
+                            <h5 class="text-xs text-gray-400 mb-2">Multi-Vector (6 dimensions):</h5>
+                            <div class="grid grid-cols-2 gap-1 text-xs">
+                                ${['primary_goal', 'industry', 'stage', 'geography', 'engagement_style', 'dealbreakers'].map(dim => {
+                                    const hasReq = embTypes.some(t => t.includes(`requirements_${dim}`) || t.includes(`req_${dim}`));
+                                    const hasOff = embTypes.some(t => t.includes(`offerings_${dim}`) || t.includes(`off_${dim}`));
+                                    const status = hasReq && hasOff ? 'bg-green-500' : (hasReq || hasOff) ? 'bg-yellow-500' : 'bg-red-500';
+                                    return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${status}"></div><span class="capitalize">${dim.replace('_', ' ')}</span></div>`;
+                                }).join('')}
+                            </div>
+                        </div>
+                        ` : '<p class="text-gray-500 text-xs mt-2">No embeddings generated</p>'}
+                    </div>
+
+                    <!-- Matches & Persona -->
+                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
+                        <h4 class="font-semibold text-sm mb-3 text-green-400">Persona & Matches</h4>
+                        ${persona.name ? `
+                        <div class="space-y-2 text-sm mb-4">
+                            <div class="flex justify-between"><span class="text-gray-400">Name:</span><span class="truncate max-w-32">${persona.name}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span class="text-xs">${persona.archetype || 'N/A'}</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Focus:</span><span class="text-xs truncate max-w-32">${persona.focus || 'N/A'}</span></div>
+                        </div>
+                        ` : '<p class="text-gray-500 text-sm mb-4">Persona not generated</p>'}
+                        <div class="pt-3 border-t border-gray-700">
+                            <div class="flex justify-between text-sm"><span class="text-gray-400">DynamoDB Matches:</span><span>${matches.count || 0}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-400">Backend Matches:</span><span>${matches.details?.backend_count || 0}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-400">Last Sync:</span><span class="text-xs">${matches.details?.stored_at ? new Date(matches.details.stored_at).toLocaleDateString() : 'Never'}</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Issues Section -->
                 ${result.issues && result.issues.length > 0 ? `
                     <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
-                        <h3 class="text-red-400 font-medium mb-2">Issues</h3>
+                        <h3 class="text-red-400 font-medium mb-2">Issues Found (${result.issues.length})</h3>
                         <ul class="text-red-300 text-sm space-y-1">
                             ${result.issues.map(i => `<li>• ${i}</li>`).join('')}
                         </ul>
                     </div>
+                ` : `
+                    <div class="bg-green-900/30 border border-green-800 rounded-lg p-3 mb-6">
+                        <p class="text-green-400 text-sm">✓ No issues detected - user journey complete</p>
+                    </div>
+                `}
+
+                <!-- Timeline -->
+                ${result.timeline && result.timeline.length > 0 ? `
+                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
+                        <h4 class="font-semibold text-sm mb-3">Timeline</h4>
+                        <div class="flex flex-wrap gap-3 text-xs">
+                            ${result.timeline.map(t => `
+                                <div class="flex items-center gap-2 bg-gray-700 px-3 py-1.5 rounded">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                    <span class="text-gray-400">${t.event.replace(/_/g, ' ')}</span>
+                                    <span class="text-gray-500">${t.timestamp ? new Date(t.timestamp).toLocaleString() : ''}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
                 ` : ''}
 
+                <!-- Action Buttons -->
                 <div class="flex flex-wrap gap-3 mb-4">
-                    <button onclick="regenerateEmbeddingsModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm">Regenerate Embeddings</button>
-                    <button onclick="regenerateMatchesModal()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm ${result.embeddings?.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${result.embeddings?.count === 0 ? 'disabled' : ''}>Recalculate Matches</button>
+                    <button onclick="regenerateEmbeddingsModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium">Regenerate Embeddings</button>
+                    <button onclick="regenerateMatchesModal()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm ${emb.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${emb.count === 0 ? 'disabled' : ''}>Recalculate Matches</button>
                 </div>
-                <div id="modalActionStatus" class="text-sm mb-6"></div>
+                <div id="modalActionStatus" class="text-sm mb-4"></div>
 
+                <!-- Raw Response -->
                 <details class="bg-gray-700 rounded-lg">
                     <summary class="p-3 cursor-pointer text-gray-400 hover:text-white text-sm">View Raw Response</summary>
-                    <pre class="p-3 text-xs text-gray-400 overflow-x-auto border-t border-gray-600">${JSON.stringify(result, null, 2)}</pre>
+                    <pre class="p-3 text-xs text-gray-400 overflow-x-auto border-t border-gray-600 max-h-60">${JSON.stringify(result, null, 2)}</pre>
                 </details>
             `;
             document.getElementById('modalContent').innerHTML = html;
