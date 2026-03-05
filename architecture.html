@@ -90,6 +90,9 @@
             <button onclick="showTab('matching')" id="tab-matching" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">3. Matching Flow</button>
             <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">4. Dashboard Flow</button>
             <button onclick="showTab('feedback')" id="tab-feedback" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">5. Feedback Loop</button>
+            <button onclick="showTab('chat')" id="tab-chat" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">6. Chat Flow</button>
+            <button onclick="showTab('profile')" id="tab-profile" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">7. Profile Flow</button>
+            <button onclick="showTab('settings')" id="tab-settings" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">8. Settings Flow</button>
         </div>
     </div>
 
@@ -1773,6 +1776,976 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ==================== CHAT FLOW ==================== -->
+        <div id="content-chat" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Chat Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">How users approve matches and initiate conversations via Stream Chat</p>
+
+                <div class="space-y-4">
+
+                    <!-- Step 1: User Views Match -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User views pending match</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Component:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            NetworkMatches.tsx<br>
+                                            MatchListing.tsx<br>
+                                            MatchCard.tsx
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Data displayed:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Match explanation<br>
+                                            Synergy areas<br>
+                                            Match tier (perfect/strong/good)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">Click Approve</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Approve Match -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User approves match</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="text-xs space-y-3">
+                                    <div class="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <div class="text-gray-400 mb-1">API Call:</div>
+                                            <div class="code bg-gray-900 p-2 rounded">
+                                                <span class="text-green-400">POST</span> /dashboard/decide-match<br>
+                                                { match_id, status: 'approved' }
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-gray-400 mb-1">Backend Logic:</div>
+                                            <div class="code bg-gray-900 p-2 rounded">
+                                                dashboard.service.ts:402<br>
+                                                decideMatch(matchId, userId, 'approved')
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-gray-400 mb-1">Status Update:</div>
+                                            <div class="code bg-gray-900 p-2 rounded">
+                                                user_a_decision = 'approved'<br>
+                                                <span class="text-yellow-400">OR</span> user_b_decision = 'approved'
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow with DB -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center">
+                            <div class="text-xs text-orange-400 mb-1">UPDATE matches</div>
+                            <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Database Update -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Match status computed</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded">
+                                        <span class="text-gray-400">-- Status Logic:</span><br>
+                                        IF either declined &rarr; status = 'declined'<br>
+                                        ELSE IF both approved &rarr; status = 'approved' <span class="text-green-400">&check; Can chat!</span><br>
+                                        ELSE &rarr; status = 'pending' (awaiting other user)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Branch: Awaiting vs Ready -->
+                    <div class="flex justify-center gap-8">
+                        <div class="flex flex-col items-center text-yellow-400">
+                            <div class="text-xs mb-1">Other pending?</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <div class="text-xs mt-1 text-gray-400">Send email notification</div>
+                        </div>
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">Both approved?</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <div class="text-xs mt-1">Start Conversation button appears</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Start Conversation -->
+                    <div class="bg-gray-800 rounded-lg border border-blue-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User clicks "Start Conversation"</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Navigation:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            MatchCard.tsx:34<br>
+                                            navigate(`/chat?matchId={id}&otherUserId={otherId}`)
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Chat Page:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            ChatPage.tsx:24<br>
+                                            Extracts matchId, otherUserId from URL
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-purple-400">
+                            <div class="text-xs mb-1">GET /ai-conversations/token</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Get Stream Token -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend generates Stream Chat token</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                    <span class="data-badge bg-cyan-900 text-cyan-400">STREAM CHAT</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Endpoint:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            ai-conversations.controller.ts:236<br>
+                                            <span class="text-green-400">GET</span> /ai-conversations/token
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Stream API:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            serverClient.upsertUser({id, name})<br>
+                                            serverClient.createToken(userId)
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Returns:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            { token: "eyJhbG..." }<br>
+                                            <span class="text-gray-500">Server-signed JWT</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-cyan-400">
+                            <div class="text-xs mb-1">Connect to Stream Chat</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Create/Find Channel -->
+                    <div class="bg-cyan-900/30 rounded-lg border border-cyan-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-cyan-600 text-white">6</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Create or find DM channel</span>
+                                    <span class="data-badge bg-cyan-900 text-cyan-400">STREAM CHAT</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Service:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            chatServices.ts:113<br>
+                                            startDirectMessage(otherUserId, matchId)
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Channel Creation:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            channelId = userA_userB (sorted)<br>
+                                            type: 'messaging'<br>
+                                            members: [userA, userB]
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Channel Metadata:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            { match_id: UUID }<br>
+                                            <span class="text-gray-500">Links channel to match</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">Mark conversation started</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 7: Backend tracking -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">7</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend tracks conversation start</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">API Call:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /ai-conversations/initiate-user-to-user-conversation<br>
+                                            { match_id, responder_id }
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Database Update:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            matches.user_to_user_conversation = true<br>
+                                            INSERT ai_conversations (user_a, user_b, match_id)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-blue-400">
+                            <div class="text-xs mb-1">Ready to chat!</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 8: Real-time messaging -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">8</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Real-time messaging via Stream Chat</span>
+                                    <span class="data-badge bg-cyan-900 text-cyan-400">STREAM CHAT</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Send Message:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            channel.sendMessage({ text })<br>
+                                            <span class="text-gray-500">Real-time WebSocket</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Storage:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Messages stored in Stream Chat cloud<br>
+                                            Channel metadata has match_id reference
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Storage Summary -->
+                <div class="mt-8 bg-gray-900 rounded-lg border border-gray-700 p-4">
+                    <h3 class="font-medium mb-3">Chat Data Storage</h3>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <div class="bg-orange-900/20 border border-orange-700 rounded p-3">
+                            <div class="text-orange-400 font-medium mb-2">Supabase (PostgreSQL)</div>
+                            <ul class="text-gray-300 space-y-1">
+                                <li>&bull; matches table (approval decisions)</li>
+                                <li>&bull; ai_conversations table (metadata)</li>
+                                <li>&bull; messages table (AI chat history)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-cyan-900/20 border border-cyan-700 rounded p-3">
+                            <div class="text-cyan-400 font-medium mb-2">Stream Chat (Cloud)</div>
+                            <ul class="text-gray-300 space-y-1">
+                                <li>&bull; Direct message channels</li>
+                                <li>&bull; Real-time message history</li>
+                                <li>&bull; Channel metadata (match_id)</li>
+                            </ul>
+                        </div>
+                        <div class="bg-red-900/20 border border-red-700 rounded p-3">
+                            <div class="text-red-400 font-medium mb-2">Redis (Upstash)</div>
+                            <ul class="text-gray-300 space-y-1">
+                                <li>&bull; Session management</li>
+                                <li>&bull; Chat token caching</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== PROFILE FLOW ==================== -->
+        <div id="content-profile" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Profile Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">How users view and edit their profile, avatar, and AI summary</p>
+
+                <div class="space-y-4">
+
+                    <!-- Step 1: View Profile -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User navigates to /profile</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Component:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            ProfilePage.tsx<br>
+                                            useGetProfile() hook<br>
+                                            useAiSummary() hook
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">API Calls:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">GET</span> /profile/get-profile<br>
+                                            <span class="text-green-400">GET</span> /profile/get-summary
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">Backend fetches data</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Backend Query -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend queries profile data</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded">
+                                        profile.service.ts:49<br>
+                                        getProfileData(userId) {<br>
+                                        &nbsp;&nbsp;SELECT * FROM users<br>
+                                        &nbsp;&nbsp;JOIN roles ON users.role_id = roles.id<br>
+                                        &nbsp;&nbsp;JOIN user_documents ON users.id = user_documents.user_id<br>
+                                        &nbsp;&nbsp;WHERE users.id = :userId<br>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center">
+                            <div class="text-xs text-orange-400 mb-1">SELECT</div>
+                            <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Database -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Supabase returns profile + summary</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">users table:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            id, first_name, last_name<br>
+                                            email, avatar, bio, objective<br>
+                                            linkedin_profile, onboarding_status
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">user_summaries table:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            id, user_id, summary<br>
+                                            status, version, webhook<br>
+                                            <span class="text-gray-500">ORDER BY created_at DESC LIMIT 1</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-blue-400">
+                            <div class="text-xs mb-1">Render profile page</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Display Profile -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Profile page renders</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Header:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Banner image<br>
+                                            Avatar (from S3)<br>
+                                            Name, Edit button
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Main Content:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            About bio section<br>
+                                            AI Summary section<br>
+                                            Primary Objective
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Sidebar:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Member since<br>
+                                            Onboarding status<br>
+                                            Role, LinkedIn link
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Edit Flows -->
+                <h3 class="text-lg font-bold mt-8 mb-4">Edit Operations</h3>
+
+                <div class="grid grid-cols-3 gap-4">
+
+                    <!-- Edit Name -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="text-sm font-medium text-blue-400 mb-3">Edit Name</div>
+                        <div class="space-y-2 text-xs">
+                            <div class="code bg-gray-900 p-2 rounded">
+                                1. ProfileSettingsForm.tsx<br>
+                                2. useUpdateProfile() hook<br>
+                                3. <span class="text-yellow-400">PATCH</span> /profile/update-profile<br>
+                                4. { first_name, last_name }<br>
+                                5. UPDATE users SET ...<br>
+                                6. INSERT activity_log
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Avatar Upload -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="text-sm font-medium text-green-400 mb-3">Avatar Upload</div>
+                        <div class="space-y-2 text-xs">
+                            <div class="code bg-gray-900 p-2 rounded">
+                                1. AvatarUpload.tsx<br>
+                                2. <span class="text-green-400">POST</span> /profile/upload-avatar<br>
+                                &nbsp;&nbsp;&nbsp;FormData (multipart)<br>
+                                3. Upload to S3 bucket<br>
+                                4. <span class="text-yellow-400">PATCH</span> /profile/update-avatar<br>
+                                5. UPDATE users.avatar = URL
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Summary Edit -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="text-sm font-medium text-purple-400 mb-3">Edit AI Summary</div>
+                        <div class="space-y-2 text-xs">
+                            <div class="code bg-gray-900 p-2 rounded">
+                                1. AiSummary.tsx (Settings tab)<br>
+                                2. useUpdateAiSummary() hook<br>
+                                3. <span class="text-yellow-400">PATCH</span> /profile/update-summary/{id}<br>
+                                4. { summary: "new text" }<br>
+                                5. UPDATE user_summaries<br>
+                                6. Triggers re-embedding on approve
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- File Constraints -->
+                <div class="mt-6 bg-gray-900 rounded-lg border border-gray-700 p-4">
+                    <h3 class="font-medium mb-3">Avatar Constraints</h3>
+                    <div class="grid grid-cols-4 gap-4 text-xs">
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">5 MB</div>
+                            <div class="text-gray-400">Max file size</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">JPG/PNG</div>
+                            <div class="text-gray-400">Allowed formats</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">S3</div>
+                            <div class="text-gray-400">Storage location</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">multer</div>
+                            <div class="text-gray-400">Upload handler</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ==================== SETTINGS FLOW ==================== -->
+        <div id="content-settings" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Settings Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">User settings management: Personal info, AI templates, password updates</p>
+
+                <!-- Settings Tabs Overview -->
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-700 p-4 text-center">
+                        <div class="text-blue-400 font-medium">Personal Information</div>
+                        <div class="text-xs text-gray-400 mt-1">Name, Avatar</div>
+                    </div>
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4 text-center">
+                        <div class="text-purple-400 font-medium">AI Message Template</div>
+                        <div class="text-xs text-gray-400 mt-1">Title, Body</div>
+                    </div>
+                    <div class="bg-pink-900/30 rounded-lg border border-pink-700 p-4 text-center">
+                        <div class="text-pink-400 font-medium">AI Summary</div>
+                        <div class="text-xs text-gray-400 mt-1">Profile description</div>
+                    </div>
+                    <div class="bg-red-900/30 rounded-lg border border-red-700 p-4 text-center">
+                        <div class="text-red-400 font-medium">Update Password</div>
+                        <div class="text-xs text-gray-400 mt-1">Old, New, Confirm</div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+
+                    <!-- Step 1: Navigate to Settings -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User navigates to /settings</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Page Structure:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            SettingsPage.tsx<br>
+                                            renderTabContent(activeTab)<br>
+                                            Mobile: Accordion layout<br>
+                                            Desktop: Sidebar navigation
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Tab Constants:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            constants.tsx:207<br>
+                                            settingsTabs = [<br>
+                                            &nbsp;&nbsp;'personal-information',<br>
+                                            &nbsp;&nbsp;'message-template',<br>
+                                            &nbsp;&nbsp;'ai-summary', 'update-password'<br>
+                                            ]
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-blue-400">
+                            <div class="text-xs mb-1">Select tab</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Personal Information Tab -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">2a</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Personal Information</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Components:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            PersonalInformation.tsx<br>
+                                            AvatarUpload.tsx<br>
+                                            ProfileSettingsForm.tsx
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Form Fields:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            first_name (required)<br>
+                                            last_name (required)<br>
+                                            email <span class="text-gray-500">(read-only)</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">API on Submit:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-yellow-400">PATCH</span> /profile/update-profile<br>
+                                            checkStatus() &rarr; refresh auth
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2b: Message Template Tab -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">2b</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">AI Message Template</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Components:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            MessageTemplate.tsx<br>
+                                            EditMessageTemplate.tsx<br>
+                                            PreviewMessageTemplate.tsx
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Template Fields:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            title: string<br>
+                                            body: string<br>
+                                            is_active: boolean
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">APIs:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /message-templates/create<br>
+                                            <span class="text-yellow-400">PATCH</span> /message-templates/update/{id}<br>
+                                            <span class="text-blue-400">GET</span> /message-templates/get-All
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2c: AI Summary Tab -->
+                    <div class="bg-pink-900/30 rounded-lg border border-pink-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-pink-600 text-white">2c</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">AI Summary</span>
+                                    <span class="data-badge bg-pink-900 text-pink-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Component:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            AiSummary.tsx<br>
+                                            useUpdateAiSummary() hook<br>
+                                            useApproveAISummary() hook
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Edit Flow:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-yellow-400">PATCH</span> /profile/update-summary/{id}<br>
+                                            { summary: "edited text" }
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">On Approve:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Triggers re-embedding<br>
+                                            Visible on Discover page<br>
+                                            Included in matching
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2d: Password Tab -->
+                    <div class="bg-red-900/30 rounded-lg border border-red-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-red-600 text-white">2d</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Update Password</span>
+                                    <span class="data-badge bg-red-900 text-red-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Components:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            UpdatePassword.tsx<br>
+                                            UpdatePasswordForm.tsx<br>
+                                            useUpdatePassword() hook
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Form Fields:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            current_password<br>
+                                            new_password<br>
+                                            confirm_password
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">API:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /auth/update-password<br>
+                                            { current_password, new_password }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">Submit changes</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Backend Processing -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend processes update</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Controllers:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            profile.controller.ts<br>
+                                            auth.controller.ts<br>
+                                            message-templates.controller.ts
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Validation:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            UpdateProfileDto<br>
+                                            UpdatePasswordDto<br>
+                                            MessageTemplateDto
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center">
+                            <div class="text-xs text-orange-400 mb-1">UPDATE/INSERT</div>
+                            <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Database -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Supabase persists changes</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">users table:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            first_name, last_name<br>
+                                            avatar (S3 URL)<br>
+                                            password (bcrypt hash)
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">message_templates:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            id, user_id<br>
+                                            title, body<br>
+                                            is_active
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">user_summaries:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            id, user_id<br>
+                                            summary, status<br>
+                                            version, webhook
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-blue-400">
+                            <div class="text-xs mb-1">Invalidate cache & refresh UI</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Cache Invalidation -->
+                    <div class="bg-gray-800 rounded-lg border border-blue-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">React Query cache invalidated</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Cache Keys Invalidated:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            [AUTH_KEY, 'profile'] &rarr; profile update<br>
+                                            [PROFILE_KEY, 'aiSummary'] &rarr; summary edit<br>
+                                            [PROFILE_KEY, 'messageTemplates'] &rarr; template change
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">UI Feedback:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Toast: "Profile updated successfully"<br>
+                                            Auto-refresh data<br>
+                                            checkStatus() updates auth context
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Password Validation Rules -->
+                <div class="mt-8 bg-gray-900 rounded-lg border border-gray-700 p-4">
+                    <h3 class="font-medium mb-3">Password Validation Rules</h3>
+                    <div class="grid grid-cols-4 gap-4 text-xs">
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">8+</div>
+                            <div class="text-gray-400">Min characters</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">A-Z a-z</div>
+                            <div class="text-gray-400">Upper + lower</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">0-9 !@#</div>
+                            <div class="text-gray-400">Number + symbol</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl mb-1">&ne; name</div>
+                            <div class="text-gray-400">Not name/email</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
 
