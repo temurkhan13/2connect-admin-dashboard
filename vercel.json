@@ -3,11 +3,23 @@
   "name": "2connect-admin-dashboard",
   "builds": [
     {
-      "src": "index.html",
+      "src": "*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "architecture/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
+    {
+      "src": "/architecture.html",
+      "dest": "/architecture.html"
+    },
+    {
+      "src": "/architecture/(.*)",
+      "dest": "/architecture/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "/index.html"
