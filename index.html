@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-03-05T06:21:00Z - Added AI Pipeline tab with interactive matching diagrams -->
+<!-- Build: 2026-03-05T15:00:00Z - Added Hard Delete User button for QA testing -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1220,10 +1220,11 @@
                         <span class="${user.matches_count > 0 ? 'text-green-400' : 'text-yellow-400'}">${user.matches_count}</span>
                     </td>
                     <td class="px-4 py-3">
-                        <div class="flex gap-2" onclick="event.stopPropagation()">
+                        <div class="flex gap-2 flex-wrap" onclick="event.stopPropagation()">
                             ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs">Gen Embed</button>` : ''}
                             ${mv.count < 6 && user.persona_status === 'completed' ? `<button onclick="generateMultiVector('${user.user_id}', this)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">Gen MV</button>` : ''}
                             ${user.embeddings_count > 0 && user.matches_count === 0 ? `<button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">Gen Match</button>` : ''}
+                            <button onclick="hardDeleteUser('${user.user_id}', '${user.email}', this)" class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs" title="Permanently delete user from ALL systems">🗑️ Delete</button>
                         </div>
                     </td>
                 </tr>
@@ -1962,6 +1963,60 @@
             } catch (error) {
                 btn.textContent = 'Error';
                 btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
+            }
+        }
+
+        async function hardDeleteUser(userId, email, btn) {
+            // Confirm before deleting
+            const confirmed = confirm(
+                `⚠️ PERMANENT DELETE\n\n` +
+                `Are you sure you want to permanently delete:\n` +
+                `${email}\n\n` +
+                `This will remove the user from:\n` +
+                `• PostgreSQL (Supabase)\n` +
+                `• DynamoDB (profile & matches)\n` +
+                `• AI Database (embeddings)\n\n` +
+                `This action CANNOT be undone!`
+            );
+
+            if (!confirmed) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '⏳';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/hard-delete-user/${userId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.code === 200) {
+                    btn.innerHTML = '✅';
+                    btn.className = 'px-2 py-1 bg-green-600 rounded text-xs';
+
+                    // Remove user from local cache and re-render
+                    allUsers = allUsers.filter(u => u.user_id !== userId);
+                    delete cache.users;  // Invalidate cache
+                    renderUsers(allUsers);
+                    updateUserStats(allUsers);
+
+                    alert(`✅ User ${email} permanently deleted!\n\n${JSON.stringify(data.result, null, 2)}`);
+                } else if (data.code === 207) {
+                    // Partial success
+                    btn.innerHTML = '⚠️';
+                    btn.className = 'px-2 py-1 bg-yellow-600 rounded text-xs';
+                    alert(`⚠️ User partially deleted!\n\nSome data may remain:\n${data.result.errors?.join('\n') || 'Unknown errors'}`);
+                    loadUsers(true);  // Force refresh
+                } else {
+                    btn.innerHTML = '❌';
+                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
+                    alert(`❌ Error: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                btn.innerHTML = '❌';
+                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
+                alert(`❌ Error: ${error.message}`);
             }
         }
 
