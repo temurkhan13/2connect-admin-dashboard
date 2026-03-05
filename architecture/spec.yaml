@@ -3,7 +3,8 @@
 
 onboarding:
   # CORE_SLOTS - Required for ALL users
-  # Code location: app/services/llm_slot_extractor.py:992
+  # CANONICAL location: app/services/llm_slot_extractor.py:992 (CORRECT)
+  # BUG: app/routers/onboarding.py:970 has WRONG slots (missing requirements, offerings, geography)
   CORE_SLOTS:
     - primary_goal
     - requirements
@@ -50,11 +51,17 @@ onboarding:
     - compensation_range
     trigger: "Hiring Talent"
 
-  MENTORSHIP_SLOTS:
+  MENTOR_SLOTS:
     - mentorship_areas
     - experience_level
     - time_commitment
-    trigger: "Seeking Mentor OR Offering Advisory"
+    trigger: "Seeking Mentor"
+
+  ADVISOR_SLOTS:
+    - advisory_areas
+    - availability
+    - compensation_expectation
+    trigger: "Offering Advisory"
 
 matching:
   # Threshold for creating a match
@@ -64,6 +71,7 @@ matching:
   WORTH_EXPLORING_THRESHOLD: 0.55  # Medium match tier
 
   # Multi-vector weights (must sum to 1.0)
+  # 6 separate embeddings generated per user via OpenAI text-embedding-3-small
   # Code location: app/services/multi_vector_matcher.py
   EMBEDDING_WEIGHTS:
     industry: 0.25
