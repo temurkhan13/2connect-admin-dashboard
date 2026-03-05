@@ -3,28 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2Connect Atomic Architecture Map</title>
+    <title>2Connect Data Flow Architecture</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #0f172a; }
-        .node { cursor: pointer; transition: all 0.2s; }
-        .node:hover { transform: scale(1.02); filter: brightness(1.1); }
-        .node.selected { outline: 2px solid #3b82f6; }
-        .fade-in { animation: fadeIn 0.2s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .flow-step { position: relative; }
+        .flow-step::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -20px;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, #3b82f6, transparent);
+        }
+        .flow-step:last-child::after { display: none; }
+        .flow-arrow {
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            position: relative;
+        }
+        .flow-arrow::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left: 8px solid #8b5cf6;
+        }
+        .data-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+        .trigger-line {
+            border-left: 2px dashed #f59e0b;
+            padding-left: 12px;
+            margin-left: 8px;
+        }
         .code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
-        .line-ref { color: #60a5fa; cursor: pointer; }
-        .line-ref:hover { text-decoration: underline; }
-        .type-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
         .scrollbar-thin::-webkit-scrollbar { width: 6px; }
         .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
         .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
-        details summary { cursor: pointer; list-style: none; }
-        details summary::-webkit-details-marker { display: none; }
-        details summary::before { content: '▶ '; font-size: 10px; }
-        details[open] summary::before { content: '▼ '; }
-        .param-required { color: #ef4444; }
-        .param-optional { color: #6b7280; }
+        .storage-icon { display: inline-flex; align-items: center; gap: 4px; }
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .connector-v {
+            width: 2px;
+            background: linear-gradient(to bottom, currentColor, transparent);
+        }
+        .connector-h {
+            height: 2px;
+            background: linear-gradient(to right, currentColor, transparent);
+        }
     </style>
 </head>
 <body class="text-gray-100 min-h-screen">
@@ -32,14 +69,15 @@
     <header class="bg-gray-900 border-b border-gray-700 px-6 py-3">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <a href="index.html" class="text-gray-400 hover:text-white text-sm">← Dashboard</a>
-                <h1 class="text-lg font-bold">2Connect Atomic Architecture</h1>
-                <span class="px-2 py-1 bg-green-900 text-green-400 text-xs rounded">LIVE</span>
+                <a href="index.html" class="text-gray-400 hover:text-white text-sm">&larr; Dashboard</a>
+                <h1 class="text-lg font-bold">2Connect Data Flow Architecture</h1>
+                <span class="px-2 py-1 bg-blue-900 text-blue-400 text-xs rounded">FLOW VIEW</span>
             </div>
-            <div class="flex items-center gap-4 text-sm text-gray-400">
-                <span>Frontend: <span class="text-blue-400">Vercel</span></span>
-                <span>Backend: <span class="text-green-400">Render</span></span>
-                <span>AI: <span class="text-purple-400">Render</span></span>
+            <div class="flex items-center gap-2 text-xs">
+                <span class="px-2 py-1 bg-orange-900/50 border border-orange-700 rounded">Supabase</span>
+                <span class="px-2 py-1 bg-yellow-900/50 border border-yellow-700 rounded">DynamoDB</span>
+                <span class="px-2 py-1 bg-red-900/50 border border-red-700 rounded">Redis</span>
+                <span class="px-2 py-1 bg-pink-900/50 border border-pink-700 rounded">Claude/OpenAI</span>
             </div>
         </div>
     </header>
@@ -47,1040 +85,1707 @@
     <!-- Tab Navigation -->
     <div class="bg-gray-800 border-b border-gray-700 px-6">
         <div class="flex gap-1">
-            <button onclick="showTab('overview')" id="tab-overview" class="tab-btn px-4 py-2 text-sm border-b-2 border-blue-500 text-blue-400">Overview</button>
-            <button onclick="showTab('auth')" id="tab-auth" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Auth</button>
-            <button onclick="showTab('onboarding')" id="tab-onboarding" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Onboarding</button>
-            <button onclick="showTab('matching')" id="tab-matching" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Matching</button>
-            <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Dashboard</button>
-            <button onclick="showTab('database')" id="tab-database" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Database</button>
-            <button onclick="showTab('types')" id="tab-types" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Types</button>
+            <button onclick="showTab('signup')" id="tab-signup" class="tab-btn px-4 py-2 text-sm border-b-2 border-blue-500 text-blue-400">1. Signup Flow</button>
+            <button onclick="showTab('onboarding')" id="tab-onboarding" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">2. Onboarding Flow</button>
+            <button onclick="showTab('matching')" id="tab-matching" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">3. Matching Flow</button>
+            <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">4. Dashboard Flow</button>
+            <button onclick="showTab('feedback')" id="tab-feedback" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">5. Feedback Loop</button>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div class="flex" style="height: calc(100vh - 100px);">
-        <!-- Left Panel: Content -->
-        <div class="flex-1 p-4 overflow-auto scrollbar-thin" id="mainContent">
+    <div class="p-6 overflow-auto" style="height: calc(100vh - 100px);">
 
-            <!-- Overview Tab -->
-            <div id="content-overview" class="tab-content">
-                <div class="grid grid-cols-3 gap-4 mb-6">
-                    <!-- Service Cards -->
-                    <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-                            <span class="font-medium text-blue-400">Frontend</span>
-                        </div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>React + TypeScript + Tailwind</div>
-                            <div class="text-blue-400">2connectv1-frontend.vercel.app</div>
-                            <div class="mt-2 text-gray-500">C:/Users/hp/reciprocity-frontend</div>
-                        </div>
-                    </div>
-                    <div class="bg-green-900/30 border border-green-700 rounded-lg p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                            <span class="font-medium text-green-400">Backend</span>
-                        </div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>NestJS + TypeScript + Sequelize</div>
-                            <div class="text-green-400">twoconnectv1-backend.onrender.com</div>
-                            <div class="mt-2 text-gray-500">C:/Users/hp/reciprocity-backend</div>
-                        </div>
-                    </div>
-                    <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="w-3 h-3 rounded-full bg-purple-500"></div>
-                            <span class="font-medium text-purple-400">AI Service</span>
-                        </div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>FastAPI + Python + LangChain</div>
-                            <div class="text-purple-400">twoconnectv1-ai.onrender.com</div>
-                            <div class="mt-2 text-gray-500">C:/Users/hp/reciprocity-ai</div>
-                        </div>
-                    </div>
-                </div>
+        <!-- ==================== SIGNUP FLOW ==================== -->
+        <div id="content-signup" class="tab-content">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">User Signup Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">How a new user goes from registration to email verification</p>
 
                 <!-- Flow Diagram -->
-                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
-                    <h3 class="text-sm font-medium mb-4">Complete Data Flow</h3>
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="text-center">
-                            <div class="w-24 h-16 bg-blue-900/50 border border-blue-700 rounded flex items-center justify-center">
-                                <span class="text-blue-400">React App</span>
+                <div class="space-y-4">
+
+                    <!-- Step 1 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User submits signup form</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">User enters:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            first_name, last_name, email, password
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Frontend code:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            SignupForm.tsx &rarr; authService.ts:14<br>
+                                            <span class="text-green-400">POST</span> /api/v1/auth/signup
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="mt-1 text-gray-500">authService.ts</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="text-center">
-                            <div class="w-24 h-16 bg-green-900/50 border border-green-700 rounded flex items-center justify-center">
-                                <span class="text-green-400">NestJS API</span>
-                            </div>
-                            <div class="mt-1 text-gray-500">:3005/api/v1</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="text-center">
-                            <div class="w-24 h-16 bg-purple-900/50 border border-purple-700 rounded flex items-center justify-center">
-                                <span class="text-purple-400">FastAPI</span>
-                            </div>
-                            <div class="mt-1 text-gray-500">:8000/api/v1</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="text-center">
-                            <div class="w-24 h-16 bg-pink-900/50 border border-pink-700 rounded flex items-center justify-center">
-                                <span class="text-pink-400">Claude/OpenAI</span>
-                            </div>
-                            <div class="mt-1 text-gray-500">LLM APIs</div>
                         </div>
                     </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-blue-400">
+                            <div class="text-xs mb-1">HTTP POST</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend validates & creates user</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="text-xs space-y-3">
+                                    <div class="grid grid-cols-3 gap-4">
+                                        <div>
+                                            <div class="text-gray-400 mb-1">Validation:</div>
+                                            <div class="code bg-gray-900 p-2 rounded">
+                                                auth.controller.ts:41<br>
+                                                SignupDto validates:<br>
+                                                - email: @IsEmail<br>
+                                                - password: min 8 chars<br>
+                                                  upper+lower+digit+special
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-gray-400 mb-1">Check exists:</div>
+                                            <div class="code bg-gray-900 p-2 rounded">
+                                                auth.service.ts:106<br>
+                                                SELECT * FROM users<br>
+                                                WHERE email = ?<br>
+                                                <span class="text-red-400">IF exists &rarr; 400 error</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="text-gray-400 mb-1">Hash password:</div>
+                                            <div class="code bg-gray-900 p-2 rounded">
+                                                bcrypt.hash(password, 10)<br>
+                                                <span class="text-gray-500">10 salt rounds</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow with storage -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center">
+                            <div class="text-xs text-orange-400 mb-1">INSERT</div>
+                            <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 - Database -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Data stored in Supabase</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">users table INSERT:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            id: UUID (auto)<br>
+                                            email: user@example.com<br>
+                                            password: $2b$10$... (hashed)<br>
+                                            first_name, last_name<br>
+                                            is_email_verified: <span class="text-red-400">false</span><br>
+                                            onboarding_status: <span class="text-yellow-400">'NOT_STARTED'</span><br>
+                                            provider: 'PASSWORD'
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">verification_codes table INSERT:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            user_id: (FK to users)<br>
+                                            code: <span class="text-green-400">'4821'</span> (4-digit random)<br>
+                                            expires_at: NOW() + 10 minutes<br>
+                                            used: false
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parallel action -->
+                    <div class="flex justify-center">
+                        <div class="flex items-center gap-8">
+                            <div class="flex flex-col items-center text-cyan-400">
+                                <div class="text-xs mb-1">SEND EMAIL</div>
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                            </div>
+                            <div class="text-gray-500">&&</div>
+                            <div class="flex flex-col items-center text-blue-400">
+                                <div class="text-xs mb-1">RETURN</div>
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 - Email sent -->
+                    <div class="bg-cyan-900/30 rounded-lg border border-cyan-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-cyan-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Verification email sent</span>
+                                    <span class="data-badge bg-cyan-900 text-cyan-400">SENDGRID</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        mail.service.ts &rarr; SendGrid API<br>
+                                        To: user@example.com<br>
+                                        Subject: "Verify your 2Connect account"<br>
+                                        Body: "Your code is: <span class="text-green-400">4821</span>"
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5 - User gets code -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-gray-400">
+                            <div class="text-xs mb-1">USER CHECKS EMAIL</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User enters verification code</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        VerifyEmailForm.tsx &rarr; authService.ts:59<br>
+                                        <span class="text-green-400">POST</span> /api/v1/auth/verify-email<br>
+                                        Body: { email: "user@example.com", code: "4821" }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">6</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend verifies code & issues JWT</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Verification logic (auth.service.ts:178):</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            1. SELECT code FROM verification_codes<br>
+                                               WHERE user_id = ? AND used = false<br>
+                                            2. Check code matches & not expired<br>
+                                            3. <span class="text-orange-400">UPDATE users SET is_email_verified = true</span><br>
+                                            4. <span class="text-orange-400">UPDATE verification_codes SET used = true</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Issue JWT:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            jwt.sign({<br>
+                                              sub: user.id,<br>
+                                              email: user.email,<br>
+                                              role: user.role<br>
+                                            }, JWT_SECRET, { expiresIn: '96h' })<br>
+                                            <br>
+                                            Set HTTP-only cookie (SameSite=Strict)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">REDIRECT</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 7 - Final -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-600 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">7</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User redirected to Onboarding</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">TRIGGERS NEXT FLOW</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        Frontend checks: user.onboarding_status === 'NOT_STARTED'<br>
+                                        &rarr; navigate('/onboarding')<br>
+                                        &rarr; <span class="text-purple-400">TRIGGERS ONBOARDING FLOW</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
-                <!-- Database Grid -->
-                <div class="grid grid-cols-4 gap-4">
-                    <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-3">
-                        <div class="text-orange-400 font-medium text-sm mb-2">Supabase (PostgreSQL)</div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>• users</div>
-                            <div>• matches</div>
-                            <div>• user_embeddings</div>
-                            <div>• user_summaries</div>
-                            <div>• verification_codes</div>
+                <!-- Summary Box -->
+                <div class="mt-8 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <h3 class="font-medium mb-3">Data Created During Signup</h3>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <div class="bg-orange-900/30 p-3 rounded">
+                            <div class="text-orange-400 font-medium mb-1">Supabase: users</div>
+                            <div class="text-gray-400">1 row created with is_email_verified=false initially, then updated to true</div>
                         </div>
-                    </div>
-                    <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
-                        <div class="text-yellow-400 font-medium text-sm mb-2">DynamoDB (AWS)</div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>• staging-user-profiles</div>
-                            <div>• staging-user-matches</div>
-                            <div>• user_feedback</div>
-                            <div>• ai_chat_records</div>
+                        <div class="bg-orange-900/30 p-3 rounded">
+                            <div class="text-orange-400 font-medium mb-1">Supabase: verification_codes</div>
+                            <div class="text-gray-400">1 row created, marked used=true after verification</div>
                         </div>
-                    </div>
-                    <div class="bg-red-900/30 border border-red-700 rounded-lg p-3">
-                        <div class="text-red-400 font-medium text-sm mb-2">Redis (Upstash)</div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>• onboarding:session:{id}</div>
-                            <div>• onboarding:dedup:{hash}</div>
-                            <div>• resume:{session_id}</div>
-                            <div>• rate_limit:{ip}</div>
-                        </div>
-                    </div>
-                    <div class="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3">
-                        <div class="text-cyan-400 font-medium text-sm mb-2">External Services</div>
-                        <div class="text-xs text-gray-400 space-y-1">
-                            <div>• Stream Chat (messaging)</div>
-                            <div>• AWS S3 (files)</div>
-                            <div>• Google OAuth</div>
-                            <div>• SendGrid (email)</div>
+                        <div class="bg-gray-700 p-3 rounded">
+                            <div class="text-gray-400 font-medium mb-1">NOT YET CREATED</div>
+                            <div class="text-gray-500">DynamoDB profile, Redis session, embeddings - these come during onboarding</div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Auth Tab -->
-            <div id="content-auth" class="tab-content hidden">
-                <h2 class="text-lg font-medium mb-4">Authentication Endpoints</h2>
+        <!-- ==================== ONBOARDING FLOW ==================== -->
+        <div id="content-onboarding" class="tab-content hidden">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Conversational Onboarding Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">How user answers get extracted into slots, stored, and trigger matching</p>
 
-                <!-- Endpoint Cards -->
-                <div class="space-y-3">
-                    <!-- POST /auth/signup -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/auth/signup</span>
-                            <span class="text-xs text-gray-500">auth.controller.ts:41</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request Body (SignupDto)</div>
-                                <div class="code bg-gray-900 p-2 rounded space-y-1">
-                                    <div><span class="text-purple-400">first_name</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty @Matches(/^[a-zA-Z]+$/)</span></div>
-                                    <div><span class="text-purple-400">last_name</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty @Matches(/^[a-zA-Z]+$/)</span></div>
-                                    <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsEmail</span></div>
-                                    <div><span class="text-purple-400">password</span>: <span class="text-yellow-400">string</span> <span class="param-required">@MinLength(8) @Matches(upper+lower+digit+special)</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Response</div>
-                                <div class="code bg-gray-900 p-2 rounded space-y-1">
-                                    <div><span class="text-purple-400">user</span>: <span class="text-yellow-400">User</span></div>
-                                    <div><span class="text-purple-400">email_verification_code</span>: <span class="text-yellow-400">string</span> <span class="text-gray-500">(4-digit)</span></div>
-                                    <div><span class="text-purple-400">expires_at</span>: <span class="text-yellow-400">Date</span></div>
-                                </div>
-                                <div class="mt-2 text-gray-500">
-                                    <span class="text-green-400">200</span> Success |
-                                    <span class="text-red-400">400</span> Email exists
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-xs text-gray-500">
-                            Frontend: authService.ts:14 → Backend: auth.service.ts:106 → Supabase INSERT users + verification_codes
-                        </div>
-                    </div>
-
-                    <!-- POST /auth/signin -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/auth/signin</span>
-                            <span class="text-xs text-gray-500">auth.controller.ts:121</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request Body (SigninDto)</div>
-                                <div class="code bg-gray-900 p-2 rounded space-y-1">
-                                    <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsEmail</span></div>
-                                    <div><span class="text-purple-400">password</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Response</div>
-                                <div class="code bg-gray-900 p-2 rounded space-y-1">
-                                    <div><span class="text-purple-400">user</span>: <span class="text-yellow-400">{id, first_name, last_name, email, role}</span></div>
-                                    <div><span class="text-purple-400">access_token</span>: <span class="text-yellow-400">string</span> <span class="text-gray-500">(JWT)</span></div>
-                                </div>
-                                <div class="mt-2 text-gray-500">
-                                    Sets HTTP-only cookie (maxAge=96hrs, SameSite=strict)
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- POST /auth/google-signin -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/auth/google-signin</span>
-                            <span class="text-xs text-gray-500">auth.controller.ts:152</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request Body</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-purple-400">token</span>: <span class="text-yellow-400">string</span> <span class="text-gray-500">(Google OAuth2 ID token)</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Frontend Error Handling</div>
-                                <div class="code bg-gray-900 p-2 rounded text-gray-400">
-                                    authService.ts:36-51 has try/catch<br>
-                                    Returns {code: error?.code || 500, message, result: null}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- POST /auth/verify-email -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/auth/verify-email</span>
-                            <span class="text-xs text-gray-500">auth.controller.ts:75</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request Body (VerifyEmailDto)</div>
-                                <div class="code bg-gray-900 p-2 rounded space-y-1">
-                                    <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsEmail</span></div>
-                                    <div><span class="text-purple-400">code</span>: <span class="text-yellow-400">string</span> <span class="param-required">@Length(4,4)</span> <span class="text-gray-500">(4-digit OTP)</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Service Logic</div>
-                                <div class="code bg-gray-900 p-2 rounded text-gray-400">
-                                    auth.service.ts:178 - Transaction-safe<br>
-                                    1. Validate user is active, unverified<br>
-                                    2. Validate code (row lock + skipLocked)<br>
-                                    3. Set is_email_verified=true<br>
-                                    4. Issue JWT access token
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Other auth endpoints -->
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-green-600 text-xs">POST</span>
-                                <span class="text-sm">/auth/forgot-password</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Request: {email} | Sends reset email</div>
-                        </div>
-                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-green-600 text-xs">POST</span>
-                                <span class="text-sm">/auth/reset-password</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Auth: temp-jwt | Request: {password}</div>
-                        </div>
-                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-green-600 text-xs">POST</span>
-                                <span class="text-sm">/auth/update-password</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Auth: JWT | Request: {current_password, new_password}</div>
-                        </div>
-                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-green-600 text-xs">POST</span>
-                                <span class="text-sm">/auth/logout</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Auth: JWT | Clears HTTP-only cookie</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Onboarding Tab -->
-            <div id="content-onboarding" class="tab-content hidden">
-                <h2 class="text-lg font-medium mb-4">Conversational Onboarding Pipeline</h2>
-
-                <!-- Config Box -->
-                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-yellow-400 mb-2">Frontend Timeouts (ConversationalOnboardingContext.tsx:43-55)</h3>
-                    <div class="grid grid-cols-4 gap-4 text-xs">
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-yellow-400">60s</div>
-                            <div class="text-gray-400">AI_RESPONSE_TIMEOUT_MS</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-yellow-400">1</div>
-                            <div class="text-gray-400">MAX_RETRIES</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-yellow-400">3s</div>
-                            <div class="text-gray-400">RETRY_DELAY_MS</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-2xl font-bold text-yellow-400">5s</div>
-                            <div class="text-gray-400">DEDUP_WINDOW_MS</div>
-                        </div>
-                    </div>
+                <!-- Config reminder -->
+                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 mb-6 text-xs">
+                    <span class="text-yellow-400 font-medium">Required Slots (7):</span>
+                    <span class="text-gray-300 ml-2">primary_goal, user_type, industry_focus, stage_preference, geography, offerings, requirements</span>
+                    <span class="text-gray-500 ml-4">| Timeout: 60s | Max Retries: 1 | Dedup Window: 5s</span>
                 </div>
 
-                <!-- CORE_SLOTS -->
-                <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-blue-400 mb-2">CORE_SLOTS (Required) — llm_slot_extractor.py:45-200</h3>
-                    <div class="grid grid-cols-7 gap-2 text-xs">
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">primary_goal</div>
-                            <div class="text-gray-500 mt-1">Raise/Find/Seek/Invest</div>
-                        </div>
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">user_type</div>
-                            <div class="text-gray-500 mt-1">Founder/Investor/...</div>
-                        </div>
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">industry_focus</div>
-                            <div class="text-gray-500 mt-1">multi_select</div>
-                        </div>
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">stage_preference</div>
-                            <div class="text-gray-500 mt-1">Pre-seed→Growth</div>
-                        </div>
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">geography</div>
-                            <div class="text-gray-500 mt-1">multi_select regions</div>
-                        </div>
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">offerings</div>
-                            <div class="text-gray-500 mt-1">max 150 chars</div>
-                        </div>
-                        <div class="bg-blue-900/50 p-2 rounded text-center">
-                            <div class="text-blue-300">requirements</div>
-                            <div class="text-gray-500 mt-1">max 150 chars</div>
-                        </div>
-                    </div>
-                </div>
+                <div class="space-y-4">
 
-                <!-- Endpoint Cards -->
-                <div class="space-y-3">
-                    <!-- POST /onboarding/conversational/start -->
+                    <!-- Step 1 -->
                     <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/onboarding/conversational/start</span>
-                            <span class="text-xs text-gray-500">→ AI onboarding.py:92-151</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-purple-400">user_id</span>: <span class="text-yellow-400">str</span> <span class="param-required">required</span></div>
-                                    <div><span class="text-purple-400">objective</span>: <span class="text-yellow-400">str</span> <span class="param-optional">optional</span></div>
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User lands on /onboarding page</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        ConversationalOnboardingContext.tsx:82<br>
+                                        useEffect on mount &rarr; startOnboarding()<br>
+                                        <span class="text-green-400">POST</span> /api/v1/onboarding/conversational/start<br>
+                                        Body: { user_id: "uuid-from-jwt" }
+                                    </div>
                                 </div>
                             </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Response</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-purple-400">session_id</span>: <span class="text-yellow-400">str</span></div>
-                                    <div><span class="text-purple-400">greeting</span>: <span class="text-yellow-400">str</span></div>
-                                    <div><span class="text-purple-400">suggested_questions</span>: <span class="text-yellow-400">List[str]</span></div>
-                                    <div><span class="text-purple-400">progress_percent</span>: <span class="text-yellow-400">float</span></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-xs text-gray-500">
-                            Creates Redis session → Loads existing slots from Supabase → Gets template based on objective
                         </div>
                     </div>
 
-                    <!-- POST /onboarding/conversational/chat -->
-                    <div class="bg-gray-800 rounded-lg border border-purple-600 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/onboarding/conversational/chat</span>
-                            <span class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded">CRITICAL</span>
-                            <span class="text-xs text-gray-500">→ AI onboarding.py:154-356</span>
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-purple-400">
+                            <div class="text-xs mb-1">Backend proxies to AI Service</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-purple-400">user_id</span>: <span class="text-yellow-400">str</span> <span class="param-required">required</span></div>
-                                    <div><span class="text-purple-400">message</span>: <span class="text-yellow-400">str</span> <span class="param-required">required</span></div>
-                                    <div><span class="text-purple-400">session_id</span>: <span class="text-yellow-400">str</span> <span class="param-optional">optional (creates new if missing)</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Response</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-purple-400">session_id</span>: <span class="text-yellow-400">str</span></div>
-                                    <div><span class="text-purple-400">ai_response</span>: <span class="text-yellow-400">str</span></div>
-                                    <div><span class="text-purple-400">extracted_slots</span>: <span class="text-yellow-400">Dict[str, Any]</span></div>
-                                    <div><span class="text-purple-400">completion_percent</span>: <span class="text-yellow-400">float</span> <span class="text-gray-500">(0-100)</span></div>
-                                    <div><span class="text-purple-400">is_complete</span>: <span class="text-yellow-400">bool</span></div>
-                                    <div><span class="text-purple-400">is_off_topic</span>: <span class="text-yellow-400">bool</span></div>
-                                </div>
-                            </div>
-                        </div>
-                        <details class="mt-3">
-                            <summary class="text-xs text-blue-400 cursor-pointer">Internal Processing Pipeline</summary>
-                            <div class="mt-2 code bg-gray-900 p-3 rounded text-xs space-y-1">
-                                <div class="text-gray-500">// Line 168-209: Deduplication</div>
-                                <div>MD5 hash of message → Redis SETNX with 10s TTL</div>
-                                <div class="text-gray-500 mt-2">// Line 215-240: Session Restoration (BUG-029 FIX)</div>
-                                <div>If Redis session expired → Load slots from Supabase</div>
-                                <div class="text-gray-500 mt-2">// Line 245-251: Slot Extraction</div>
-                                <div>LLMSlotExtractor.extract_slots() using Claude Haiku</div>
-                                <div class="text-gray-500 mt-2">// Line 273-296: Slot Persistence (BUG-027 FIX)</div>
-                                <div>Save newly extracted slots to Supabase immediately</div>
-                                <div class="text-gray-500 mt-2">// Line 302-314: Completion Detection (BUG-001 FIX)</div>
-                                <div>Check is_complete BEFORE generating response</div>
-                            </div>
-                        </details>
                     </div>
 
-                    <!-- POST /onboarding/conversational/complete -->
+                    <!-- Step 2 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">AI Service creates session</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
+                                    <span class="text-xs text-gray-500">onboarding.py:92-151</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">1. Generate session_id:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            session_id = str(uuid4())<br>
+                                            e.g. "a1b2c3d4-..."
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">2. Check for existing slots:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            SELECT * FROM user_onboarding_answers<br>
+                                            WHERE user_id = ?<br>
+                                            <span class="text-gray-500">(restore if user returning)</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">3. Generate greeting:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            "Hi! I'm here to learn about<br>
+                                            your goals. What brings you<br>
+                                            to 2Connect?"
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parallel storage -->
+                    <div class="flex justify-center gap-12">
+                        <div class="flex flex-col items-center text-red-400">
+                            <div class="text-xs mb-1">SETEX (1hr TTL)</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                        <div class="flex flex-col items-center text-yellow-400">
+                            <div class="text-xs mb-1">PutItem (init)</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 - Storage -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-red-900/30 rounded-lg border border-red-700 p-4">
+                            <div class="flex items-start gap-4">
+                                <div class="step-number bg-red-600 text-white">3a</div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-medium">Session stored in Redis</span>
+                                        <span class="data-badge bg-red-900 text-red-400">REDIS</span>
+                                    </div>
+                                    <div class="text-xs">
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Key: onboarding:session:{session_id}<br>
+                                            TTL: 3600 seconds (1 hour)<br>
+                                            Value: {<br>
+                                              user_id: "...",<br>
+                                              slots: {},<br>
+                                              history: [],<br>
+                                              created_at: "..."<br>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-yellow-900/30 rounded-lg border border-yellow-700 p-4">
+                            <div class="flex items-start gap-4">
+                                <div class="step-number bg-yellow-600 text-white">3b</div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-medium">Profile initialized in DynamoDB</span>
+                                        <span class="data-badge bg-yellow-900 text-yellow-400">DYNAMODB</span>
+                                    </div>
+                                    <div class="text-xs">
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Table: staging-user-profiles<br>
+                                            PK: user_id<br>
+                                            processing_status: "not_initiated"<br>
+                                            persona_status: "not_initiated"<br>
+                                            profile: { raw_questions: [] }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat loop header -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-600 p-3 text-center">
+                        <span class="text-blue-400 font-medium">CHAT LOOP (repeats until 7 slots filled)</span>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User sends message</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        User types: "I'm a SaaS founder looking for Series A investors"<br>
+                                        <br>
+                                        ConversationalOnboardingContext.tsx:100<br>
+                                        <span class="text-green-400">POST</span> /api/v1/onboarding/conversational/chat<br>
+                                        Body: { user_id, session_id, message: "..." }<br>
+                                        <span class="text-yellow-400">Timeout: 60 seconds</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 5 - Dedup -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Deduplication check</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
+                                    <span class="text-xs text-gray-500">onboarding.py:168-209</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Create dedup key:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            hash = MD5(user_id + message)<br>
+                                            key = f"onboarding:dedup:{user_id}:{hash}"
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Redis SETNX:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            SETNX key "1" EX 10<br>
+                                            <span class="text-green-400">IF new &rarr; proceed</span><br>
+                                            <span class="text-red-400">IF exists &rarr; return cached response</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 6 - LLM -->
+                    <div class="bg-pink-900/30 rounded-lg border border-pink-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-pink-600 text-white">6</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Claude Haiku extracts slots</span>
+                                    <span class="data-badge bg-pink-900 text-pink-400">CLAUDE API</span>
+                                    <span class="text-xs text-gray-500">llm_slot_extractor.py:644-932</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Prompt to Claude Haiku:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            System: "Extract these slots from user message:<br>
+                                            - primary_goal (enum)<br>
+                                            - user_type (enum)<br>
+                                            - industry_focus (list)<br>
+                                            ..."<br>
+                                            <br>
+                                            User: "I'm a SaaS founder looking for Series A"<br>
+                                            <br>
+                                            Model: claude-3-haiku-20240307<br>
+                                            Temperature: 0.1 | Max tokens: 1500
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Claude returns:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            {<br>
+                                              "extracted_slots": {<br>
+                                                "user_type": {<br>
+                                                  "value": "Founder",<br>
+                                                  "confidence": 0.95<br>
+                                                },<br>
+                                                "primary_goal": {<br>
+                                                  "value": "Seeking Investment",<br>
+                                                  "confidence": 0.92<br>
+                                                },<br>
+                                                "industry_focus": {<br>
+                                                  "value": ["SaaS"],<br>
+                                                  "confidence": 0.88<br>
+                                                }<br>
+                                              },<br>
+                                              "follow_up_question": "What stage..."<br>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center gap-8">
+                        <div class="flex flex-col items-center text-red-400">
+                            <div class="text-xs mb-1">Update session</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                        <div class="flex flex-col items-center text-orange-400">
+                            <div class="text-xs mb-1">Persist slots</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 7 - Storage -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-red-900/30 rounded-lg border border-red-700 p-4">
+                            <div class="flex items-start gap-4">
+                                <div class="step-number bg-red-600 text-white">7a</div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-medium">Redis session updated</span>
+                                        <span class="data-badge bg-red-900 text-red-400">REDIS</span>
+                                    </div>
+                                    <div class="text-xs">
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            SETEX onboarding:session:{id} 3600 {<br>
+                                              slots: {<br>
+                                                user_type: "Founder",<br>
+                                                primary_goal: "Seeking Investment",<br>
+                                                industry_focus: ["SaaS"]<br>
+                                              },<br>
+                                              history: [..., {role: "user", ...}]<br>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                            <div class="flex items-start gap-4">
+                                <div class="step-number bg-orange-600 text-white">7b</div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-medium">Slots persisted to Supabase</span>
+                                        <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                        <span class="text-xs text-gray-500">BUG-027 FIX</span>
+                                    </div>
+                                    <div class="text-xs">
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            INSERT INTO user_onboarding_answers<br>
+                                            (user_id, slot_name, slot_value)<br>
+                                            ON CONFLICT (user_id, slot_name)<br>
+                                            DO UPDATE SET slot_value = ...<br>
+                                            <br>
+                                            <span class="text-green-400">Persisted immediately!</span><br>
+                                            <span class="text-gray-500">(survives Redis session expiry)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 8 - Response -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">8</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Response returned to frontend</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        {<br>
+                                          session_id: "a1b2c3d4-...",<br>
+                                          ai_response: "Great! What stage is your company at?",<br>
+                                          extracted_slots: { user_type: "Founder", ... },<br>
+                                          completion_percent: <span class="text-yellow-400">42.8</span>,  // 3/7 slots<br>
+                                          is_complete: false<br>
+                                        }<br>
+                                        <br>
+                                        <span class="text-gray-500">// Loop back to Step 4 until is_complete = true</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Completion trigger -->
+                    <div class="bg-green-900/30 rounded-lg border border-green-600 p-3 text-center">
+                        <span class="text-green-400 font-medium">WHEN completion_percent = 100% (7/7 slots)</span>
+                    </div>
+
+                    <!-- Step 9 -->
                     <div class="bg-gray-800 rounded-lg border border-green-600 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/onboarding/conversational/complete</span>
-                            <span class="px-2 py-0.5 bg-green-600 text-white text-xs rounded">TRIGGERS MATCHING</span>
-                            <span class="text-xs text-gray-500">→ AI onboarding.py:524-935</span>
-                        </div>
-                        <div class="text-xs">
-                            <div class="text-gray-400 mb-2">Complete Workflow (411 lines)</div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="code bg-gray-900 p-3 rounded space-y-1">
-                                    <div class="text-green-400">1. Get slots from Redis or Supabase</div>
-                                    <div class="text-green-400">2. IDEMPOTENCY: Return success if profile exists</div>
-                                    <div class="text-green-400">3. Convert slots to Q&A pairs</div>
-                                    <div class="text-green-400">4. Create DynamoDB UserProfile</div>
-                                    <div class="text-green-400">5. Update PostgreSQL onboarding_status='completed'</div>
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">9</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Frontend calls complete endpoint</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
                                 </div>
-                                <div class="code bg-gray-900 p-3 rounded space-y-1">
-                                    <div class="text-green-400">6. Create user_summary (markdown)</div>
-                                    <div class="text-green-400">7. Generate 6-vector embeddings (OpenAI)</div>
-                                    <div class="text-green-400">8. Generate 2 basic embeddings</div>
-                                    <div class="text-purple-400">9. INLINE BIDIRECTIONAL MATCHING</div>
-                                    <div class="text-green-400">10. Trigger persona generation pipeline</div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        ConversationalOnboardingContext.tsx:154<br>
+                                        <span class="text-green-400">POST</span> /api/v1/onboarding/conversational/complete<br>
+                                        Body: { user_id, session_id, persona_approved: true }
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- LLM Slot Extractor -->
-                    <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
-                        <h3 class="text-sm font-medium text-purple-400 mb-3">LLMSlotExtractor.extract_slots() — llm_slot_extractor.py:644-932</h3>
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-purple-400">
+                            <div class="text-xs mb-1">Triggers 411-line workflow</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 10 - Complete workflow -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">10</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Complete workflow executes</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
+                                    <span class="text-xs text-gray-500">onboarding.py:524-935 (411 lines)</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div class="space-y-2">
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-yellow-400">Step 10a:</span> Get all slots from Redis/Supabase<br>
+                                            <span class="text-yellow-400">Step 10b:</span> Convert to Q&A pairs format<br>
+                                            <span class="text-yellow-400">Step 10c:</span> Create DynamoDB UserProfile<br>
+                                            <span class="text-yellow-400">Step 10d:</span> Generate user_summary (markdown)
+                                        </div>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-cyan-400">Step 10e:</span> Generate 6-vector embeddings (OpenAI)<br>
+                                            <span class="text-cyan-400">Step 10f:</span> Generate 2 basic embeddings<br>
+                                            <span class="text-green-400">Step 10g:</span> <span class="font-bold">INLINE MATCHING</span> &rarr; Next Flow<br>
+                                            <span class="text-cyan-400">Step 10h:</span> Update Supabase status='completed'
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Storage outputs -->
+                    <div class="flex justify-center gap-4">
+                        <div class="flex flex-col items-center text-yellow-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <div class="text-xs">DynamoDB</div>
+                        </div>
+                        <div class="flex flex-col items-center text-orange-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <div class="text-xs">Supabase</div>
+                        </div>
+                        <div class="flex flex-col items-center text-cyan-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <div class="text-xs">OpenAI</div>
+                        </div>
+                    </div>
+
+                    <!-- Final storage -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-yellow-900/30 rounded-lg border border-yellow-700 p-3">
+                            <div class="text-yellow-400 font-medium text-sm mb-2">DynamoDB: staging-user-profiles</div>
+                            <div class="code text-xs bg-gray-900 p-2 rounded">
+                                persona: {<br>
+                                  name, archetype,<br>
+                                  requirements, offerings,<br>
+                                  user_type, industry<br>
+                                }<br>
+                                processing_status: "completed"
+                            </div>
+                        </div>
+                        <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-3">
+                            <div class="text-orange-400 font-medium text-sm mb-2">Supabase: user_embeddings</div>
+                            <div class="code text-xs bg-gray-900 p-2 rounded">
+                                user_id: "..."<br>
+                                industry_embedding: float[1536]<br>
+                                stage_embedding: float[1536]<br>
+                                goal_embedding: float[1536]<br>
+                                geography_embedding: float[1536]<br>
+                                engagement_embedding: float[1536]<br>
+                                dealbreakers_embedding: float[1536]
+                            </div>
+                        </div>
+                        <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-3">
+                            <div class="text-orange-400 font-medium text-sm mb-2">Supabase: users</div>
+                            <div class="code text-xs bg-gray-900 p-2 rounded">
+                                UPDATE users<br>
+                                SET onboarding_status = 'COMPLETED'<br>
+                                WHERE id = user_id
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trigger next flow -->
+                    <div class="bg-green-900/50 rounded-lg border border-green-500 p-4 text-center">
+                        <div class="text-green-400 font-bold text-lg mb-2">TRIGGERS MATCHING FLOW</div>
+                        <div class="text-xs text-gray-400">inline_matching_service.calculate_and_sync_matches_bidirectional() is called INLINE (not cron)</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== MATCHING FLOW ==================== -->
+        <div id="content-matching" class="tab-content hidden">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Matching Algorithm Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">How the 7-step hybrid algorithm calculates matches for a newly onboarded user</p>
+
+                <!-- Config -->
+                <div class="bg-green-900/30 border border-green-700 rounded-lg p-3 mb-6 text-xs flex items-center gap-6">
+                    <span class="text-green-400 font-medium">Thresholds:</span>
+                    <span>Strong: <span class="text-green-400 font-bold">&ge;0.70</span></span>
+                    <span>Worth Exploring: <span class="text-yellow-400 font-bold">&ge;0.55</span></span>
+                    <span>Minimum: <span class="text-orange-400 font-bold">&ge;0.50</span></span>
+                    <span class="ml-auto">Max matches/user: <span class="text-blue-400 font-bold">50</span></span>
+                </div>
+
+                <div class="space-y-4">
+
+                    <!-- Entry point -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-600 p-3 text-center text-sm">
+                        <span class="text-purple-400">Triggered by: onboarding.py:complete() &rarr; inline_matching_service.py:75</span>
+                    </div>
+
+                    <!-- Step 1 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Get new user's embeddings</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        SELECT * FROM user_embeddings WHERE user_id = 'new_user_id'<br>
+                                        <br>
+                                        Returns 6 vectors (each 1536 dimensions):<br>
+                                        - industry_embedding, stage_embedding, goal_embedding<br>
+                                        - geography_embedding, engagement_embedding, dealbreakers_embedding
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Get ALL other users' embeddings</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        SELECT ue.*, u.allow_matching, u.is_active<br>
+                                        FROM user_embeddings ue<br>
+                                        JOIN users u ON ue.user_id = u.id<br>
+                                        WHERE u.id != 'new_user_id'<br>
+                                          AND u.allow_matching = true<br>
+                                          AND u.is_active = true<br>
+                                          AND u.onboarding_status = 'COMPLETED'
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loop start -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-600 p-3 text-center">
+                        <span class="text-blue-400 font-medium">FOR EACH candidate user:</span>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Calculate multi-vector base score</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                    <span class="text-xs text-gray-500">inline_matching_service.py:525-560</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-3 rounded">
+                                        <span class="text-green-400">// Cosine similarity for each dimension</span><br>
+                                        industry_sim = cosine_similarity(new_user.industry, candidate.industry)<br>
+                                        stage_sim = cosine_similarity(new_user.stage, candidate.stage)<br>
+                                        goal_sim = cosine_similarity(new_user.goal, candidate.goal)<br>
+                                        geo_sim = cosine_similarity(new_user.geography, candidate.geography)<br>
+                                        engagement_sim = cosine_similarity(new_user.engagement, candidate.engagement)<br>
+                                        dealbreakers_sim = cosine_similarity(new_user.dealbreakers, candidate.dealbreakers)<br>
+                                        <br>
+                                        <span class="text-yellow-400">// Weighted sum</span><br>
+                                        BASE_SCORE = (industry_sim × <span class="text-blue-400">0.25</span>) + (stage_sim × <span class="text-blue-400">0.20</span>) + (goal_sim × <span class="text-blue-400">0.20</span>)<br>
+                                                   + (geo_sim × <span class="text-blue-400">0.15</span>) + (engagement_sim × <span class="text-blue-400">0.10</span>) + (dealbreakers_sim × <span class="text-blue-400">0.10</span>)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Intent classification & complementarity</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                    <span class="text-xs text-gray-500">_get_intent_quality():769-816</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Classify both users:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            new_user.intent = "FOUNDER" (from primary_goal)<br>
+                                            candidate.intent = "INVESTOR"
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Look up intent quality:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            INVESTOR &harr; FOUNDER = <span class="text-green-400">1.0</span><br>
+                                            MENTOR &harr; MENTEE = <span class="text-green-400">1.0</span><br>
+                                            COFOUNDER &harr; COFOUNDER = <span class="text-yellow-400">0.8</span><br>
+                                            SAME_TYPE = <span class="text-red-400">0.3</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="bg-red-900/30 rounded-lg border border-red-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-red-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Dealbreaker filters</span>
+                                    <span class="data-badge bg-red-900 text-red-400">FILTER</span>
+                                    <span class="text-xs text-gray-500">Line 651-667</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        <span class="text-red-400">IF</span> new_user.intent == candidate.intent AND BLOCK_SAME_OBJECTIVE:<br>
+                                            <span class="text-red-400">SKIP</span> this candidate (two investors don't match)<br>
+                                        <br>
+                                        <span class="text-red-400">IF</span> explicit_dealbreaker_match(new_user, candidate):<br>
+                                            <span class="text-red-400">SKIP</span> this candidate
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">6</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Bidirectional check</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                    <span class="text-xs text-gray-500">Line 669-686</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        <span class="text-gray-500">// Does candidate also match well with new user?</span><br>
+                                        forward_score = similarity(new_user &rarr; candidate)<br>
+                                        reverse_score = similarity(candidate &rarr; new_user)<br>
+                                        <br>
+                                        bidirectional_factor = sqrt(forward × reverse) / base_score<br>
+                                        bidirectional_factor = <span class="text-yellow-400">clamp(0.5, bidirectional_factor, 1.5)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 7 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">7</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Activity & temporal boosts</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                    <span class="text-xs text-gray-500">Line 688-692</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        <span class="text-gray-500">// Boost active users, decay inactive ones</span><br>
+                                        activity_boost = candidate.login_count / max_logins  <span class="text-gray-500">// 0-1</span><br>
+                                        <br>
+                                        days_since_active = (now - candidate.last_active).days<br>
+                                        temporal_boost = max(0.85, 1.0 - (days_since_active × 0.005))  <span class="text-gray-500">// 1.0 &rarr; 0.85 over 30 days</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 8 - Final formula -->
+                    <div class="bg-green-900/30 rounded-lg border border-green-600 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">8</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Calculate final score</span>
+                                    <span class="data-badge bg-green-900 text-green-400">FORMULA</span>
+                                    <span class="text-xs text-gray-500">Line 696-702</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-green-900/50 p-3 rounded text-green-300 text-center text-sm">
+                                        FINAL = BASE_SCORE × (0.7 + 0.3 × intent_quality) × bidirectional_factor × (0.9 + 0.1 × activity) × (0.95 + 0.05 × temporal)
+                                    </div>
+                                    <div class="mt-3 text-gray-400">
+                                        Example: 0.72 × (0.7 + 0.3 × 1.0) × 1.1 × (0.9 + 0.1 × 0.8) × (0.95 + 0.05 × 0.95) = <span class="text-green-400 font-bold">0.78</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Loop end -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-600 p-3 text-center">
+                        <span class="text-blue-400 font-medium">END FOR EACH - Now have scores for all candidates</span>
+                    </div>
+
+                    <!-- Step 9 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">9</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Filter and sort matches</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        matches = [m for m in all_scores if m.score >= <span class="text-orange-400">0.50</span>]  <span class="text-gray-500">// minimum threshold</span><br>
+                                        matches.sort(by=score, descending=True)<br>
+                                        matches = matches[:50]  <span class="text-gray-500">// max 50 per user</span><br>
+                                        <br>
+                                        <span class="text-gray-500">// Assign tiers</span><br>
+                                        for match in matches:<br>
+                                            if match.score >= 0.70: match.tier = "strong"<br>
+                                            elif match.score >= 0.55: match.tier = "worth_exploring"<br>
+                                            else: match.tier = "low"
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Storage -->
+                    <div class="flex justify-center gap-8">
+                        <div class="flex flex-col items-center text-yellow-400">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                            <div class="text-xs">Store</div>
+                        </div>
+                    </div>
+
+                    <!-- Step 10 -->
+                    <div class="bg-yellow-900/30 rounded-lg border border-yellow-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-yellow-600 text-white">10</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Store matches in DynamoDB</span>
+                                    <span class="data-badge bg-yellow-900 text-yellow-400">DYNAMODB</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        Table: staging-user-matches<br>
+                                        PK: user_id<br>
+                                        <br>
+                                        BatchWriteItem([<br>
+                                          { user_id, matched_user_id, score: 0.78, tier: "strong", ... },<br>
+                                          { user_id, matched_user_id, score: 0.62, tier: "worth_exploring", ... },<br>
+                                          ...<br>
+                                        ])
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-green-400">
+                            <div class="text-xs mb-1">Webhook</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 11 -->
+                    <div class="bg-green-900/30 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">11</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Sync to Supabase via webhook</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">AI Service calls:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            POST /api/v1/webhooks/matches-ready<br>
+                                            Body: { user_id, matches: [...] }
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Backend inserts:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            INSERT INTO matches<br>
+                                            (user_a_id, user_b_id, score, ...)<br>
+                                            ON CONFLICT DO UPDATE
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Final -->
+                    <div class="bg-blue-900/50 rounded-lg border border-blue-500 p-4 text-center">
+                        <div class="text-blue-400 font-bold text-lg mb-2">MATCHES READY FOR DASHBOARD</div>
+                        <div class="text-xs text-gray-400">User can now see their matches at /dashboard</div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== DASHBOARD FLOW ==================== -->
+        <div id="content-dashboard" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Dashboard Match Viewing Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">How users view their matches and make decisions</p>
+
+                <div class="space-y-4">
+
+                    <!-- Step 1 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">User navigates to Dashboard</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        DashboardPage.tsx mounts<br>
+                                        useEffect &rarr; matchService.ts:11<br>
+                                        <span class="text-green-400">GET</span> /api/v1/dashboard/onboarding-matches<br>
+                                        Headers: { Authorization: "Bearer {jwt}" }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-green-900/30 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend fetches matches</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                    <span class="text-xs text-gray-500">dashboard.controller.ts:80</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        user_id = jwt.sub  <span class="text-gray-500">// from auth guard</span><br>
+                                        <br>
+                                        SELECT m.*, u.first_name, u.last_name, u.avatar, us.summary<br>
+                                        FROM matches m<br>
+                                        JOIN users u ON (m.user_a_id = u.id OR m.user_b_id = u.id)<br>
+                                        LEFT JOIN user_summaries us ON us.user_id = u.id<br>
+                                        WHERE (m.user_a_id = ? OR m.user_b_id = ?)<br>
+                                          AND m.status = 'PENDING'<br>
+                                        ORDER BY m.score DESC
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Matches displayed in UI</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        MatchCard.tsx renders each match:<br>
+                                        - Avatar, name, designation<br>
+                                        - Match tier badge (strong/worth_exploring/low)<br>
+                                        - Score percentage<br>
+                                        - "Why We Matched" button (lazy loads explanation)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User action -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-600 p-3 text-center">
+                        <span class="text-blue-400 font-medium">USER CLICKS "Why We Matched"</span>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Explanation requested</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        <span class="text-green-400">GET</span> /api/v1/dashboard/match-explanation/{matchId}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="bg-pink-900/30 rounded-lg border border-pink-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-pink-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Claude generates explanation</span>
+                                    <span class="data-badge bg-pink-900 text-pink-400">CLAUDE API</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Prompt to Claude:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            "Explain why these two users match:<br>
+                                            User A: {persona, requirements, offerings}<br>
+                                            User B: {persona, requirements, offerings}<br>
+                                            Score: 0.78<br>
+                                            <br>
+                                            Generate: explanation, synergy_areas,<br>
+                                            friction_points, talking_points"
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Response:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            {<br>
+                                              explanation: "Both are focused on...",<br>
+                                              synergy_areas: ["SaaS expertise", "Series A"],<br>
+                                              friction_points: ["Different timezones"],<br>
+                                              talking_points: ["Discuss your GTM..."]<br>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cache -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-orange-400">
+                            <div class="text-xs mb-1">Cache in DB</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">6</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Explanation cached in Supabase</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        UPDATE matches<br>
+                                        SET explanation = '{...}'::jsonb,<br>
+                                            synergy_areas = ARRAY['SaaS expertise', 'Series A'],<br>
+                                            friction_points = ARRAY['Different timezones'],<br>
+                                            explanation_generated_at = NOW()<br>
+                                        WHERE id = match_id<br>
+                                        <br>
+                                        <span class="text-gray-500">// Next request returns cached, skips Claude call</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User action -->
+                    <div class="bg-green-900/30 rounded-lg border border-green-600 p-3 text-center">
+                        <span class="text-green-400 font-medium">USER CLICKS "Connect" or "Pass"</span>
+                    </div>
+
+                    <!-- Step 7 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">7</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Decision submitted</span>
+                                    <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        matchService.ts:19<br>
+                                        <span class="text-green-400">POST</span> /api/v1/dashboard/decide-match<br>
+                                        Body: {<br>
+                                          match_id: "...",<br>
+                                          decision: "approved" | "declined",<br>
+                                          reason_tags: ["wrong_industry"],  <span class="text-gray-500">// if declined</span><br>
+                                          decision_time_ms: 4500  <span class="text-gray-500">// engagement metric</span><br>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 8 -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">8</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Match status updated</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">matches table:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            UPDATE matches<br>
+                                            SET user_a_decision = 'approved',<br>
+                                                user_a_decided_at = NOW()<br>
+                                            WHERE id = match_id<br>
+                                            <br>
+                                            <span class="text-gray-500">// Check for mutual match</span><br>
+                                            IF user_a_decision = 'approved'<br>
+                                               AND user_b_decision = 'approved':<br>
+                                              SET status = 'MATCHED', perfect_match = true
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">match_feedback table:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            INSERT INTO match_feedback<br>
+                                            (match_id, user_id, decision, reason_tags,<br>
+                                             decision_time_ms, created_at)<br>
+                                            VALUES (...)<br>
+                                            <br>
+                                            <span class="text-gray-500">// Used for analytics</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Conditional -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-600 p-3 text-center">
+                        <span class="text-purple-400 font-medium">IF MUTUAL MATCH (both approved) &rarr; TRIGGERS FEEDBACK LOOP</span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== FEEDBACK LOOP ==================== -->
+        <div id="content-feedback" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Feedback Learning Loop</h2>
+                <p class="text-gray-400 text-sm mb-6">How user feedback improves future matching accuracy</p>
+
+                <!-- Config -->
+                <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3 mb-6 text-xs flex items-center gap-6">
+                    <span class="text-purple-400 font-medium">Embedding Adjustment:</span>
+                    <span>Base Rate: <span class="text-green-400 font-bold">2%</span> per feedback</span>
+                    <span>Max Rate: <span class="text-yellow-400 font-bold">10%</span> (prevents overfit)</span>
+                    <span class="ml-auto text-gray-500">feedback_embedding_adjuster.py</span>
+                </div>
+
+                <div class="space-y-4">
+
+                    <!-- Entry -->
+                    <div class="bg-green-900/30 rounded-lg border border-green-600 p-3 text-center text-sm">
+                        <span class="text-green-400">Triggered when: User approves or declines a match</span>
+                    </div>
+
+                    <!-- Step 1 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Feedback received</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BACKEND</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        POST /dashboard/decide-match<br>
+                                        decision = "approved" | "declined"<br>
+                                        reason_tags = ["wrong_industry"]  <span class="text-gray-500">// if declined</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Backend proxies to AI Service</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        POST /api/v1/feedback/match<br>
+                                        Body: {<br>
+                                          user_id: "user who gave feedback",<br>
+                                          matched_user_id: "the other user",<br>
+                                          decision: "approved" | "declined",<br>
+                                          reason_tags: [...]<br>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Get current embeddings</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        SELECT * FROM user_embeddings<br>
+                                        WHERE user_id = feedback_giver_id<br>
+                                        <br>
+                                        <span class="text-gray-500">// Get all 6 embedding vectors</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 4 - Core algorithm -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Calculate embedding adjustment</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                    <span class="text-xs text-gray-500">feedback_embedding_adjuster.py</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-3 rounded">
+                                        <span class="text-green-400">IF decision == "approved":</span><br>
+                                            <span class="text-gray-500">// Move user's embedding CLOSER to matched user</span><br>
+                                            adjustment_direction = matched_user.embedding - user.embedding<br>
+                                            adjustment_rate = 0.02  <span class="text-gray-500">// 2% base rate</span><br>
+                                        <br>
+                                        <span class="text-red-400">ELIF decision == "declined":</span><br>
+                                            <span class="text-gray-500">// Move user's embedding AWAY from matched user</span><br>
+                                            adjustment_direction = user.embedding - matched_user.embedding<br>
+                                            adjustment_rate = 0.02<br>
+                                        <br>
+                                        <span class="text-yellow-400">// Apply to relevant dimensions based on reason_tags</span><br>
+                                        if "wrong_industry" in reason_tags:<br>
+                                            user.industry_embedding += adjustment_direction * adjustment_rate<br>
+                                        if "wrong_stage" in reason_tags:<br>
+                                            user.stage_embedding += adjustment_direction * adjustment_rate<br>
+                                        <span class="text-gray-500">// ... etc for each dimension</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 5 -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">5</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Normalize adjusted embedding</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">ALGORITHM</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        <span class="text-gray-500">// Embeddings must be unit vectors for cosine similarity</span><br>
+                                        adjusted_embedding = adjusted_embedding / ||adjusted_embedding||<br>
+                                        <br>
+                                        <span class="text-gray-500">// Verify: sum of squares = 1.0</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 6 -->
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">6</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Store updated embeddings</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
+                                </div>
+                                <div class="text-xs">
+                                    <div class="code bg-gray-900 p-2 rounded inline-block">
+                                        UPDATE user_embeddings<br>
+                                        SET industry_embedding = '{...}'::vector,<br>
+                                            stage_embedding = '{...}'::vector,<br>
+                                            updated_at = NOW(),<br>
+                                            feedback_adjustments_count = feedback_adjustments_count + 1<br>
+                                        WHERE user_id = feedback_giver_id
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Result -->
+                    <div class="bg-green-900/50 rounded-lg border border-green-500 p-4">
+                        <h3 class="text-green-400 font-bold mb-3">Effect on Future Matches</h3>
                         <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Signature</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-blue-400">extract_slots</span>(</div>
-                                    <div class="pl-4"><span class="text-purple-400">user_message</span>: str,</div>
-                                    <div class="pl-4"><span class="text-purple-400">conversation_history</span>: List[Dict] = None,</div>
-                                    <div class="pl-4"><span class="text-purple-400">already_filled_slots</span>: Dict = None,</div>
-                                    <div class="pl-4"><span class="text-purple-400">target_slots</span>: List[str] = None,</div>
-                                    <div class="pl-4"><span class="text-purple-400">session_id</span>: str = None</div>
-                                    <div>) → LLMExtractionResult</div>
+                            <div class="bg-gray-900 p-3 rounded">
+                                <div class="text-green-400 font-medium mb-2">If user APPROVED:</div>
+                                <div class="text-gray-400">
+                                    User's embedding moved 2% closer to approved match.<br>
+                                    Future matches will score HIGHER for similar profiles.<br>
+                                    "You liked SaaS investors, here are more SaaS investors"
                                 </div>
                             </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Model Config (Line 257-259)</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-pink-400">extraction_model</span>: claude-3-haiku-20240307</div>
-                                    <div><span class="text-pink-400">personalization_model</span>: claude-sonnet-4-5-20250929</div>
-                                    <div class="text-gray-500 mt-2">Two-stage: Haiku (fast) → Sonnet (quality)</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-xs text-gray-500">
-                            Line 799-811: Anthropic API call with max_tokens=1500, temperature=0.1, prompt caching enabled
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Matching Tab -->
-            <div id="content-matching" class="tab-content hidden">
-                <h2 class="text-lg font-medium mb-4">Hybrid Multi-Vector Matching Algorithm</h2>
-
-                <!-- Thresholds -->
-                <div class="bg-green-900/30 border border-green-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-green-400 mb-2">Thresholds — inline_matching_service.py:70-73</h3>
-                    <div class="grid grid-cols-4 gap-4 text-xs">
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-green-400">0.70</div>
-                            <div class="text-gray-400">Strong Match</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-yellow-400">0.55</div>
-                            <div class="text-gray-400">Worth Exploring</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-orange-400">0.50</div>
-                            <div class="text-gray-400">Minimum</div>
-                        </div>
-                        <div class="text-center">
-                            <div class="text-3xl font-bold text-blue-400">50</div>
-                            <div class="text-gray-400">Max Matches/User</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 6-Vector Weights -->
-                <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-blue-400 mb-2">6-Dimension Embedding Weights (must sum to 1.0)</h3>
-                    <div class="grid grid-cols-6 gap-2 text-xs">
-                        <div class="bg-blue-900/50 p-3 rounded text-center">
-                            <div class="text-2xl font-bold text-blue-400">25%</div>
-                            <div class="text-gray-400">industry</div>
-                        </div>
-                        <div class="bg-purple-900/50 p-3 rounded text-center">
-                            <div class="text-2xl font-bold text-purple-400">20%</div>
-                            <div class="text-gray-400">stage</div>
-                        </div>
-                        <div class="bg-green-900/50 p-3 rounded text-center">
-                            <div class="text-2xl font-bold text-green-400">20%</div>
-                            <div class="text-gray-400">primary_goal</div>
-                        </div>
-                        <div class="bg-yellow-900/50 p-3 rounded text-center">
-                            <div class="text-2xl font-bold text-yellow-400">15%</div>
-                            <div class="text-gray-400">geography</div>
-                        </div>
-                        <div class="bg-orange-900/50 p-3 rounded text-center">
-                            <div class="text-2xl font-bold text-orange-400">10%</div>
-                            <div class="text-gray-400">engagement</div>
-                        </div>
-                        <div class="bg-red-900/50 p-3 rounded text-center">
-                            <div class="text-2xl font-bold text-red-400">10%</div>
-                            <div class="text-gray-400">dealbreakers</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 7-Step Algorithm -->
-                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-4">
-                    <h3 class="text-sm font-medium mb-3">7-Step Hybrid Algorithm — _calculate_hybrid_matches():525-767</h3>
-                    <div class="space-y-2 text-xs">
-                        <div class="flex items-start gap-3 p-3 bg-blue-900/30 rounded">
-                            <span class="type-badge bg-blue-600">1</span>
-                            <div>
-                                <div class="font-medium text-blue-400">Multi-Vector Base Score</div>
-                                <div class="code text-gray-400 mt-1">
-                                    BASE = (industry × 0.25) + (stage × 0.20) + (goal × 0.20) + (geo × 0.15) + (engagement × 0.10) + (dealbreakers × 0.10)
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 bg-purple-900/30 rounded">
-                            <span class="type-badge bg-purple-600">2</span>
-                            <div>
-                                <div class="font-medium text-purple-400">Intent Classification (Line 587-598)</div>
-                                <div class="text-gray-400 mt-1">Detect: INVESTOR↔FOUNDER, MENTOR↔MENTEE, COFOUNDER↔COFOUNDER</div>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 bg-green-900/30 rounded">
-                            <span class="type-badge bg-green-600">3</span>
-                            <div>
-                                <div class="font-medium text-green-400">Complementarity Score — _get_intent_quality():769-816</div>
-                                <div class="code text-gray-400 mt-1">
-                                    INVESTOR↔FOUNDER = 1.0 | MENTOR↔MENTEE = 1.0 | COFOUNDER↔COFOUNDER = 0.8 | SAME_TYPE = 0.3
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 bg-red-900/30 rounded">
-                            <span class="type-badge bg-red-600">4</span>
-                            <div>
-                                <div class="font-medium text-red-400">Dealbreaker Filters (Line 651-667)</div>
-                                <div class="text-gray-400 mt-1">Hard exclusion: Same-objective blocking, explicit dealbreakers</div>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 bg-cyan-900/30 rounded">
-                            <span class="type-badge bg-cyan-600">5</span>
-                            <div>
-                                <div class="font-medium text-cyan-400">Bidirectional Check (Line 669-686)</div>
-                                <div class="code text-gray-400 mt-1">
-                                    bidirectional_factor = sqrt(forward × reverse) / base_score, capped [0.5, 1.5]
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 bg-orange-900/30 rounded">
-                            <span class="type-badge bg-orange-600">6</span>
-                            <div>
-                                <div class="font-medium text-orange-400">Activity & Temporal Boosts (Line 688-692)</div>
-                                <div class="text-gray-400 mt-1">activity_boost: 0-1 based on logins | temporal_boost: 1.0→0.85 decay over 30 days</div>
-                            </div>
-                        </div>
-                        <div class="flex items-start gap-3 p-3 bg-green-900/50 rounded border border-green-600">
-                            <span class="type-badge bg-green-600">7</span>
-                            <div>
-                                <div class="font-medium text-green-400">Final Score Formula (Line 696-702)</div>
-                                <div class="code text-green-300 mt-1">
-                                    FINAL = BASE × (0.7 + 0.3 × intent) × bidir × (0.9 + 0.1 × activity) × (0.95 + 0.05 × temporal)
+                            <div class="bg-gray-900 p-3 rounded">
+                                <div class="text-red-400 font-medium mb-2">If user DECLINED:</div>
+                                <div class="text-gray-400">
+                                    User's embedding moved 2% away from declined match.<br>
+                                    Future matches will score LOWER for similar profiles.<br>
+                                    "You passed on fintech, showing fewer fintech matches"
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Storage Flow -->
-                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                    <h3 class="text-sm font-medium mb-3">Match Storage Flow</h3>
-                    <div class="flex items-center justify-between text-xs">
-                        <div class="bg-purple-900/50 border border-purple-700 p-3 rounded text-center">
-                            <div class="text-purple-400 font-medium">InlineMatchingService</div>
-                            <div class="text-gray-500">calculate_and_sync_matches_bidirectional()</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="bg-yellow-900/50 border border-yellow-700 p-3 rounded text-center">
-                            <div class="text-yellow-400 font-medium">DynamoDB</div>
-                            <div class="text-gray-500">staging-user-matches</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="bg-green-900/50 border border-green-700 p-3 rounded text-center">
-                            <div class="text-green-400 font-medium">Backend Sync</div>
-                            <div class="text-gray-500">POST /webhooks/matches-ready</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="bg-orange-900/50 border border-orange-700 p-3 rounded text-center">
-                            <div class="text-orange-400 font-medium">Supabase</div>
-                            <div class="text-gray-500">matches table</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Dashboard Tab -->
-            <div id="content-dashboard" class="tab-content hidden">
-                <h2 class="text-lg font-medium mb-4">Dashboard Endpoints</h2>
-
-                <div class="space-y-3">
-                    <!-- GET /dashboard/onboarding-matches -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-blue-600">GET</span>
-                            <span class="font-medium">/dashboard/onboarding-matches</span>
-                            <span class="text-xs text-gray-500">dashboard.controller.ts:80</span>
-                        </div>
+                    <!-- Loop indicator -->
+                    <div class="bg-blue-900/30 rounded-lg border border-blue-600 p-4 text-center">
+                        <div class="text-blue-400 font-medium mb-2">CONTINUOUS LEARNING</div>
                         <div class="text-xs text-gray-400">
-                            Auth: JWT | Returns matches list with scores and explanations | Frontend: matchService.ts:11
+                            Each approve/decline adjusts embeddings by 2%<br>
+                            Over time, user's embedding space converges to their true preferences<br>
+                            Max adjustment capped at 10% to prevent overfit from outlier decisions
                         </div>
                     </div>
 
-                    <!-- POST /dashboard/decide-match -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-green-600">POST</span>
-                            <span class="font-medium">/dashboard/decide-match</span>
-                            <span class="text-xs text-gray-500">dashboard.controller.ts:110</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 text-xs">
-                            <div>
-                                <div class="text-gray-400 mb-2">Request (decideMatchDto)</div>
-                                <div class="code bg-gray-900 p-2 rounded">
-                                    <div><span class="text-purple-400">match_id</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty</span></div>
-                                    <div><span class="text-purple-400">decision</span>: <span class="text-yellow-400">'approved' | 'declined'</span></div>
-                                    <div><span class="text-purple-400">reason_tags</span>: <span class="text-yellow-400">string[]</span> <span class="param-optional">optional</span></div>
-                                    <div><span class="text-purple-400">reason_text</span>: <span class="text-yellow-400">string</span> <span class="param-optional">optional</span></div>
-                                    <div><span class="text-purple-400">decision_time_ms</span>: <span class="text-yellow-400">number</span> <span class="param-optional">optional</span></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="text-gray-400 mb-2">Reason Tags (FeedbackReasonTag)</div>
-                                <div class="code bg-gray-900 p-2 rounded text-gray-500">
-                                    'wrong_industry' | 'wrong_stage' | 'bad_timing' | 'not_relevant' | 'already_connected' | 'other'
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- GET /dashboard/match-explanation/:matchId -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-blue-600">GET</span>
-                            <span class="font-medium">/dashboard/match-explanation/:matchId</span>
-                            <span class="text-xs text-gray-500">dashboard.controller.ts:486</span>
-                        </div>
-                        <div class="text-xs">
-                            <div class="text-gray-400 mb-2">Response (MatchExplanation)</div>
-                            <div class="code bg-gray-900 p-2 rounded">
-                                <div><span class="text-purple-400">match_id</span>, <span class="text-purple-400">compatibility_score</span>, <span class="text-purple-400">match_tier</span>: 'perfect'|'strong'|'worth_exploring'|'low'</div>
-                                <div><span class="text-purple-400">explanation</span>: string, <span class="text-purple-400">synergy_areas</span>: string[], <span class="text-purple-400">friction_points</span>: string[]</div>
-                                <div><span class="text-purple-400">talking_points</span>: string[], <span class="text-purple-400">score_breakdown</span>: ScoreBreakdown, <span class="text-purple-400">generated_at</span>: Date</div>
-                            </div>
-                            <div class="mt-2 text-gray-500">Generated on-demand by Claude Haiku | Query param: force_refresh=true</div>
-                        </div>
-                    </div>
-
-                    <!-- GET /dashboard/ice-breakers/:matchId -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="type-badge bg-blue-600">GET</span>
-                            <span class="font-medium">/dashboard/ice-breakers/:matchId</span>
-                            <span class="text-xs text-gray-500">dashboard.controller.ts:520</span>
-                        </div>
-                        <div class="text-xs text-gray-400">
-                            Returns AI-generated conversation starters | Frontend: matchService.ts:91
-                        </div>
-                    </div>
-
-                    <!-- Admin Endpoints -->
-                    <h3 class="text-sm font-medium mt-6 mb-3">Admin Endpoints (No Auth)</h3>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-blue-600 text-xs">GET</span>
-                                <span class="text-sm">/dashboard/admin/system-health</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Line 569 | All database health checks</div>
-                        </div>
-                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-blue-600 text-xs">GET</span>
-                                <span class="text-sm">/dashboard/admin/wiring-audit</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Line 622 | Pipeline truth check</div>
-                        </div>
-                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-blue-600 text-xs">GET</span>
-                                <span class="text-sm">/dashboard/admin/matching-diagnostics</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Line 587 | All users matching status</div>
-                        </div>
-                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
-                            <div class="flex items-center gap-2 mb-2">
-                                <span class="type-badge bg-green-600 text-xs">POST</span>
-                                <span class="text-sm">/dashboard/admin/regenerate-embeddings</span>
-                            </div>
-                            <div class="text-xs text-gray-400">Line 641 | Request: {user_id}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Database Tab -->
-            <div id="content-database" class="tab-content hidden">
-                <h2 class="text-lg font-medium mb-4">Database Schemas</h2>
-
-                <!-- Users Table -->
-                <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-orange-400 mb-3">Supabase: users — user.entity.ts:27-271</h3>
-                    <div class="grid grid-cols-3 gap-4 text-xs">
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div class="text-gray-500 mb-1">// Primary</div>
-                            <div><span class="text-purple-400">id</span>: <span class="text-yellow-400">UUID</span> PK UUIDV4</div>
-                            <div><span class="text-purple-400">role_id</span>: <span class="text-yellow-400">UUID</span> FK→Role</div>
-                            <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">STRING(255)</span> UNIQUE</div>
-                            <div><span class="text-purple-400">password</span>: <span class="text-yellow-400">STRING(255)</span> nullable</div>
-                        </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div class="text-gray-500 mb-1">// Profile</div>
-                            <div><span class="text-purple-400">first_name</span>: <span class="text-yellow-400">STRING(100)</span></div>
-                            <div><span class="text-purple-400">last_name</span>: <span class="text-yellow-400">STRING(100)</span></div>
-                            <div><span class="text-purple-400">avatar</span>: <span class="text-yellow-400">TEXT</span> nullable</div>
-                            <div><span class="text-purple-400">bio</span>: <span class="text-yellow-400">TEXT</span> nullable</div>
-                            <div><span class="text-purple-400">linkedin_profile</span>: <span class="text-yellow-400">TEXT</span> nullable</div>
-                        </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div class="text-gray-500 mb-1">// Status</div>
-                            <div><span class="text-purple-400">is_email_verified</span>: <span class="text-yellow-400">BOOLEAN</span> default=false</div>
-                            <div><span class="text-purple-400">onboarding_status</span>: <span class="text-yellow-400">ENUM</span> default=NOT_STARTED</div>
-                            <div><span class="text-purple-400">is_active</span>: <span class="text-yellow-400">BOOLEAN</span> default=true</div>
-                            <div><span class="text-purple-400">is_test</span>: <span class="text-yellow-400">BOOLEAN</span> default=false</div>
-                            <div><span class="text-purple-400">allow_matching</span>: <span class="text-yellow-400">BOOLEAN</span> default=true</div>
-                        </div>
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500">
-                        Paranoid delete (deleted_at) | Provider: PASSWORD|GOOGLE | OnboardingStatus: NOT_STARTED|IN_PROGRESS|COMPLETED
-                    </div>
                 </div>
 
-                <!-- Matches Table -->
-                <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-orange-400 mb-3">Supabase: matches — match.entity.ts:49-256</h3>
-                    <div class="grid grid-cols-3 gap-4 text-xs">
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div class="text-gray-500 mb-1">// Keys</div>
-                            <div><span class="text-purple-400">id</span>: <span class="text-yellow-400">UUID</span> PK</div>
-                            <div><span class="text-purple-400">user_a_id</span>: <span class="text-yellow-400">UUID</span> FK→User</div>
-                            <div><span class="text-purple-400">user_b_id</span>: <span class="text-yellow-400">UUID</span> FK→User</div>
-                            <div class="text-gray-500 mt-1">UNIQUE(user_a_id, user_b_id)</div>
+                <!-- Visual summary -->
+                <div class="mt-8 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <h3 class="font-medium mb-4">Complete Platform Data Flow Summary</h3>
+                    <div class="text-xs">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="px-2 py-1 bg-blue-900 rounded">Signup</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-orange-400">[Supabase: users]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="px-2 py-1 bg-purple-900 rounded">Onboarding Chat</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-red-400">[Redis: session]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-pink-400">[Claude: extract slots]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-orange-400">[Supabase: slots]</span>
                         </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div class="text-gray-500 mb-1">// Decisions</div>
-                            <div><span class="text-purple-400">user_a_decision</span>: <span class="text-yellow-400">ENUM</span> pending|approved|declined</div>
-                            <div><span class="text-purple-400">user_b_decision</span>: <span class="text-yellow-400">ENUM</span></div>
-                            <div><span class="text-purple-400">status</span>: <span class="text-yellow-400">ENUM</span> default=PENDING</div>
-                            <div><span class="text-purple-400">perfect_match</span>: <span class="text-yellow-400">BOOLEAN</span> default=false</div>
+                        <div class="flex items-center gap-2 flex-wrap mt-2">
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="px-2 py-1 bg-green-900 rounded">Complete</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-yellow-400">[DynamoDB: profile]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-cyan-400">[OpenAI: embeddings]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-orange-400">[Supabase: embeddings]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="px-2 py-1 bg-purple-900 rounded">Matching Algorithm</span>
                         </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div class="text-gray-500 mb-1">// AI Fields</div>
-                            <div><span class="text-purple-400">explanation</span>: <span class="text-yellow-400">JSONB</span> {summary, generated_at}</div>
-                            <div><span class="text-purple-400">synergy_areas</span>: <span class="text-yellow-400">TEXT[]</span></div>
-                            <div><span class="text-purple-400">friction_points</span>: <span class="text-yellow-400">TEXT[]</span></div>
-                            <div><span class="text-purple-400">score_breakdown</span>: <span class="text-yellow-400">JSONB</span></div>
-                            <div><span class="text-purple-400">match_tier</span>: <span class="text-yellow-400">STRING(20)</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- DynamoDB Tables -->
-                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-4">
-                    <h3 class="text-sm font-medium text-yellow-400 mb-3">DynamoDB: staging-user-profiles — dynamodb.py</h3>
-                    <div class="code bg-gray-900 p-3 rounded text-xs">
-                        <div class="text-gray-500 mb-2">// Primary Key: user_id (hash)</div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <div><span class="text-purple-400">profile</span>: MapAttribute</div>
-                                <div class="pl-4">resume_link: str | nullable</div>
-                                <div class="pl-4">raw_questions: List[{prompt, answer}]</div>
-                                <div class="pl-4">created_at, updated_at: DateTime</div>
-                            </div>
-                            <div>
-                                <div><span class="text-purple-400">persona</span>: MapAttribute</div>
-                                <div class="pl-4">name, archetype, designation, experience</div>
-                                <div class="pl-4">focus, profile_essence, strategy</div>
-                                <div class="pl-4">requirements, offerings, user_type, industry</div>
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <span class="text-purple-400">processing_status</span>: not_initiated|pending|processing|completed|failed
-                            <span class="text-purple-400 ml-4">persona_status</span>: not_initiated|pending|generated|approved
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Redis Keys -->
-                <div class="bg-red-900/30 border border-red-700 rounded-lg p-4">
-                    <h3 class="text-sm font-medium text-red-400 mb-3">Redis Key Patterns (Upstash)</h3>
-                    <div class="grid grid-cols-2 gap-4 text-xs">
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div><span class="text-purple-400">onboarding:session:{session_id}</span></div>
-                            <div class="text-gray-500">TTL: 1 hour | Session state JSON</div>
-                        </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div><span class="text-purple-400">onboarding:dedup:{user_id}:{md5_hash}</span></div>
-                            <div class="text-gray-500">TTL: 10s | Deduplication marker</div>
-                        </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div><span class="text-purple-400">resume:{session_id}</span></div>
-                            <div class="text-gray-500">TTL: 1 hour | Base64 encoded file</div>
-                        </div>
-                        <div class="code bg-gray-900 p-2 rounded">
-                            <div><span class="text-purple-400">resume_meta:{session_id}</span></div>
-                            <div class="text-gray-500">TTL: 1 hour | {filename, content_type, size}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Types Tab -->
-            <div id="content-types" class="tab-content hidden">
-                <h2 class="text-lg font-medium mb-4">TypeScript Type Definitions</h2>
-
-                <div class="grid grid-cols-2 gap-4">
-                    <!-- Match Types -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <h3 class="text-sm font-medium text-purple-400 mb-3">Match Types — src/types/match.ts</h3>
-                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-2">
-                            <div>
-                                <span class="text-blue-400">interface</span> <span class="text-green-400">Match</span> {
-                                <div class="pl-4">id: string</div>
-                                <div class="pl-4">match_date: Date</div>
-                                <div class="pl-4">status: MatchStatus</div>
-                                <div class="pl-4">feedback?: string</div>
-                                <div class="pl-4">other_user: {id, name, designation, objective}</div>
-                                }
-                            </div>
-                            <div class="mt-2">
-                                <span class="text-blue-400">type</span> <span class="text-green-400">MatchTier</span> = 'perfect' | 'strong' | 'worth_exploring' | 'low'
-                            </div>
-                            <div>
-                                <span class="text-blue-400">type</span> <span class="text-green-400">FeedbackReasonTag</span> = 'wrong_industry' | 'wrong_stage' | 'bad_timing' | 'not_relevant' | 'already_connected' | 'other'
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Onboarding Types -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <h3 class="text-sm font-medium text-blue-400 mb-3">Onboarding Types — src/types/onboarding.ts</h3>
-                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-2">
-                            <div>
-                                <span class="text-blue-400">interface</span> <span class="text-green-400">ExtractedSlot</span> {
-                                <div class="pl-4">value: any</div>
-                                <div class="pl-4">confidence: number</div>
-                                <div class="pl-4">source: 'user' | 'inferred'</div>
-                                }
-                            </div>
-                            <div class="mt-2">
-                                <span class="text-blue-400">interface</span> <span class="text-green-400">OnboardingProgress</span> {
-                                <div class="pl-4">progress: number // 0-100</div>
-                                <div class="pl-4">meta: {answeredQuestions, totalQuestions}</div>
-                                }
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- API Response -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <h3 class="text-sm font-medium text-green-400 mb-3">API Response Pattern</h3>
-                        <div class="code bg-gray-900 p-3 rounded text-xs">
-                            <div>
-                                <span class="text-blue-400">interface</span> <span class="text-green-400">ApiResponse&lt;T&gt;</span> {
-                                <div class="pl-4">code: number  <span class="text-gray-500">// 200 = success</span></div>
-                                <div class="pl-4">message: string</div>
-                                <div class="pl-4">result: T | null</div>
-                                }
-                            </div>
-                            <div class="text-gray-500 mt-2">
-                                All services return this shape.<br>
-                                Error: {code: 4xx|5xx, message: "error", result: null}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ScoreBreakdown -->
-                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-                        <h3 class="text-sm font-medium text-orange-400 mb-3">ScoreBreakdown — match.ts:34-52</h3>
-                        <div class="code bg-gray-900 p-3 rounded text-xs">
-                            <div>
-                                <span class="text-blue-400">interface</span> <span class="text-green-400">ScoreBreakdown</span> {
-                                <div class="pl-4">objective_alignment: ScoreDimension</div>
-                                <div class="pl-4">industry_match: ScoreDimension</div>
-                                <div class="pl-4">timeline_compatibility: ScoreDimension</div>
-                                <div class="pl-4">skill_complement: ScoreDimension</div>
-                                <div class="pl-4">experience_level: ScoreDimension</div>
-                                <div class="pl-4">communication_style: ScoreDimension</div>
-                                }
-                            </div>
-                            <div class="mt-2">
-                                <span class="text-blue-400">interface</span> <span class="text-green-400">ScoreDimension</span> {
-                                <div class="pl-4">score: number, weight: number, weighted_score: number, explanation: string</div>
-                                }
-                            </div>
+                        <div class="flex items-center gap-2 flex-wrap mt-2">
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-yellow-400">[DynamoDB: matches]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-orange-400">[Supabase: matches]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="px-2 py-1 bg-blue-900 rounded">Dashboard</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="text-pink-400">[Claude: explanation]</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="px-2 py-1 bg-green-900 rounded">Decision</span>
+                            <span class="text-gray-500">&rarr;</span>
+                            <span class="px-2 py-1 bg-purple-900 rounded">Feedback Loop</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Right Panel: Quick Reference -->
-        <div class="w-72 bg-gray-800 border-l border-gray-700 p-4 overflow-auto scrollbar-thin">
-            <h3 class="text-sm font-medium mb-3">Quick Reference</h3>
-
-            <div class="space-y-4 text-xs">
-                <!-- URLs -->
-                <div>
-                    <div class="text-gray-500 mb-1">Production URLs</div>
-                    <div class="space-y-1">
-                        <div class="text-blue-400">2connectv1-frontend.vercel.app</div>
-                        <div class="text-green-400">twoconnectv1-backend.onrender.com</div>
-                        <div class="text-purple-400">twoconnectv1-ai.onrender.com</div>
-                    </div>
-                </div>
-
-                <!-- Key Files -->
-                <div>
-                    <div class="text-gray-500 mb-1">Key Files</div>
-                    <div class="space-y-1 code">
-                        <div>llm_slot_extractor.py:644</div>
-                        <div>inline_matching_service.py:75</div>
-                        <div>ConversationalOnboardingContext.tsx</div>
-                        <div>auth.controller.ts</div>
-                        <div>dashboard.controller.ts</div>
-                    </div>
-                </div>
-
-                <!-- Models -->
-                <div>
-                    <div class="text-gray-500 mb-1">AI Models</div>
-                    <div class="space-y-1">
-                        <div><span class="text-pink-400">Haiku</span> - Slot extraction</div>
-                        <div><span class="text-pink-400">Sonnet</span> - Personalization</div>
-                        <div><span class="text-cyan-400">text-embedding-3-small</span> - 6 vectors</div>
-                    </div>
-                </div>
-
-                <!-- Timeouts -->
-                <div>
-                    <div class="text-gray-500 mb-1">Timeouts</div>
-                    <div class="space-y-1">
-                        <div>Frontend: <span class="text-yellow-400">60s</span></div>
-                        <div>Max Retries: <span class="text-yellow-400">1</span></div>
-                        <div>Dedup Window: <span class="text-yellow-400">5s</span></div>
-                        <div>Session TTL: <span class="text-yellow-400">1hr</span></div>
-                    </div>
-                </div>
-
-                <!-- Thresholds -->
-                <div>
-                    <div class="text-gray-500 mb-1">Match Thresholds</div>
-                    <div class="space-y-1">
-                        <div>Strong: <span class="text-green-400">≥0.70</span></div>
-                        <div>Worth: <span class="text-yellow-400">≥0.55</span></div>
-                        <div>Min: <span class="text-orange-400">≥0.50</span></div>
-                    </div>
-                </div>
-
-                <!-- Bug Fixes -->
-                <div>
-                    <div class="text-gray-500 mb-1">Recent Bug Fixes</div>
-                    <div class="space-y-1 text-gray-400">
-                        <div>BUG-001: Completion detection</div>
-                        <div>BUG-027: Slot persistence</div>
-                        <div>BUG-029: Session restoration</div>
-                        <div>BUG-008: State regression</div>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
         function showTab(tabId) {
-            // Hide all content
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            // Remove active from all tabs
             document.querySelectorAll('.tab-btn').forEach(el => {
                 el.classList.remove('border-blue-500', 'text-blue-400');
                 el.classList.add('border-transparent', 'text-gray-400');
             });
-            // Show selected content
             document.getElementById('content-' + tabId).classList.remove('hidden');
-            // Activate tab
             const tab = document.getElementById('tab-' + tabId);
             tab.classList.remove('border-transparent', 'text-gray-400');
             tab.classList.add('border-blue-500', 'text-blue-400');
