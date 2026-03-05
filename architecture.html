@@ -3,346 +3,993 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2Connect Architecture Map</title>
+    <title>2Connect Atomic Architecture Map</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
     <style>
         body { background: #0f172a; }
         .node { cursor: pointer; transition: all 0.2s; }
-        .node:hover { transform: scale(1.05); filter: brightness(1.2); }
-        .node.selected { outline: 3px solid #3b82f6; }
-        .connection { stroke-dasharray: 5; animation: dash 1s linear infinite; }
-        @keyframes dash { to { stroke-dashoffset: -10; } }
-        .fade-in { animation: fadeIn 0.3s ease-in; }
+        .node:hover { transform: scale(1.02); filter: brightness(1.1); }
+        .node.selected { outline: 2px solid #3b82f6; }
+        .fade-in { animation: fadeIn 0.2s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
+        .line-ref { color: #60a5fa; cursor: pointer; }
+        .line-ref:hover { text-decoration: underline; }
+        .type-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        details summary { cursor: pointer; list-style: none; }
+        details summary::-webkit-details-marker { display: none; }
+        details summary::before { content: '▶ '; font-size: 10px; }
+        details[open] summary::before { content: '▼ '; }
+        .param-required { color: #ef4444; }
+        .param-optional { color: #6b7280; }
     </style>
 </head>
 <body class="text-gray-100 min-h-screen">
     <!-- Header -->
-    <header class="bg-gray-900 border-b border-gray-700 px-6 py-4">
+    <header class="bg-gray-900 border-b border-gray-700 px-6 py-3">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <a href="index.html" class="text-gray-400 hover:text-white text-sm">← Back to Dashboard</a>
-                <h1 class="text-xl font-bold">2Connect Architecture Map</h1>
+                <a href="index.html" class="text-gray-400 hover:text-white text-sm">← Dashboard</a>
+                <h1 class="text-lg font-bold">2Connect Atomic Architecture</h1>
+                <span class="px-2 py-1 bg-green-900 text-green-400 text-xs rounded">LIVE</span>
             </div>
-            <div class="flex items-center gap-4">
-                <span class="text-sm text-gray-400">Last updated: <span id="lastUpdated">-</span></span>
+            <div class="flex items-center gap-4 text-sm text-gray-400">
+                <span>Frontend: <span class="text-blue-400">Vercel</span></span>
+                <span>Backend: <span class="text-green-400">Render</span></span>
+                <span>AI: <span class="text-purple-400">Render</span></span>
             </div>
         </div>
     </header>
 
-    <!-- Controls -->
-    <div class="bg-gray-800 border-b border-gray-700 px-6 py-3">
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-400">Section:</span>
-                <select id="sectionFilter" class="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-sm">
-                    <option value="all">All Sections</option>
-                    <option value="login">Login/Signup</option>
-                    <option value="onboarding">Onboarding</option>
-                    <option value="matching">Matching</option>
-                    <option value="dashboard">Dashboard</option>
-                </select>
-            </div>
-            <!-- View toggle removed - single flow view only -->
-            <div class="flex-1"></div>
-            <div class="text-sm text-gray-500">
-                Click any component for details
-            </div>
+    <!-- Tab Navigation -->
+    <div class="bg-gray-800 border-b border-gray-700 px-6">
+        <div class="flex gap-1">
+            <button onclick="showTab('overview')" id="tab-overview" class="tab-btn px-4 py-2 text-sm border-b-2 border-blue-500 text-blue-400">Overview</button>
+            <button onclick="showTab('auth')" id="tab-auth" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Auth</button>
+            <button onclick="showTab('onboarding')" id="tab-onboarding" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Onboarding</button>
+            <button onclick="showTab('matching')" id="tab-matching" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Matching</button>
+            <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Dashboard</button>
+            <button onclick="showTab('database')" id="tab-database" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Database</button>
+            <button onclick="showTab('types')" id="tab-types" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">Types</button>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div class="flex" style="height: calc(100vh - 120px);">
-        <!-- Diagram Panel -->
-        <div class="flex-1 p-6 overflow-auto" id="diagramPanel">
-            <!-- Section: Login -->
-            <div id="section-login" class="section-content mb-8">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-purple-500"></span>
-                    Login/Signup Flow
-                </h2>
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                    <div class="flex items-center justify-between gap-4">
-                        <!-- Frontend -->
-                        <div class="node bg-blue-900/50 border border-blue-700 rounded-lg p-4 w-48"
-                             onclick="showDetail('frontend', 'login')">
-                            <div class="text-blue-400 font-medium mb-2">Frontend</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>• LoginPage.tsx</div>
-                                <div>• SignUpPage.tsx</div>
-                                <div>• authService.ts</div>
-                            </div>
+    <div class="flex" style="height: calc(100vh - 100px);">
+        <!-- Left Panel: Content -->
+        <div class="flex-1 p-4 overflow-auto scrollbar-thin" id="mainContent">
+
+            <!-- Overview Tab -->
+            <div id="content-overview" class="tab-content">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <!-- Service Cards -->
+                    <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                            <span class="font-medium text-blue-400">Frontend</span>
                         </div>
-
-                        <!-- Arrow -->
-                        <div class="text-gray-500 text-2xl">→</div>
-
-                        <!-- Backend -->
-                        <div class="node bg-green-900/50 border border-green-700 rounded-lg p-4 w-48"
-                             onclick="showDetail('auth_signup')">
-                            <div class="text-green-400 font-medium mb-2">Backend API</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>• POST /auth/signup</div>
-                                <div>• POST /auth/signin</div>
-                                <div>• POST /auth/google-signin</div>
-                            </div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>React + TypeScript + Tailwind</div>
+                            <div class="text-blue-400">2connectv1-frontend.vercel.app</div>
+                            <div class="mt-2 text-gray-500">C:/Users/hp/reciprocity-frontend</div>
                         </div>
-
-                        <!-- Arrow -->
-                        <div class="text-gray-500 text-2xl">→</div>
-
-                        <!-- Supabase -->
-                        <div class="node bg-orange-900/50 border border-orange-700 rounded-lg p-4 w-48"
-                             onclick="showDetail('database', 'supabase_users')">
-                            <div class="text-orange-400 font-medium mb-2">Supabase</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>• users table</div>
-                                <div>• verification_codes</div>
-                            </div>
+                    </div>
+                    <div class="bg-green-900/30 border border-green-700 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span class="font-medium text-green-400">Backend</span>
+                        </div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>NestJS + TypeScript + Sequelize</div>
+                            <div class="text-green-400">twoconnectv1-backend.onrender.com</div>
+                            <div class="mt-2 text-gray-500">C:/Users/hp/reciprocity-backend</div>
+                        </div>
+                    </div>
+                    <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                            <span class="font-medium text-purple-400">AI Service</span>
+                        </div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>FastAPI + Python + LangChain</div>
+                            <div class="text-purple-400">twoconnectv1-ai.onrender.com</div>
+                            <div class="mt-2 text-gray-500">C:/Users/hp/reciprocity-ai</div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Section: Onboarding -->
-            <div id="section-onboarding" class="section-content mb-8">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-                    Onboarding Flow
-                </h2>
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                    <!-- Row 1: Main Flow -->
-                    <div class="flex items-start justify-between gap-4 mb-6">
-                        <!-- Frontend -->
-                        <div class="node bg-blue-900/50 border border-blue-700 rounded-lg p-4 w-56"
-                             onclick="showDetail('frontend', 'onboarding')">
-                            <div class="text-blue-400 font-medium mb-2">Frontend</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>• ConversationalOnboardingPage</div>
-                                <div>• ConversationalOnboardingContext</div>
-                                <div class="text-yellow-400 mt-2">60s timeout, 1 retry</div>
+                <!-- Flow Diagram -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+                    <h3 class="text-sm font-medium mb-4">Complete Data Flow</h3>
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="text-center">
+                            <div class="w-24 h-16 bg-blue-900/50 border border-blue-700 rounded flex items-center justify-center">
+                                <span class="text-blue-400">React App</span>
                             </div>
-                        </div>
-
-                        <div class="text-gray-500 text-2xl mt-6">→</div>
-
-                        <!-- Backend Proxy -->
-                        <div class="node bg-green-900/50 border border-green-700 rounded-lg p-4 w-56"
-                             onclick="showDetail('onboarding_chat')">
-                            <div class="text-green-400 font-medium mb-2">Backend (Proxy)</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>• POST /onboarding/conversational/start</div>
-                                <div>• POST /onboarding/conversational/chat</div>
-                                <div>• POST /onboarding/conversational/complete</div>
-                            </div>
-                        </div>
-
-                        <div class="text-gray-500 text-2xl mt-6">→</div>
-
-                        <!-- AI Service -->
-                        <div class="node bg-purple-900/50 border border-purple-700 rounded-lg p-4 w-56"
-                             onclick="showDetail('ai_service', 'onboarding')">
-                            <div class="text-purple-400 font-medium mb-2">AI Service</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>• POST /onboarding/start</div>
-                                <div>• POST /onboarding/chat</div>
-                                <div>• POST /onboarding/complete</div>
-                                <div class="text-cyan-400 mt-2">Uses Claude Haiku</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 2: Data Stores -->
-                    <div class="flex items-center justify-center gap-8">
-                        <div class="node bg-red-900/50 border border-red-700 rounded-lg p-3 w-40"
-                             onclick="showDetail('database', 'redis')">
-                            <div class="text-red-400 font-medium text-sm">Redis</div>
-                            <div class="text-xs text-gray-400">Session cache</div>
-                        </div>
-
-                        <div class="node bg-yellow-900/50 border border-yellow-700 rounded-lg p-3 w-40"
-                             onclick="showDetail('database', 'dynamodb')">
-                            <div class="text-yellow-400 font-medium text-sm">DynamoDB</div>
-                            <div class="text-xs text-gray-400">User profiles</div>
-                        </div>
-
-                        <div class="node bg-orange-900/50 border border-orange-700 rounded-lg p-3 w-40"
-                             onclick="showDetail('database', 'supabase_embeddings')">
-                            <div class="text-orange-400 font-medium text-sm">Supabase</div>
-                            <div class="text-xs text-gray-400">Embeddings</div>
-                        </div>
-
-                        <div class="node bg-pink-900/50 border border-pink-700 rounded-lg p-3 w-40"
-                             onclick="showDetail('ai_model', 'claude')">
-                            <div class="text-pink-400 font-medium text-sm">Claude Haiku</div>
-                            <div class="text-xs text-gray-400">Slot extraction</div>
-                        </div>
-                    </div>
-
-                    <!-- Spec Box -->
-                    <div class="mt-6 bg-gray-900 rounded-lg p-4 border border-gray-700">
-                        <div class="text-sm font-medium text-gray-300 mb-2">CORE_SLOTS (Required)</div>
-                        <div class="flex flex-wrap gap-2">
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">primary_goal</span>
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">requirements</span>
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">offerings</span>
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">user_type</span>
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">industry_focus</span>
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">stage_preference</span>
-                            <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded text-xs text-blue-400">geography</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Section: Matching -->
-            <div id="section-matching" class="section-content mb-8">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-green-500"></span>
-                    Matching Pipeline
-                </h2>
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                    <!-- 7-Step Algorithm -->
-                    <div class="grid grid-cols-7 gap-2 mb-6">
-                        <div class="node bg-blue-900/50 border border-blue-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step1')">
-                            <div class="text-blue-400 font-medium text-xs">STEP 1</div>
-                            <div class="text-xs text-gray-400 mt-1">Multi-Vector Score</div>
-                        </div>
-                        <div class="node bg-purple-900/50 border border-purple-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step2')">
-                            <div class="text-purple-400 font-medium text-xs">STEP 2</div>
-                            <div class="text-xs text-gray-400 mt-1">Intent Classification</div>
-                        </div>
-                        <div class="node bg-green-900/50 border border-green-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step3')">
-                            <div class="text-green-400 font-medium text-xs">STEP 3</div>
-                            <div class="text-xs text-gray-400 mt-1">Complementarity</div>
-                        </div>
-                        <div class="node bg-red-900/50 border border-red-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step4')">
-                            <div class="text-red-400 font-medium text-xs">STEP 4</div>
-                            <div class="text-xs text-gray-400 mt-1">Filters</div>
-                        </div>
-                        <div class="node bg-cyan-900/50 border border-cyan-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step5')">
-                            <div class="text-cyan-400 font-medium text-xs">STEP 5</div>
-                            <div class="text-xs text-gray-400 mt-1">Bidirectional</div>
-                        </div>
-                        <div class="node bg-orange-900/50 border border-orange-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step6')">
-                            <div class="text-orange-400 font-medium text-xs">STEP 6</div>
-                            <div class="text-xs text-gray-400 mt-1">Boosts</div>
-                        </div>
-                        <div class="node bg-green-900/50 border border-green-700 rounded-lg p-3 text-center"
-                             onclick="showDetail('matching_step', 'step7')">
-                            <div class="text-green-400 font-medium text-xs">STEP 7</div>
-                            <div class="text-xs text-gray-400 mt-1">≥0.7 Strong</div>
-                            <div class="text-xs text-gray-400">≥0.55 Worth</div>
-                            <div class="text-xs text-gray-400">≥0.5 Min</div>
-                        </div>
-                    </div>
-
-                    <!-- Weights -->
-                    <div class="bg-gray-900 rounded-lg p-4 border border-gray-700 mb-4">
-                        <div class="text-sm font-medium text-gray-300 mb-3">Embedding Weights</div>
-                        <div class="grid grid-cols-6 gap-3">
-                            <div class="text-center">
-                                <div class="text-lg font-bold text-blue-400">25%</div>
-                                <div class="text-xs text-gray-400">Industry</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-lg font-bold text-purple-400">20%</div>
-                                <div class="text-xs text-gray-400">Stage</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-lg font-bold text-green-400">20%</div>
-                                <div class="text-xs text-gray-400">Goal</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-lg font-bold text-yellow-400">15%</div>
-                                <div class="text-xs text-gray-400">Geography</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-lg font-bold text-orange-400">10%</div>
-                                <div class="text-xs text-gray-400">Engagement</div>
-                            </div>
-                            <div class="text-center">
-                                <div class="text-lg font-bold text-red-400">10%</div>
-                                <div class="text-xs text-gray-400">Dealbreakers</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Storage Flow -->
-                    <div class="flex items-center justify-between gap-4">
-                        <div class="node bg-purple-900/50 border border-purple-700 rounded-lg p-3"
-                             onclick="showDetail('inline_matching')">
-                            <div class="text-purple-400 font-medium text-sm">Inline Matching</div>
-                            <div class="text-xs text-gray-400">Triggered on complete</div>
+                            <div class="mt-1 text-gray-500">authService.ts</div>
                         </div>
                         <div class="text-gray-500">→</div>
-                        <div class="node bg-yellow-900/50 border border-yellow-700 rounded-lg p-3"
-                             onclick="showDetail('database', 'dynamodb_matches')">
-                            <div class="text-yellow-400 font-medium text-sm">DynamoDB</div>
-                            <div class="text-xs text-gray-400">staging-user-matches</div>
+                        <div class="text-center">
+                            <div class="w-24 h-16 bg-green-900/50 border border-green-700 rounded flex items-center justify-center">
+                                <span class="text-green-400">NestJS API</span>
+                            </div>
+                            <div class="mt-1 text-gray-500">:3005/api/v1</div>
                         </div>
                         <div class="text-gray-500">→</div>
-                        <div class="node bg-orange-900/50 border border-orange-700 rounded-lg p-3"
-                             onclick="showDetail('database', 'supabase_matches')">
-                            <div class="text-orange-400 font-medium text-sm">Supabase</div>
-                            <div class="text-xs text-gray-400">matches table</div>
+                        <div class="text-center">
+                            <div class="w-24 h-16 bg-purple-900/50 border border-purple-700 rounded flex items-center justify-center">
+                                <span class="text-purple-400">FastAPI</span>
+                            </div>
+                            <div class="mt-1 text-gray-500">:8000/api/v1</div>
+                        </div>
+                        <div class="text-gray-500">→</div>
+                        <div class="text-center">
+                            <div class="w-24 h-16 bg-pink-900/50 border border-pink-700 rounded flex items-center justify-center">
+                                <span class="text-pink-400">Claude/OpenAI</span>
+                            </div>
+                            <div class="mt-1 text-gray-500">LLM APIs</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Database Grid -->
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-3">
+                        <div class="text-orange-400 font-medium text-sm mb-2">Supabase (PostgreSQL)</div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>• users</div>
+                            <div>• matches</div>
+                            <div>• user_embeddings</div>
+                            <div>• user_summaries</div>
+                            <div>• verification_codes</div>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
+                        <div class="text-yellow-400 font-medium text-sm mb-2">DynamoDB (AWS)</div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>• staging-user-profiles</div>
+                            <div>• staging-user-matches</div>
+                            <div>• user_feedback</div>
+                            <div>• ai_chat_records</div>
+                        </div>
+                    </div>
+                    <div class="bg-red-900/30 border border-red-700 rounded-lg p-3">
+                        <div class="text-red-400 font-medium text-sm mb-2">Redis (Upstash)</div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>• onboarding:session:{id}</div>
+                            <div>• onboarding:dedup:{hash}</div>
+                            <div>• resume:{session_id}</div>
+                            <div>• rate_limit:{ip}</div>
+                        </div>
+                    </div>
+                    <div class="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3">
+                        <div class="text-cyan-400 font-medium text-sm mb-2">External Services</div>
+                        <div class="text-xs text-gray-400 space-y-1">
+                            <div>• Stream Chat (messaging)</div>
+                            <div>• AWS S3 (files)</div>
+                            <div>• Google OAuth</div>
+                            <div>• SendGrid (email)</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Section: Dashboard -->
-            <div id="section-dashboard" class="section-content mb-8">
-                <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-orange-500"></span>
-                    Dashboard & Features
-                </h2>
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                    <div class="grid grid-cols-4 gap-4">
-                        <!-- Matches -->
-                        <div class="node bg-green-900/50 border border-green-700 rounded-lg p-4"
-                             onclick="showDetail('get_matches')">
-                            <div class="text-green-400 font-medium mb-2">Matches</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>GET /dashboard/onboarding-matches</div>
-                                <div>POST /dashboard/decide-match</div>
+            <!-- Auth Tab -->
+            <div id="content-auth" class="tab-content hidden">
+                <h2 class="text-lg font-medium mb-4">Authentication Endpoints</h2>
+
+                <!-- Endpoint Cards -->
+                <div class="space-y-3">
+                    <!-- POST /auth/signup -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/auth/signup</span>
+                            <span class="text-xs text-gray-500">auth.controller.ts:41</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request Body (SignupDto)</div>
+                                <div class="code bg-gray-900 p-2 rounded space-y-1">
+                                    <div><span class="text-purple-400">first_name</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty @Matches(/^[a-zA-Z]+$/)</span></div>
+                                    <div><span class="text-purple-400">last_name</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty @Matches(/^[a-zA-Z]+$/)</span></div>
+                                    <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsEmail</span></div>
+                                    <div><span class="text-purple-400">password</span>: <span class="text-yellow-400">string</span> <span class="param-required">@MinLength(8) @Matches(upper+lower+digit+special)</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Response</div>
+                                <div class="code bg-gray-900 p-2 rounded space-y-1">
+                                    <div><span class="text-purple-400">user</span>: <span class="text-yellow-400">User</span></div>
+                                    <div><span class="text-purple-400">email_verification_code</span>: <span class="text-yellow-400">string</span> <span class="text-gray-500">(4-digit)</span></div>
+                                    <div><span class="text-purple-400">expires_at</span>: <span class="text-yellow-400">Date</span></div>
+                                </div>
+                                <div class="mt-2 text-gray-500">
+                                    <span class="text-green-400">200</span> Success |
+                                    <span class="text-red-400">400</span> Email exists
+                                </div>
                             </div>
                         </div>
+                        <div class="mt-3 text-xs text-gray-500">
+                            Frontend: authService.ts:14 → Backend: auth.service.ts:106 → Supabase INSERT users + verification_codes
+                        </div>
+                    </div>
 
-                        <!-- Discover -->
-                        <div class="node bg-blue-900/50 border border-blue-700 rounded-lg p-4"
-                             onclick="showDetail('discover')">
-                            <div class="text-blue-400 font-medium mb-2">Discover</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>GET /discover/search</div>
-                                <div>POST /discover/interest</div>
+                    <!-- POST /auth/signin -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/auth/signin</span>
+                            <span class="text-xs text-gray-500">auth.controller.ts:121</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request Body (SigninDto)</div>
+                                <div class="code bg-gray-900 p-2 rounded space-y-1">
+                                    <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsEmail</span></div>
+                                    <div><span class="text-purple-400">password</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Response</div>
+                                <div class="code bg-gray-900 p-2 rounded space-y-1">
+                                    <div><span class="text-purple-400">user</span>: <span class="text-yellow-400">{id, first_name, last_name, email, role}</span></div>
+                                    <div><span class="text-purple-400">access_token</span>: <span class="text-yellow-400">string</span> <span class="text-gray-500">(JWT)</span></div>
+                                </div>
+                                <div class="mt-2 text-gray-500">
+                                    Sets HTTP-only cookie (maxAge=96hrs, SameSite=strict)
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Chat -->
-                        <div class="node bg-purple-900/50 border border-purple-700 rounded-lg p-4"
-                             onclick="showDetail('chat')">
-                            <div class="text-purple-400 font-medium mb-2">Chat</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>GET /ai-conversations/token</div>
-                                <div>Stream Chat API</div>
+                    <!-- POST /auth/google-signin -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/auth/google-signin</span>
+                            <span class="text-xs text-gray-500">auth.controller.ts:152</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request Body</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-purple-400">token</span>: <span class="text-yellow-400">string</span> <span class="text-gray-500">(Google OAuth2 ID token)</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Frontend Error Handling</div>
+                                <div class="code bg-gray-900 p-2 rounded text-gray-400">
+                                    authService.ts:36-51 has try/catch<br>
+                                    Returns {code: error?.code || 500, message, result: null}
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Profile -->
-                        <div class="node bg-orange-900/50 border border-orange-700 rounded-lg p-4"
-                             onclick="showDetail('profile')">
-                            <div class="text-orange-400 font-medium mb-2">Profile</div>
-                            <div class="text-xs text-gray-400 space-y-1">
-                                <div>GET /profile/get-profile</div>
-                                <div>PATCH /profile/update-profile</div>
+                    <!-- POST /auth/verify-email -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/auth/verify-email</span>
+                            <span class="text-xs text-gray-500">auth.controller.ts:75</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request Body (VerifyEmailDto)</div>
+                                <div class="code bg-gray-900 p-2 rounded space-y-1">
+                                    <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsEmail</span></div>
+                                    <div><span class="text-purple-400">code</span>: <span class="text-yellow-400">string</span> <span class="param-required">@Length(4,4)</span> <span class="text-gray-500">(4-digit OTP)</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Service Logic</div>
+                                <div class="code bg-gray-900 p-2 rounded text-gray-400">
+                                    auth.service.ts:178 - Transaction-safe<br>
+                                    1. Validate user is active, unverified<br>
+                                    2. Validate code (row lock + skipLocked)<br>
+                                    3. Set is_email_verified=true<br>
+                                    4. Issue JWT access token
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Other auth endpoints -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-green-600 text-xs">POST</span>
+                                <span class="text-sm">/auth/forgot-password</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Request: {email} | Sends reset email</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-green-600 text-xs">POST</span>
+                                <span class="text-sm">/auth/reset-password</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Auth: temp-jwt | Request: {password}</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-green-600 text-xs">POST</span>
+                                <span class="text-sm">/auth/update-password</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Auth: JWT | Request: {current_password, new_password}</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-green-600 text-xs">POST</span>
+                                <span class="text-sm">/auth/logout</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Auth: JWT | Clears HTTP-only cookie</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Onboarding Tab -->
+            <div id="content-onboarding" class="tab-content hidden">
+                <h2 class="text-lg font-medium mb-4">Conversational Onboarding Pipeline</h2>
+
+                <!-- Config Box -->
+                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-yellow-400 mb-2">Frontend Timeouts (ConversationalOnboardingContext.tsx:43-55)</h3>
+                    <div class="grid grid-cols-4 gap-4 text-xs">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-yellow-400">60s</div>
+                            <div class="text-gray-400">AI_RESPONSE_TIMEOUT_MS</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-yellow-400">1</div>
+                            <div class="text-gray-400">MAX_RETRIES</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-yellow-400">3s</div>
+                            <div class="text-gray-400">RETRY_DELAY_MS</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-yellow-400">5s</div>
+                            <div class="text-gray-400">DEDUP_WINDOW_MS</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CORE_SLOTS -->
+                <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-blue-400 mb-2">CORE_SLOTS (Required) — llm_slot_extractor.py:45-200</h3>
+                    <div class="grid grid-cols-7 gap-2 text-xs">
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">primary_goal</div>
+                            <div class="text-gray-500 mt-1">Raise/Find/Seek/Invest</div>
+                        </div>
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">user_type</div>
+                            <div class="text-gray-500 mt-1">Founder/Investor/...</div>
+                        </div>
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">industry_focus</div>
+                            <div class="text-gray-500 mt-1">multi_select</div>
+                        </div>
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">stage_preference</div>
+                            <div class="text-gray-500 mt-1">Pre-seed→Growth</div>
+                        </div>
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">geography</div>
+                            <div class="text-gray-500 mt-1">multi_select regions</div>
+                        </div>
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">offerings</div>
+                            <div class="text-gray-500 mt-1">max 150 chars</div>
+                        </div>
+                        <div class="bg-blue-900/50 p-2 rounded text-center">
+                            <div class="text-blue-300">requirements</div>
+                            <div class="text-gray-500 mt-1">max 150 chars</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Endpoint Cards -->
+                <div class="space-y-3">
+                    <!-- POST /onboarding/conversational/start -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/onboarding/conversational/start</span>
+                            <span class="text-xs text-gray-500">→ AI onboarding.py:92-151</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-purple-400">user_id</span>: <span class="text-yellow-400">str</span> <span class="param-required">required</span></div>
+                                    <div><span class="text-purple-400">objective</span>: <span class="text-yellow-400">str</span> <span class="param-optional">optional</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Response</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-purple-400">session_id</span>: <span class="text-yellow-400">str</span></div>
+                                    <div><span class="text-purple-400">greeting</span>: <span class="text-yellow-400">str</span></div>
+                                    <div><span class="text-purple-400">suggested_questions</span>: <span class="text-yellow-400">List[str]</span></div>
+                                    <div><span class="text-purple-400">progress_percent</span>: <span class="text-yellow-400">float</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-500">
+                            Creates Redis session → Loads existing slots from Supabase → Gets template based on objective
+                        </div>
+                    </div>
+
+                    <!-- POST /onboarding/conversational/chat -->
+                    <div class="bg-gray-800 rounded-lg border border-purple-600 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/onboarding/conversational/chat</span>
+                            <span class="px-2 py-0.5 bg-purple-600 text-white text-xs rounded">CRITICAL</span>
+                            <span class="text-xs text-gray-500">→ AI onboarding.py:154-356</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-purple-400">user_id</span>: <span class="text-yellow-400">str</span> <span class="param-required">required</span></div>
+                                    <div><span class="text-purple-400">message</span>: <span class="text-yellow-400">str</span> <span class="param-required">required</span></div>
+                                    <div><span class="text-purple-400">session_id</span>: <span class="text-yellow-400">str</span> <span class="param-optional">optional (creates new if missing)</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Response</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-purple-400">session_id</span>: <span class="text-yellow-400">str</span></div>
+                                    <div><span class="text-purple-400">ai_response</span>: <span class="text-yellow-400">str</span></div>
+                                    <div><span class="text-purple-400">extracted_slots</span>: <span class="text-yellow-400">Dict[str, Any]</span></div>
+                                    <div><span class="text-purple-400">completion_percent</span>: <span class="text-yellow-400">float</span> <span class="text-gray-500">(0-100)</span></div>
+                                    <div><span class="text-purple-400">is_complete</span>: <span class="text-yellow-400">bool</span></div>
+                                    <div><span class="text-purple-400">is_off_topic</span>: <span class="text-yellow-400">bool</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <details class="mt-3">
+                            <summary class="text-xs text-blue-400 cursor-pointer">Internal Processing Pipeline</summary>
+                            <div class="mt-2 code bg-gray-900 p-3 rounded text-xs space-y-1">
+                                <div class="text-gray-500">// Line 168-209: Deduplication</div>
+                                <div>MD5 hash of message → Redis SETNX with 10s TTL</div>
+                                <div class="text-gray-500 mt-2">// Line 215-240: Session Restoration (BUG-029 FIX)</div>
+                                <div>If Redis session expired → Load slots from Supabase</div>
+                                <div class="text-gray-500 mt-2">// Line 245-251: Slot Extraction</div>
+                                <div>LLMSlotExtractor.extract_slots() using Claude Haiku</div>
+                                <div class="text-gray-500 mt-2">// Line 273-296: Slot Persistence (BUG-027 FIX)</div>
+                                <div>Save newly extracted slots to Supabase immediately</div>
+                                <div class="text-gray-500 mt-2">// Line 302-314: Completion Detection (BUG-001 FIX)</div>
+                                <div>Check is_complete BEFORE generating response</div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- POST /onboarding/conversational/complete -->
+                    <div class="bg-gray-800 rounded-lg border border-green-600 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/onboarding/conversational/complete</span>
+                            <span class="px-2 py-0.5 bg-green-600 text-white text-xs rounded">TRIGGERS MATCHING</span>
+                            <span class="text-xs text-gray-500">→ AI onboarding.py:524-935</span>
+                        </div>
+                        <div class="text-xs">
+                            <div class="text-gray-400 mb-2">Complete Workflow (411 lines)</div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="code bg-gray-900 p-3 rounded space-y-1">
+                                    <div class="text-green-400">1. Get slots from Redis or Supabase</div>
+                                    <div class="text-green-400">2. IDEMPOTENCY: Return success if profile exists</div>
+                                    <div class="text-green-400">3. Convert slots to Q&A pairs</div>
+                                    <div class="text-green-400">4. Create DynamoDB UserProfile</div>
+                                    <div class="text-green-400">5. Update PostgreSQL onboarding_status='completed'</div>
+                                </div>
+                                <div class="code bg-gray-900 p-3 rounded space-y-1">
+                                    <div class="text-green-400">6. Create user_summary (markdown)</div>
+                                    <div class="text-green-400">7. Generate 6-vector embeddings (OpenAI)</div>
+                                    <div class="text-green-400">8. Generate 2 basic embeddings</div>
+                                    <div class="text-purple-400">9. INLINE BIDIRECTIONAL MATCHING</div>
+                                    <div class="text-green-400">10. Trigger persona generation pipeline</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LLM Slot Extractor -->
+                    <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
+                        <h3 class="text-sm font-medium text-purple-400 mb-3">LLMSlotExtractor.extract_slots() — llm_slot_extractor.py:644-932</h3>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Signature</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-blue-400">extract_slots</span>(</div>
+                                    <div class="pl-4"><span class="text-purple-400">user_message</span>: str,</div>
+                                    <div class="pl-4"><span class="text-purple-400">conversation_history</span>: List[Dict] = None,</div>
+                                    <div class="pl-4"><span class="text-purple-400">already_filled_slots</span>: Dict = None,</div>
+                                    <div class="pl-4"><span class="text-purple-400">target_slots</span>: List[str] = None,</div>
+                                    <div class="pl-4"><span class="text-purple-400">session_id</span>: str = None</div>
+                                    <div>) → LLMExtractionResult</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Model Config (Line 257-259)</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-pink-400">extraction_model</span>: claude-3-haiku-20240307</div>
+                                    <div><span class="text-pink-400">personalization_model</span>: claude-sonnet-4-5-20250929</div>
+                                    <div class="text-gray-500 mt-2">Two-stage: Haiku (fast) → Sonnet (quality)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-500">
+                            Line 799-811: Anthropic API call with max_tokens=1500, temperature=0.1, prompt caching enabled
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Matching Tab -->
+            <div id="content-matching" class="tab-content hidden">
+                <h2 class="text-lg font-medium mb-4">Hybrid Multi-Vector Matching Algorithm</h2>
+
+                <!-- Thresholds -->
+                <div class="bg-green-900/30 border border-green-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-green-400 mb-2">Thresholds — inline_matching_service.py:70-73</h3>
+                    <div class="grid grid-cols-4 gap-4 text-xs">
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-green-400">0.70</div>
+                            <div class="text-gray-400">Strong Match</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-yellow-400">0.55</div>
+                            <div class="text-gray-400">Worth Exploring</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-orange-400">0.50</div>
+                            <div class="text-gray-400">Minimum</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-blue-400">50</div>
+                            <div class="text-gray-400">Max Matches/User</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6-Vector Weights -->
+                <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-blue-400 mb-2">6-Dimension Embedding Weights (must sum to 1.0)</h3>
+                    <div class="grid grid-cols-6 gap-2 text-xs">
+                        <div class="bg-blue-900/50 p-3 rounded text-center">
+                            <div class="text-2xl font-bold text-blue-400">25%</div>
+                            <div class="text-gray-400">industry</div>
+                        </div>
+                        <div class="bg-purple-900/50 p-3 rounded text-center">
+                            <div class="text-2xl font-bold text-purple-400">20%</div>
+                            <div class="text-gray-400">stage</div>
+                        </div>
+                        <div class="bg-green-900/50 p-3 rounded text-center">
+                            <div class="text-2xl font-bold text-green-400">20%</div>
+                            <div class="text-gray-400">primary_goal</div>
+                        </div>
+                        <div class="bg-yellow-900/50 p-3 rounded text-center">
+                            <div class="text-2xl font-bold text-yellow-400">15%</div>
+                            <div class="text-gray-400">geography</div>
+                        </div>
+                        <div class="bg-orange-900/50 p-3 rounded text-center">
+                            <div class="text-2xl font-bold text-orange-400">10%</div>
+                            <div class="text-gray-400">engagement</div>
+                        </div>
+                        <div class="bg-red-900/50 p-3 rounded text-center">
+                            <div class="text-2xl font-bold text-red-400">10%</div>
+                            <div class="text-gray-400">dealbreakers</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7-Step Algorithm -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-4">
+                    <h3 class="text-sm font-medium mb-3">7-Step Hybrid Algorithm — _calculate_hybrid_matches():525-767</h3>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-start gap-3 p-3 bg-blue-900/30 rounded">
+                            <span class="type-badge bg-blue-600">1</span>
+                            <div>
+                                <div class="font-medium text-blue-400">Multi-Vector Base Score</div>
+                                <div class="code text-gray-400 mt-1">
+                                    BASE = (industry × 0.25) + (stage × 0.20) + (goal × 0.20) + (geo × 0.15) + (engagement × 0.10) + (dealbreakers × 0.10)
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-purple-900/30 rounded">
+                            <span class="type-badge bg-purple-600">2</span>
+                            <div>
+                                <div class="font-medium text-purple-400">Intent Classification (Line 587-598)</div>
+                                <div class="text-gray-400 mt-1">Detect: INVESTOR↔FOUNDER, MENTOR↔MENTEE, COFOUNDER↔COFOUNDER</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-green-900/30 rounded">
+                            <span class="type-badge bg-green-600">3</span>
+                            <div>
+                                <div class="font-medium text-green-400">Complementarity Score — _get_intent_quality():769-816</div>
+                                <div class="code text-gray-400 mt-1">
+                                    INVESTOR↔FOUNDER = 1.0 | MENTOR↔MENTEE = 1.0 | COFOUNDER↔COFOUNDER = 0.8 | SAME_TYPE = 0.3
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-red-900/30 rounded">
+                            <span class="type-badge bg-red-600">4</span>
+                            <div>
+                                <div class="font-medium text-red-400">Dealbreaker Filters (Line 651-667)</div>
+                                <div class="text-gray-400 mt-1">Hard exclusion: Same-objective blocking, explicit dealbreakers</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-cyan-900/30 rounded">
+                            <span class="type-badge bg-cyan-600">5</span>
+                            <div>
+                                <div class="font-medium text-cyan-400">Bidirectional Check (Line 669-686)</div>
+                                <div class="code text-gray-400 mt-1">
+                                    bidirectional_factor = sqrt(forward × reverse) / base_score, capped [0.5, 1.5]
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-orange-900/30 rounded">
+                            <span class="type-badge bg-orange-600">6</span>
+                            <div>
+                                <div class="font-medium text-orange-400">Activity & Temporal Boosts (Line 688-692)</div>
+                                <div class="text-gray-400 mt-1">activity_boost: 0-1 based on logins | temporal_boost: 1.0→0.85 decay over 30 days</div>
+                            </div>
+                        </div>
+                        <div class="flex items-start gap-3 p-3 bg-green-900/50 rounded border border-green-600">
+                            <span class="type-badge bg-green-600">7</span>
+                            <div>
+                                <div class="font-medium text-green-400">Final Score Formula (Line 696-702)</div>
+                                <div class="code text-green-300 mt-1">
+                                    FINAL = BASE × (0.7 + 0.3 × intent) × bidir × (0.9 + 0.1 × activity) × (0.95 + 0.05 × temporal)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Storage Flow -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <h3 class="text-sm font-medium mb-3">Match Storage Flow</h3>
+                    <div class="flex items-center justify-between text-xs">
+                        <div class="bg-purple-900/50 border border-purple-700 p-3 rounded text-center">
+                            <div class="text-purple-400 font-medium">InlineMatchingService</div>
+                            <div class="text-gray-500">calculate_and_sync_matches_bidirectional()</div>
+                        </div>
+                        <div class="text-gray-500">→</div>
+                        <div class="bg-yellow-900/50 border border-yellow-700 p-3 rounded text-center">
+                            <div class="text-yellow-400 font-medium">DynamoDB</div>
+                            <div class="text-gray-500">staging-user-matches</div>
+                        </div>
+                        <div class="text-gray-500">→</div>
+                        <div class="bg-green-900/50 border border-green-700 p-3 rounded text-center">
+                            <div class="text-green-400 font-medium">Backend Sync</div>
+                            <div class="text-gray-500">POST /webhooks/matches-ready</div>
+                        </div>
+                        <div class="text-gray-500">→</div>
+                        <div class="bg-orange-900/50 border border-orange-700 p-3 rounded text-center">
+                            <div class="text-orange-400 font-medium">Supabase</div>
+                            <div class="text-gray-500">matches table</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Tab -->
+            <div id="content-dashboard" class="tab-content hidden">
+                <h2 class="text-lg font-medium mb-4">Dashboard Endpoints</h2>
+
+                <div class="space-y-3">
+                    <!-- GET /dashboard/onboarding-matches -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-blue-600">GET</span>
+                            <span class="font-medium">/dashboard/onboarding-matches</span>
+                            <span class="text-xs text-gray-500">dashboard.controller.ts:80</span>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            Auth: JWT | Returns matches list with scores and explanations | Frontend: matchService.ts:11
+                        </div>
+                    </div>
+
+                    <!-- POST /dashboard/decide-match -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-green-600">POST</span>
+                            <span class="font-medium">/dashboard/decide-match</span>
+                            <span class="text-xs text-gray-500">dashboard.controller.ts:110</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-xs">
+                            <div>
+                                <div class="text-gray-400 mb-2">Request (decideMatchDto)</div>
+                                <div class="code bg-gray-900 p-2 rounded">
+                                    <div><span class="text-purple-400">match_id</span>: <span class="text-yellow-400">string</span> <span class="param-required">@IsNotEmpty</span></div>
+                                    <div><span class="text-purple-400">decision</span>: <span class="text-yellow-400">'approved' | 'declined'</span></div>
+                                    <div><span class="text-purple-400">reason_tags</span>: <span class="text-yellow-400">string[]</span> <span class="param-optional">optional</span></div>
+                                    <div><span class="text-purple-400">reason_text</span>: <span class="text-yellow-400">string</span> <span class="param-optional">optional</span></div>
+                                    <div><span class="text-purple-400">decision_time_ms</span>: <span class="text-yellow-400">number</span> <span class="param-optional">optional</span></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 mb-2">Reason Tags (FeedbackReasonTag)</div>
+                                <div class="code bg-gray-900 p-2 rounded text-gray-500">
+                                    'wrong_industry' | 'wrong_stage' | 'bad_timing' | 'not_relevant' | 'already_connected' | 'other'
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- GET /dashboard/match-explanation/:matchId -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-blue-600">GET</span>
+                            <span class="font-medium">/dashboard/match-explanation/:matchId</span>
+                            <span class="text-xs text-gray-500">dashboard.controller.ts:486</span>
+                        </div>
+                        <div class="text-xs">
+                            <div class="text-gray-400 mb-2">Response (MatchExplanation)</div>
+                            <div class="code bg-gray-900 p-2 rounded">
+                                <div><span class="text-purple-400">match_id</span>, <span class="text-purple-400">compatibility_score</span>, <span class="text-purple-400">match_tier</span>: 'perfect'|'strong'|'worth_exploring'|'low'</div>
+                                <div><span class="text-purple-400">explanation</span>: string, <span class="text-purple-400">synergy_areas</span>: string[], <span class="text-purple-400">friction_points</span>: string[]</div>
+                                <div><span class="text-purple-400">talking_points</span>: string[], <span class="text-purple-400">score_breakdown</span>: ScoreBreakdown, <span class="text-purple-400">generated_at</span>: Date</div>
+                            </div>
+                            <div class="mt-2 text-gray-500">Generated on-demand by Claude Haiku | Query param: force_refresh=true</div>
+                        </div>
+                    </div>
+
+                    <!-- GET /dashboard/ice-breakers/:matchId -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="type-badge bg-blue-600">GET</span>
+                            <span class="font-medium">/dashboard/ice-breakers/:matchId</span>
+                            <span class="text-xs text-gray-500">dashboard.controller.ts:520</span>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            Returns AI-generated conversation starters | Frontend: matchService.ts:91
+                        </div>
+                    </div>
+
+                    <!-- Admin Endpoints -->
+                    <h3 class="text-sm font-medium mt-6 mb-3">Admin Endpoints (No Auth)</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-blue-600 text-xs">GET</span>
+                                <span class="text-sm">/dashboard/admin/system-health</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Line 569 | All database health checks</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-blue-600 text-xs">GET</span>
+                                <span class="text-sm">/dashboard/admin/wiring-audit</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Line 622 | Pipeline truth check</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-blue-600 text-xs">GET</span>
+                                <span class="text-sm">/dashboard/admin/matching-diagnostics</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Line 587 | All users matching status</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="type-badge bg-green-600 text-xs">POST</span>
+                                <span class="text-sm">/dashboard/admin/regenerate-embeddings</span>
+                            </div>
+                            <div class="text-xs text-gray-400">Line 641 | Request: {user_id}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Database Tab -->
+            <div id="content-database" class="tab-content hidden">
+                <h2 class="text-lg font-medium mb-4">Database Schemas</h2>
+
+                <!-- Users Table -->
+                <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-orange-400 mb-3">Supabase: users — user.entity.ts:27-271</h3>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div class="text-gray-500 mb-1">// Primary</div>
+                            <div><span class="text-purple-400">id</span>: <span class="text-yellow-400">UUID</span> PK UUIDV4</div>
+                            <div><span class="text-purple-400">role_id</span>: <span class="text-yellow-400">UUID</span> FK→Role</div>
+                            <div><span class="text-purple-400">email</span>: <span class="text-yellow-400">STRING(255)</span> UNIQUE</div>
+                            <div><span class="text-purple-400">password</span>: <span class="text-yellow-400">STRING(255)</span> nullable</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div class="text-gray-500 mb-1">// Profile</div>
+                            <div><span class="text-purple-400">first_name</span>: <span class="text-yellow-400">STRING(100)</span></div>
+                            <div><span class="text-purple-400">last_name</span>: <span class="text-yellow-400">STRING(100)</span></div>
+                            <div><span class="text-purple-400">avatar</span>: <span class="text-yellow-400">TEXT</span> nullable</div>
+                            <div><span class="text-purple-400">bio</span>: <span class="text-yellow-400">TEXT</span> nullable</div>
+                            <div><span class="text-purple-400">linkedin_profile</span>: <span class="text-yellow-400">TEXT</span> nullable</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div class="text-gray-500 mb-1">// Status</div>
+                            <div><span class="text-purple-400">is_email_verified</span>: <span class="text-yellow-400">BOOLEAN</span> default=false</div>
+                            <div><span class="text-purple-400">onboarding_status</span>: <span class="text-yellow-400">ENUM</span> default=NOT_STARTED</div>
+                            <div><span class="text-purple-400">is_active</span>: <span class="text-yellow-400">BOOLEAN</span> default=true</div>
+                            <div><span class="text-purple-400">is_test</span>: <span class="text-yellow-400">BOOLEAN</span> default=false</div>
+                            <div><span class="text-purple-400">allow_matching</span>: <span class="text-yellow-400">BOOLEAN</span> default=true</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">
+                        Paranoid delete (deleted_at) | Provider: PASSWORD|GOOGLE | OnboardingStatus: NOT_STARTED|IN_PROGRESS|COMPLETED
+                    </div>
+                </div>
+
+                <!-- Matches Table -->
+                <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-orange-400 mb-3">Supabase: matches — match.entity.ts:49-256</h3>
+                    <div class="grid grid-cols-3 gap-4 text-xs">
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div class="text-gray-500 mb-1">// Keys</div>
+                            <div><span class="text-purple-400">id</span>: <span class="text-yellow-400">UUID</span> PK</div>
+                            <div><span class="text-purple-400">user_a_id</span>: <span class="text-yellow-400">UUID</span> FK→User</div>
+                            <div><span class="text-purple-400">user_b_id</span>: <span class="text-yellow-400">UUID</span> FK→User</div>
+                            <div class="text-gray-500 mt-1">UNIQUE(user_a_id, user_b_id)</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div class="text-gray-500 mb-1">// Decisions</div>
+                            <div><span class="text-purple-400">user_a_decision</span>: <span class="text-yellow-400">ENUM</span> pending|approved|declined</div>
+                            <div><span class="text-purple-400">user_b_decision</span>: <span class="text-yellow-400">ENUM</span></div>
+                            <div><span class="text-purple-400">status</span>: <span class="text-yellow-400">ENUM</span> default=PENDING</div>
+                            <div><span class="text-purple-400">perfect_match</span>: <span class="text-yellow-400">BOOLEAN</span> default=false</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div class="text-gray-500 mb-1">// AI Fields</div>
+                            <div><span class="text-purple-400">explanation</span>: <span class="text-yellow-400">JSONB</span> {summary, generated_at}</div>
+                            <div><span class="text-purple-400">synergy_areas</span>: <span class="text-yellow-400">TEXT[]</span></div>
+                            <div><span class="text-purple-400">friction_points</span>: <span class="text-yellow-400">TEXT[]</span></div>
+                            <div><span class="text-purple-400">score_breakdown</span>: <span class="text-yellow-400">JSONB</span></div>
+                            <div><span class="text-purple-400">match_tier</span>: <span class="text-yellow-400">STRING(20)</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DynamoDB Tables -->
+                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4 mb-4">
+                    <h3 class="text-sm font-medium text-yellow-400 mb-3">DynamoDB: staging-user-profiles — dynamodb.py</h3>
+                    <div class="code bg-gray-900 p-3 rounded text-xs">
+                        <div class="text-gray-500 mb-2">// Primary Key: user_id (hash)</div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div><span class="text-purple-400">profile</span>: MapAttribute</div>
+                                <div class="pl-4">resume_link: str | nullable</div>
+                                <div class="pl-4">raw_questions: List[{prompt, answer}]</div>
+                                <div class="pl-4">created_at, updated_at: DateTime</div>
+                            </div>
+                            <div>
+                                <div><span class="text-purple-400">persona</span>: MapAttribute</div>
+                                <div class="pl-4">name, archetype, designation, experience</div>
+                                <div class="pl-4">focus, profile_essence, strategy</div>
+                                <div class="pl-4">requirements, offerings, user_type, industry</div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <span class="text-purple-400">processing_status</span>: not_initiated|pending|processing|completed|failed
+                            <span class="text-purple-400 ml-4">persona_status</span>: not_initiated|pending|generated|approved
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Redis Keys -->
+                <div class="bg-red-900/30 border border-red-700 rounded-lg p-4">
+                    <h3 class="text-sm font-medium text-red-400 mb-3">Redis Key Patterns (Upstash)</h3>
+                    <div class="grid grid-cols-2 gap-4 text-xs">
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div><span class="text-purple-400">onboarding:session:{session_id}</span></div>
+                            <div class="text-gray-500">TTL: 1 hour | Session state JSON</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div><span class="text-purple-400">onboarding:dedup:{user_id}:{md5_hash}</span></div>
+                            <div class="text-gray-500">TTL: 10s | Deduplication marker</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div><span class="text-purple-400">resume:{session_id}</span></div>
+                            <div class="text-gray-500">TTL: 1 hour | Base64 encoded file</div>
+                        </div>
+                        <div class="code bg-gray-900 p-2 rounded">
+                            <div><span class="text-purple-400">resume_meta:{session_id}</span></div>
+                            <div class="text-gray-500">TTL: 1 hour | {filename, content_type, size}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Types Tab -->
+            <div id="content-types" class="tab-content hidden">
+                <h2 class="text-lg font-medium mb-4">TypeScript Type Definitions</h2>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Match Types -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <h3 class="text-sm font-medium text-purple-400 mb-3">Match Types — src/types/match.ts</h3>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-2">
+                            <div>
+                                <span class="text-blue-400">interface</span> <span class="text-green-400">Match</span> {
+                                <div class="pl-4">id: string</div>
+                                <div class="pl-4">match_date: Date</div>
+                                <div class="pl-4">status: MatchStatus</div>
+                                <div class="pl-4">feedback?: string</div>
+                                <div class="pl-4">other_user: {id, name, designation, objective}</div>
+                                }
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-blue-400">type</span> <span class="text-green-400">MatchTier</span> = 'perfect' | 'strong' | 'worth_exploring' | 'low'
+                            </div>
+                            <div>
+                                <span class="text-blue-400">type</span> <span class="text-green-400">FeedbackReasonTag</span> = 'wrong_industry' | 'wrong_stage' | 'bad_timing' | 'not_relevant' | 'already_connected' | 'other'
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Onboarding Types -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <h3 class="text-sm font-medium text-blue-400 mb-3">Onboarding Types — src/types/onboarding.ts</h3>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-2">
+                            <div>
+                                <span class="text-blue-400">interface</span> <span class="text-green-400">ExtractedSlot</span> {
+                                <div class="pl-4">value: any</div>
+                                <div class="pl-4">confidence: number</div>
+                                <div class="pl-4">source: 'user' | 'inferred'</div>
+                                }
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-blue-400">interface</span> <span class="text-green-400">OnboardingProgress</span> {
+                                <div class="pl-4">progress: number // 0-100</div>
+                                <div class="pl-4">meta: {answeredQuestions, totalQuestions}</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- API Response -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <h3 class="text-sm font-medium text-green-400 mb-3">API Response Pattern</h3>
+                        <div class="code bg-gray-900 p-3 rounded text-xs">
+                            <div>
+                                <span class="text-blue-400">interface</span> <span class="text-green-400">ApiResponse&lt;T&gt;</span> {
+                                <div class="pl-4">code: number  <span class="text-gray-500">// 200 = success</span></div>
+                                <div class="pl-4">message: string</div>
+                                <div class="pl-4">result: T | null</div>
+                                }
+                            </div>
+                            <div class="text-gray-500 mt-2">
+                                All services return this shape.<br>
+                                Error: {code: 4xx|5xx, message: "error", result: null}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ScoreBreakdown -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <h3 class="text-sm font-medium text-orange-400 mb-3">ScoreBreakdown — match.ts:34-52</h3>
+                        <div class="code bg-gray-900 p-3 rounded text-xs">
+                            <div>
+                                <span class="text-blue-400">interface</span> <span class="text-green-400">ScoreBreakdown</span> {
+                                <div class="pl-4">objective_alignment: ScoreDimension</div>
+                                <div class="pl-4">industry_match: ScoreDimension</div>
+                                <div class="pl-4">timeline_compatibility: ScoreDimension</div>
+                                <div class="pl-4">skill_complement: ScoreDimension</div>
+                                <div class="pl-4">experience_level: ScoreDimension</div>
+                                <div class="pl-4">communication_style: ScoreDimension</div>
+                                }
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-blue-400">interface</span> <span class="text-green-400">ScoreDimension</span> {
+                                <div class="pl-4">score: number, weight: number, weighted_score: number, explanation: string</div>
+                                }
                             </div>
                         </div>
                     </div>
@@ -350,13 +997,72 @@
             </div>
         </div>
 
-        <!-- Detail Panel -->
-        <div class="w-96 bg-gray-800 border-l border-gray-700 overflow-y-auto" id="detailPanel">
-            <div class="p-6">
-                <div id="detailContent">
-                    <div class="text-gray-500 text-center py-12">
-                        <div class="text-4xl mb-4">←</div>
-                        <div>Click any component to see details</div>
+        <!-- Right Panel: Quick Reference -->
+        <div class="w-72 bg-gray-800 border-l border-gray-700 p-4 overflow-auto scrollbar-thin">
+            <h3 class="text-sm font-medium mb-3">Quick Reference</h3>
+
+            <div class="space-y-4 text-xs">
+                <!-- URLs -->
+                <div>
+                    <div class="text-gray-500 mb-1">Production URLs</div>
+                    <div class="space-y-1">
+                        <div class="text-blue-400">2connectv1-frontend.vercel.app</div>
+                        <div class="text-green-400">twoconnectv1-backend.onrender.com</div>
+                        <div class="text-purple-400">twoconnectv1-ai.onrender.com</div>
+                    </div>
+                </div>
+
+                <!-- Key Files -->
+                <div>
+                    <div class="text-gray-500 mb-1">Key Files</div>
+                    <div class="space-y-1 code">
+                        <div>llm_slot_extractor.py:644</div>
+                        <div>inline_matching_service.py:75</div>
+                        <div>ConversationalOnboardingContext.tsx</div>
+                        <div>auth.controller.ts</div>
+                        <div>dashboard.controller.ts</div>
+                    </div>
+                </div>
+
+                <!-- Models -->
+                <div>
+                    <div class="text-gray-500 mb-1">AI Models</div>
+                    <div class="space-y-1">
+                        <div><span class="text-pink-400">Haiku</span> - Slot extraction</div>
+                        <div><span class="text-pink-400">Sonnet</span> - Personalization</div>
+                        <div><span class="text-cyan-400">text-embedding-3-small</span> - 6 vectors</div>
+                    </div>
+                </div>
+
+                <!-- Timeouts -->
+                <div>
+                    <div class="text-gray-500 mb-1">Timeouts</div>
+                    <div class="space-y-1">
+                        <div>Frontend: <span class="text-yellow-400">60s</span></div>
+                        <div>Max Retries: <span class="text-yellow-400">1</span></div>
+                        <div>Dedup Window: <span class="text-yellow-400">5s</span></div>
+                        <div>Session TTL: <span class="text-yellow-400">1hr</span></div>
+                    </div>
+                </div>
+
+                <!-- Thresholds -->
+                <div>
+                    <div class="text-gray-500 mb-1">Match Thresholds</div>
+                    <div class="space-y-1">
+                        <div>Strong: <span class="text-green-400">≥0.70</span></div>
+                        <div>Worth: <span class="text-yellow-400">≥0.55</span></div>
+                        <div>Min: <span class="text-orange-400">≥0.50</span></div>
+                    </div>
+                </div>
+
+                <!-- Bug Fixes -->
+                <div>
+                    <div class="text-gray-500 mb-1">Recent Bug Fixes</div>
+                    <div class="space-y-1 text-gray-400">
+                        <div>BUG-001: Completion detection</div>
+                        <div>BUG-027: Slot persistence</div>
+                        <div>BUG-029: Session restoration</div>
+                        <div>BUG-008: State regression</div>
                     </div>
                 </div>
             </div>
@@ -364,458 +1070,21 @@
     </div>
 
     <script>
-        // Endpoint details database
-        const endpointDetails = {
-            'onboarding_chat': {
-                title: '/onboarding/chat',
-                type: 'endpoint',
-                method: 'POST',
-                service: 'AI Service',
-                file: 'app/routers/onboarding.py:154',
-                purpose: 'Process user message during conversational onboarding. Extracts slots using Claude Haiku and generates follow-up questions.',
-                calledBy: ['ConversationalOnboardingContext.tsx:100'],
-                connectsTo: [
-                    'Redis (session state)',
-                    'Claude Haiku (slot extraction)',
-                    'DynamoDB (profile update)'
-                ],
-                request: '{ session_id, message }',
-                response: '{ ai_response, progress, slots_filled, is_complete }',
-                notes: '60s timeout, deduplication enabled (5s window), MAX_RETRIES=1'
-            },
-            'auth_signup': {
-                title: '/auth/signup',
-                type: 'endpoint',
-                method: 'POST',
-                service: 'Backend',
-                file: 'modules/auth/auth.controller.ts:41',
-                purpose: 'Create new user account with email/password',
-                calledBy: ['authService.ts:22'],
-                connectsTo: [
-                    'Supabase users (INSERT)',
-                    'Mail service (verification email)'
-                ],
-                request: '{ email, password, fullname }',
-                response: '{ user_id, message }',
-                notes: 'Sends email verification code'
-            },
-            'inline_matching': {
-                title: 'Inline Matching Service',
-                type: 'service',
-                service: 'AI Service',
-                file: 'app/services/inline_matching_service.py',
-                purpose: 'Runs IMMEDIATELY when user completes onboarding. Not a cron job.',
-                triggeredBy: ['onboarding_complete'],
-                connectsTo: [
-                    'Supabase user_embeddings (vector search)',
-                    'Multi-vector matcher (7-step algorithm)',
-                    'DynamoDB staging-user-matches (store results)'
-                ],
-                notes: 'Threshold: 0.5 for match, 0.7 for strong match. Max 50 matches per user.'
-            },
-            'matching_step_step1': {
-                title: 'Step 1: Multi-Vector Base Score',
-                type: 'algorithm',
-                purpose: 'Calculate weighted similarity across 6 embedding dimensions',
-                formula: `industry_similarity × 0.25
-+ stage_similarity × 0.20
-+ primary_goal_similarity × 0.20
-+ geography_similarity × 0.15
-+ engagement_similarity × 0.10
-+ dealbreakers_similarity × 0.10
-= BASE_SCORE (0.0 - 1.0)`,
-                file: 'app/services/multi_vector_matcher.py'
-            },
-            'database_redis': {
-                title: 'Redis (Upstash)',
-                type: 'database',
-                purpose: 'Session cache, rate limiting, deduplication',
-                usedBy: ['AI Service'],
-                keyPatterns: [
-                    'onboarding:session:{session_id}',
-                    'onboarding:dedup:{user_id}:{hash}',
-                    'rate_limit:{ip}'
-                ],
-                notes: 'Hosted on Upstash (rediss://). Session TTL: 1 hour.'
-            },
-            'database_dynamodb': {
-                title: 'DynamoDB (AWS)',
-                type: 'database',
-                purpose: 'Store user profiles and match results',
-                usedBy: ['AI Service'],
-                tables: [
-                    'staging-user-profiles: User personas, offerings, requirements, slot values',
-                    'staging-user-matches: Match results with scores and explanations'
-                ],
-                notes: 'Region: us-east-1. Used for fast key-value access.'
-            },
-            'database_supabase_embeddings': {
-                title: 'Supabase (user_embeddings)',
-                type: 'database',
-                purpose: 'Store vector embeddings for similarity search',
-                usedBy: ['AI Service', 'Backend'],
-                columns: [
-                    'user_id',
-                    'embedding_type (requirements, offerings, industry, stage, etc.)',
-                    'embedding (vector 1536)',
-                    'text_content'
-                ],
-                notes: 'Uses pgvector for cosine similarity search'
-            },
-            'ai_model_claude': {
-                title: 'Claude 3 Haiku',
-                type: 'ai_model',
-                provider: 'Anthropic',
-                purpose: 'Extract structured slot data from user messages during onboarding',
-                usedIn: [
-                    'app/services/llm_slot_extractor.py',
-                    'app/services/ai_conversation.py'
-                ],
-                notes: 'Fast model for slot extraction. ~2-5s response time.'
-            },
-            // === FRONTEND COMPONENTS ===
-            'frontend_login': {
-                title: 'Frontend - Login/Signup',
-                type: 'frontend',
-                service: 'Frontend (React)',
-                files: [
-                    'src/pages/auth/LoginPage.tsx',
-                    'src/pages/auth/SignUpPage.tsx',
-                    'src/services/authService.ts'
-                ],
-                purpose: 'User authentication UI. Handles login, signup, Google OAuth, email verification.',
-                connectsTo: [
-                    'POST /auth/signup',
-                    'POST /auth/signin',
-                    'POST /auth/google-signin',
-                    'POST /auth/verify-email'
-                ],
-                notes: 'Uses JWT tokens stored in localStorage. Redirects to onboarding if incomplete.'
-            },
-            'frontend_onboarding': {
-                title: 'Frontend - Onboarding',
-                type: 'frontend',
-                service: 'Frontend (React)',
-                files: [
-                    'src/pages/ConversationalOnboardingPage.tsx',
-                    'src/contexts/ConversationalOnboardingContext.tsx',
-                    'src/services/conversationalOnboardingService.ts'
-                ],
-                purpose: 'Conversational AI onboarding UI. Chat interface for slot extraction.',
-                connectsTo: [
-                    'POST /onboarding/conversational/start',
-                    'POST /onboarding/conversational/chat',
-                    'POST /onboarding/conversational/complete'
-                ],
-                notes: '60s timeout, 1 retry on failure. Shows progress bar and slot indicators.'
-            },
-            // === AI SERVICE ===
-            'ai_service_onboarding': {
-                title: 'AI Service - Onboarding',
-                type: 'service',
-                service: 'AI Service (FastAPI)',
-                files: [
-                    'app/routers/onboarding.py',
-                    'app/services/llm_slot_extractor.py',
-                    'app/services/context_manager.py'
-                ],
-                purpose: 'Process conversational onboarding. Extract slots, generate follow-ups, manage session.',
-                connectsTo: [
-                    'Redis (session state)',
-                    'DynamoDB (user profiles)',
-                    'Claude Haiku (slot extraction)',
-                    'OpenAI Embeddings (on complete)'
-                ],
-                notes: 'Uses Claude Haiku for extraction. Deduplication via Redis SETNX.'
-            },
-            // === DATABASE TABLES ===
-            'database_supabase_users': {
-                title: 'Supabase (users)',
-                type: 'database',
-                purpose: 'Core user table. Authentication, profile, onboarding status.',
-                usedBy: ['Backend', 'AI Service'],
-                columns: [
-                    'id (UUID)',
-                    'email',
-                    'password_hash',
-                    'fullname',
-                    'is_verified',
-                    'onboarding_status',
-                    'created_at',
-                    'last_active_at'
-                ],
-                notes: 'Primary user identity. Soft delete supported.'
-            },
-            'database_supabase_matches': {
-                title: 'Supabase (matches)',
-                type: 'database',
-                purpose: 'Synced match results from DynamoDB for frontend access.',
-                usedBy: ['Backend'],
-                columns: [
-                    'id',
-                    'user_id',
-                    'matched_user_id',
-                    'score',
-                    'status (pending/accepted/rejected)',
-                    'explanation'
-                ],
-                notes: 'Synced from DynamoDB staging-user-matches via webhook.'
-            },
-            // === MATCHING ALGORITHM STEPS ===
-            'matching_step_step2': {
-                title: 'Step 2: Intent Classification',
-                type: 'algorithm',
-                purpose: 'Classify user intent (INVESTOR, FOUNDER, TALENT, etc.) from primary_goal and user_type.',
-                formula: `Intents: INVESTOR, FOUNDER, TALENT, MENTOR, COFOUNDER, PARTNERSHIP
-Classification based on primary_goal slot value.`,
-                file: 'app/services/intent_classifier.py',
-                notes: 'Used to determine complementary matching pairs.'
-            },
-            'matching_step_step3': {
-                title: 'Step 3: Complementarity Score',
-                type: 'algorithm',
-                purpose: 'Score how well two intents complement each other.',
-                formula: `INVESTOR + FOUNDER = 1.0 (perfect)
-MENTOR + MENTEE = 1.0 (perfect)
-COFOUNDER + COFOUNDER = 0.8
-SAME_INTENT = 0.3 (penalized)`,
-                file: 'app/services/inline_matching_service.py',
-                notes: 'Prevents matching users with identical goals.'
-            },
-            'matching_step_step4': {
-                title: 'Step 4: Dealbreaker Filters',
-                type: 'algorithm',
-                purpose: 'Apply hard filters that disqualify matches.',
-                formula: `Check dealbreakers slot for exclusions.
-Block if user explicitly excludes industry/geography.
-Block same-objective if BLOCK_SAME_OBJECTIVE=true.`,
-                file: 'app/services/inline_matching_service.py',
-                notes: 'Hard filter - match rejected if any dealbreaker triggers.'
-            },
-            'matching_step_step5': {
-                title: 'Step 5: Bidirectional Check',
-                type: 'algorithm',
-                purpose: 'Ensure both users would be good matches for each other.',
-                formula: `score_A_to_B = calculate(A, B)
-score_B_to_A = calculate(B, A)
-bidirectional_factor = min(score_A_to_B, score_B_to_A) / max(...)`,
-                file: 'app/services/inline_matching_service.py',
-                notes: 'Prevents one-sided matches where only one user benefits.'
-            },
-            'matching_step_step6': {
-                title: 'Step 6: Activity & Temporal Boosts',
-                type: 'algorithm',
-                purpose: 'Boost active users, penalize inactive ones.',
-                formula: `activity_boost = 0.0 to 1.0 based on recent logins
-temporal_boost = 1.0 if active < 7 days, decays to 0.85 after 30 days
-FINAL × (0.9 + 0.1 × activity) × (0.95 + 0.05 × temporal)`,
-                file: 'app/services/inline_matching_service.py',
-                notes: '15% decay for users inactive >30 days.'
-            },
-            'matching_step_step7': {
-                title: 'Step 7: Threshold Filter',
-                type: 'algorithm',
-                purpose: 'Only create matches above minimum quality threshold.',
-                formula: `if FINAL_SCORE >= 0.70: "Strong Match"
-if FINAL_SCORE >= 0.55: "Worth Exploring"
-if FINAL_SCORE >= 0.50: "Potential Match"
-if FINAL_SCORE < 0.50: REJECTED`,
-                file: 'app/services/inline_matching_service.py',
-                notes: 'Max 50 matches per user. Sorted by score descending.'
-            },
-            // === DASHBOARD FEATURES ===
-            'get_matches': {
-                title: 'Dashboard - Matches',
-                type: 'feature',
-                service: 'Backend → AI Service',
-                endpoints: [
-                    'GET /dashboard/onboarding-matches',
-                    'POST /dashboard/decide-match',
-                    'GET /dashboard/match-explanation/:matchId'
-                ],
-                purpose: 'Display user matches with scores, allow accept/reject/skip.',
-                connectsTo: [
-                    'DynamoDB staging-user-matches',
-                    'Supabase matches',
-                    'Claude Haiku (explanations)'
-                ],
-                notes: 'Explanations and ice-breakers generated on-demand by Claude.'
-            },
-            'discover': {
-                title: 'Dashboard - Discover',
-                type: 'feature',
-                service: 'Backend',
-                endpoints: [
-                    'GET /discover/search',
-                    'POST /discover/interest',
-                    'POST /discover/browse'
-                ],
-                purpose: 'Browse and search all users, express interest.',
-                connectsTo: [
-                    'Supabase users (full-text search)',
-                    'Supabase user_summaries',
-                    'Supabase connection_interests'
-                ],
-                notes: 'Full-text search on name, bio, industry. Tracks browse history.'
-            },
-            'chat': {
-                title: 'Dashboard - Chat',
-                type: 'feature',
-                service: 'Backend → Stream',
-                endpoints: [
-                    'GET /ai-conversations/token',
-                    'POST /ai-conversations/initiate-user-to-user-conversation'
-                ],
-                purpose: 'Real-time messaging between matched users.',
-                connectsTo: [
-                    'Stream Chat API (external)',
-                    'Supabase ai_conversations'
-                ],
-                notes: 'Uses Stream Chat for real-time messaging. Token generated per user.'
-            },
-            'profile': {
-                title: 'Dashboard - Profile',
-                type: 'feature',
-                service: 'Backend',
-                endpoints: [
-                    'GET /profile/get-profile',
-                    'PATCH /profile/update-profile'
-                ],
-                purpose: 'View and edit user profile.',
-                connectsTo: [
-                    'Supabase users',
-                    'Supabase user_summaries',
-                    'AI Service (regenerate persona on significant change)'
-                ],
-                notes: 'Profile updates may trigger persona regeneration.'
-            }
-        };
-
-        // Show detail panel
-        function showDetail(type, subtype = null) {
-            const key = subtype ? `${type}_${subtype}` : type;
-            const detail = endpointDetails[key];
-
-            if (!detail) {
-                document.getElementById('detailContent').innerHTML = `
-                    <div class="text-yellow-400 mb-4">Component: ${key}</div>
-                    <div class="text-gray-500">Details not yet documented</div>
-                `;
-                return;
-            }
-
-            let html = `
-                <div class="fade-in">
-                    <div class="flex items-center gap-2 mb-4">
-                        ${detail.method ? `<span class="px-2 py-1 bg-blue-600 rounded text-xs font-bold">${detail.method}</span>` : ''}
-                        <span class="text-lg font-semibold">${detail.title}</span>
-                    </div>
-
-                    ${detail.type ? `<div class="text-xs text-gray-500 mb-4">${detail.type.toUpperCase()} • ${detail.service || ''}</div>` : ''}
-
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Purpose</div>
-                        <div class="text-sm">${detail.purpose}</div>
-                    </div>
-
-                    ${detail.file ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">File</div>
-                        <div class="text-sm font-mono text-blue-400">${detail.file}</div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.calledBy ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Called By</div>
-                        <div class="space-y-1">
-                            ${detail.calledBy.map(c => `<div class="text-sm font-mono text-green-400">${c}</div>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.triggeredBy ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Triggered By</div>
-                        <div class="space-y-1">
-                            ${detail.triggeredBy.map(c => `<div class="text-sm font-mono text-yellow-400">${c}</div>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.connectsTo ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Connects To</div>
-                        <div class="space-y-1">
-                            ${detail.connectsTo.map(c => `<div class="text-sm">• ${c}</div>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.usedBy ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Used By</div>
-                        <div class="space-y-1">
-                            ${detail.usedBy.map(c => `<div class="text-sm">• ${c}</div>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.tables ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Tables</div>
-                        <div class="space-y-2">
-                            ${detail.tables.map(t => `<div class="text-sm bg-gray-900 p-2 rounded">${t}</div>`).join('')}
-                        </div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.request ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Request</div>
-                        <div class="text-sm font-mono bg-gray-900 p-2 rounded">${detail.request}</div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.response ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Response</div>
-                        <div class="text-sm font-mono bg-gray-900 p-2 rounded">${detail.response}</div>
-                    </div>
-                    ` : ''}
-
-                    ${detail.formula ? `
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-400 mb-1">Formula</div>
-                        <pre class="text-sm font-mono bg-gray-900 p-3 rounded text-green-400 whitespace-pre-wrap">${detail.formula}</pre>
-                    </div>
-                    ` : ''}
-
-                    ${detail.notes ? `
-                    <div class="mt-4 p-3 bg-yellow-900/30 border border-yellow-700 rounded">
-                        <div class="text-sm text-yellow-400">${detail.notes}</div>
-                    </div>
-                    ` : ''}
-                </div>
-            `;
-
-            document.getElementById('detailContent').innerHTML = html;
-        }
-
-        // Section filter
-        document.getElementById('sectionFilter').addEventListener('change', function() {
-            const section = this.value;
-            document.querySelectorAll('.section-content').forEach(el => {
-                if (section === 'all' || el.id === `section-${section}`) {
-                    el.style.display = 'block';
-                } else {
-                    el.style.display = 'none';
-                }
+        function showTab(tabId) {
+            // Hide all content
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Remove active from all tabs
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('border-blue-500', 'text-blue-400');
+                el.classList.add('border-transparent', 'text-gray-400');
             });
-        });
-
-        // Set last updated
-        document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString();
+            // Show selected content
+            document.getElementById('content-' + tabId).classList.remove('hidden');
+            // Activate tab
+            const tab = document.getElementById('tab-' + tabId);
+            tab.classList.remove('border-transparent', 'text-gray-400');
+            tab.classList.add('border-blue-500', 'text-blue-400');
+        }
     </script>
 </body>
 </html>
