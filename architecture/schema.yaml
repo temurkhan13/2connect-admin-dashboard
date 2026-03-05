@@ -46,6 +46,9 @@ databases:
       - connection_interests
       - browse_history
       - user_embeddings
+      - verification_codes  # Email verification codes
+      - onboarding_sections  # Legacy onboarding (unused)
+      - onboarding_questions  # Legacy onboarding (unused)
 
   dynamodb:
     name: DynamoDB (AWS)
@@ -60,6 +63,27 @@ databases:
     type: redis
     used_by: [ai_service]
     purpose: "Session cache, rate limiting, deduplication"
+
+external_services:
+  stream_chat:
+    name: Stream Chat
+    type: messaging
+    used_by: [backend]
+    purpose: "Real-time user-to-user messaging"
+    docs: https://getstream.io/chat/docs/
+
+  s3:
+    name: AWS S3
+    type: storage
+    used_by: [ai_service]
+    purpose: "Resume file storage"
+    bucket: "2connect-uploads"
+
+  google_oauth:
+    name: Google OAuth
+    type: auth
+    used_by: [backend]
+    purpose: "Google sign-in authentication"
 
 ai_models:
   claude_haiku:

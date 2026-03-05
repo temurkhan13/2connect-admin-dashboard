@@ -10,7 +10,7 @@
         body { background: #0f172a; }
         .node { cursor: pointer; transition: all 0.2s; }
         .node:hover { transform: scale(1.05); filter: brightness(1.2); }
-        .node.selected { ring: 3px solid #3b82f6; }
+        .node.selected { outline: 3px solid #3b82f6; }
         .connection { stroke-dasharray: 5; animation: dash 1s linear infinite; }
         @keyframes dash { to { stroke-dashoffset: -10; } }
         .fade-in { animation: fadeIn 0.3s ease-in; }
@@ -44,12 +44,7 @@
                     <option value="dashboard">Dashboard</option>
                 </select>
             </div>
-            <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-400">View:</span>
-                <button onclick="setView('flow')" id="btn-flow" class="px-3 py-1 bg-blue-600 rounded text-sm">Flow</button>
-                <button onclick="setView('services')" id="btn-services" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">Services</button>
-                <button onclick="setView('databases')" id="btn-databases" class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm">Databases</button>
-            </div>
+            <!-- View toggle removed - single flow view only -->
             <div class="flex-1"></div>
             <div class="text-sm text-gray-500">
                 Click any component for details
@@ -243,7 +238,9 @@
                         <div class="node bg-green-900/50 border border-green-700 rounded-lg p-3 text-center"
                              onclick="showDetail('matching_step', 'step7')">
                             <div class="text-green-400 font-medium text-xs">STEP 7</div>
-                            <div class="text-xs text-gray-400 mt-1">Threshold ≥0.5</div>
+                            <div class="text-xs text-gray-400 mt-1">≥0.7 Strong</div>
+                            <div class="text-xs text-gray-400">≥0.55 Worth</div>
+                            <div class="text-xs text-gray-400">≥0.5 Min</div>
                         </div>
                     </div>
 
@@ -290,12 +287,6 @@
                              onclick="showDetail('database', 'dynamodb_matches')">
                             <div class="text-yellow-400 font-medium text-sm">DynamoDB</div>
                             <div class="text-xs text-gray-400">staging-user-matches</div>
-                        </div>
-                        <div class="text-gray-500">→</div>
-                        <div class="node bg-green-900/50 border border-green-700 rounded-lg p-3"
-                             onclick="showDetail('webhook')">
-                            <div class="text-green-400 font-medium text-sm">Webhook</div>
-                            <div class="text-xs text-gray-400">/webhooks/matches-ready</div>
                         </div>
                         <div class="text-gray-500">→</div>
                         <div class="node bg-orange-900/50 border border-orange-700 rounded-lg p-3"
@@ -481,6 +472,222 @@
                     'app/services/ai_conversation.py'
                 ],
                 notes: 'Fast model for slot extraction. ~2-5s response time.'
+            },
+            // === FRONTEND COMPONENTS ===
+            'frontend_login': {
+                title: 'Frontend - Login/Signup',
+                type: 'frontend',
+                service: 'Frontend (React)',
+                files: [
+                    'src/pages/auth/LoginPage.tsx',
+                    'src/pages/auth/SignUpPage.tsx',
+                    'src/services/authService.ts'
+                ],
+                purpose: 'User authentication UI. Handles login, signup, Google OAuth, email verification.',
+                connectsTo: [
+                    'POST /auth/signup',
+                    'POST /auth/signin',
+                    'POST /auth/google-signin',
+                    'POST /auth/verify-email'
+                ],
+                notes: 'Uses JWT tokens stored in localStorage. Redirects to onboarding if incomplete.'
+            },
+            'frontend_onboarding': {
+                title: 'Frontend - Onboarding',
+                type: 'frontend',
+                service: 'Frontend (React)',
+                files: [
+                    'src/pages/ConversationalOnboardingPage.tsx',
+                    'src/contexts/ConversationalOnboardingContext.tsx',
+                    'src/services/conversationalOnboardingService.ts'
+                ],
+                purpose: 'Conversational AI onboarding UI. Chat interface for slot extraction.',
+                connectsTo: [
+                    'POST /onboarding/conversational/start',
+                    'POST /onboarding/conversational/chat',
+                    'POST /onboarding/conversational/complete'
+                ],
+                notes: '60s timeout, 1 retry on failure. Shows progress bar and slot indicators.'
+            },
+            // === AI SERVICE ===
+            'ai_service_onboarding': {
+                title: 'AI Service - Onboarding',
+                type: 'service',
+                service: 'AI Service (FastAPI)',
+                files: [
+                    'app/routers/onboarding.py',
+                    'app/services/llm_slot_extractor.py',
+                    'app/services/context_manager.py'
+                ],
+                purpose: 'Process conversational onboarding. Extract slots, generate follow-ups, manage session.',
+                connectsTo: [
+                    'Redis (session state)',
+                    'DynamoDB (user profiles)',
+                    'Claude Haiku (slot extraction)',
+                    'OpenAI Embeddings (on complete)'
+                ],
+                notes: 'Uses Claude Haiku for extraction. Deduplication via Redis SETNX.'
+            },
+            // === DATABASE TABLES ===
+            'database_supabase_users': {
+                title: 'Supabase (users)',
+                type: 'database',
+                purpose: 'Core user table. Authentication, profile, onboarding status.',
+                usedBy: ['Backend', 'AI Service'],
+                columns: [
+                    'id (UUID)',
+                    'email',
+                    'password_hash',
+                    'fullname',
+                    'is_verified',
+                    'onboarding_status',
+                    'created_at',
+                    'last_active_at'
+                ],
+                notes: 'Primary user identity. Soft delete supported.'
+            },
+            'database_supabase_matches': {
+                title: 'Supabase (matches)',
+                type: 'database',
+                purpose: 'Synced match results from DynamoDB for frontend access.',
+                usedBy: ['Backend'],
+                columns: [
+                    'id',
+                    'user_id',
+                    'matched_user_id',
+                    'score',
+                    'status (pending/accepted/rejected)',
+                    'explanation'
+                ],
+                notes: 'Synced from DynamoDB staging-user-matches via webhook.'
+            },
+            // === MATCHING ALGORITHM STEPS ===
+            'matching_step_step2': {
+                title: 'Step 2: Intent Classification',
+                type: 'algorithm',
+                purpose: 'Classify user intent (INVESTOR, FOUNDER, TALENT, etc.) from primary_goal and user_type.',
+                formula: `Intents: INVESTOR, FOUNDER, TALENT, MENTOR, COFOUNDER, PARTNERSHIP
+Classification based on primary_goal slot value.`,
+                file: 'app/services/intent_classifier.py',
+                notes: 'Used to determine complementary matching pairs.'
+            },
+            'matching_step_step3': {
+                title: 'Step 3: Complementarity Score',
+                type: 'algorithm',
+                purpose: 'Score how well two intents complement each other.',
+                formula: `INVESTOR + FOUNDER = 1.0 (perfect)
+MENTOR + MENTEE = 1.0 (perfect)
+COFOUNDER + COFOUNDER = 0.8
+SAME_INTENT = 0.3 (penalized)`,
+                file: 'app/services/inline_matching_service.py',
+                notes: 'Prevents matching users with identical goals.'
+            },
+            'matching_step_step4': {
+                title: 'Step 4: Dealbreaker Filters',
+                type: 'algorithm',
+                purpose: 'Apply hard filters that disqualify matches.',
+                formula: `Check dealbreakers slot for exclusions.
+Block if user explicitly excludes industry/geography.
+Block same-objective if BLOCK_SAME_OBJECTIVE=true.`,
+                file: 'app/services/inline_matching_service.py',
+                notes: 'Hard filter - match rejected if any dealbreaker triggers.'
+            },
+            'matching_step_step5': {
+                title: 'Step 5: Bidirectional Check',
+                type: 'algorithm',
+                purpose: 'Ensure both users would be good matches for each other.',
+                formula: `score_A_to_B = calculate(A, B)
+score_B_to_A = calculate(B, A)
+bidirectional_factor = min(score_A_to_B, score_B_to_A) / max(...)`,
+                file: 'app/services/inline_matching_service.py',
+                notes: 'Prevents one-sided matches where only one user benefits.'
+            },
+            'matching_step_step6': {
+                title: 'Step 6: Activity & Temporal Boosts',
+                type: 'algorithm',
+                purpose: 'Boost active users, penalize inactive ones.',
+                formula: `activity_boost = 0.0 to 1.0 based on recent logins
+temporal_boost = 1.0 if active < 7 days, decays to 0.85 after 30 days
+FINAL × (0.9 + 0.1 × activity) × (0.95 + 0.05 × temporal)`,
+                file: 'app/services/inline_matching_service.py',
+                notes: '15% decay for users inactive >30 days.'
+            },
+            'matching_step_step7': {
+                title: 'Step 7: Threshold Filter',
+                type: 'algorithm',
+                purpose: 'Only create matches above minimum quality threshold.',
+                formula: `if FINAL_SCORE >= 0.70: "Strong Match"
+if FINAL_SCORE >= 0.55: "Worth Exploring"
+if FINAL_SCORE >= 0.50: "Potential Match"
+if FINAL_SCORE < 0.50: REJECTED`,
+                file: 'app/services/inline_matching_service.py',
+                notes: 'Max 50 matches per user. Sorted by score descending.'
+            },
+            // === DASHBOARD FEATURES ===
+            'get_matches': {
+                title: 'Dashboard - Matches',
+                type: 'feature',
+                service: 'Backend → AI Service',
+                endpoints: [
+                    'GET /dashboard/onboarding-matches',
+                    'POST /dashboard/decide-match',
+                    'GET /dashboard/match-explanation/:matchId'
+                ],
+                purpose: 'Display user matches with scores, allow accept/reject/skip.',
+                connectsTo: [
+                    'DynamoDB staging-user-matches',
+                    'Supabase matches',
+                    'Claude Haiku (explanations)'
+                ],
+                notes: 'Explanations and ice-breakers generated on-demand by Claude.'
+            },
+            'discover': {
+                title: 'Dashboard - Discover',
+                type: 'feature',
+                service: 'Backend',
+                endpoints: [
+                    'GET /discover/search',
+                    'POST /discover/interest',
+                    'POST /discover/browse'
+                ],
+                purpose: 'Browse and search all users, express interest.',
+                connectsTo: [
+                    'Supabase users (full-text search)',
+                    'Supabase user_summaries',
+                    'Supabase connection_interests'
+                ],
+                notes: 'Full-text search on name, bio, industry. Tracks browse history.'
+            },
+            'chat': {
+                title: 'Dashboard - Chat',
+                type: 'feature',
+                service: 'Backend → Stream',
+                endpoints: [
+                    'GET /ai-conversations/token',
+                    'POST /ai-conversations/initiate-user-to-user-conversation'
+                ],
+                purpose: 'Real-time messaging between matched users.',
+                connectsTo: [
+                    'Stream Chat API (external)',
+                    'Supabase ai_conversations'
+                ],
+                notes: 'Uses Stream Chat for real-time messaging. Token generated per user.'
+            },
+            'profile': {
+                title: 'Dashboard - Profile',
+                type: 'feature',
+                service: 'Backend',
+                endpoints: [
+                    'GET /profile/get-profile',
+                    'PATCH /profile/update-profile'
+                ],
+                purpose: 'View and edit user profile.',
+                connectsTo: [
+                    'Supabase users',
+                    'Supabase user_summaries',
+                    'AI Service (regenerate persona on significant change)'
+                ],
+                notes: 'Profile updates may trigger persona regeneration.'
             }
         };
 
@@ -606,17 +813,6 @@
                 }
             });
         });
-
-        // View toggle
-        function setView(view) {
-            document.querySelectorAll('[id^="btn-"]').forEach(btn => {
-                btn.classList.remove('bg-blue-600');
-                btn.classList.add('bg-gray-700');
-            });
-            document.getElementById(`btn-${view}`).classList.remove('bg-gray-700');
-            document.getElementById(`btn-${view}`).classList.add('bg-blue-600');
-            // TODO: Implement different views
-        }
 
         // Set last updated
         document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString();
