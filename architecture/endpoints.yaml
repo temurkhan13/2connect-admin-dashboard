@@ -1,0 +1,354 @@
+# 2Connect API Endpoint Registry
+# Maps frontend → backend → ai_service → databases
+
+# =============================================================================
+# SECTION: LOGIN/SIGNUP
+# =============================================================================
+login:
+  endpoints:
+    - id: auth_signup
+      path: /auth/signup
+      method: POST
+      service: backend
+      frontend_caller: authService.ts:22
+      connects_to:
+        - supabase.users (INSERT)
+        - mail.service (verification email)
+      request: { email, password, fullname }
+      response: { user_id, message }
+
+    - id: auth_signin
+      path: /auth/signin
+      method: POST
+      service: backend
+      frontend_caller: authService.ts:32
+      connects_to:
+        - supabase.users (SELECT)
+      request: { email, password }
+      response: { access_token, refresh_token, user }
+
+    - id: auth_google
+      path: /auth/google-signin
+      method: POST
+      service: backend
+      frontend_caller: authService.ts:42
+      connects_to:
+        - supabase.users (UPSERT)
+        - Google OAuth
+      request: { id_token }
+      response: { access_token, user }
+
+    - id: verify_email
+      path: /auth/verify-email
+      method: POST
+      service: backend
+      frontend_caller: authService.ts:59
+      connects_to:
+        - supabase.verification_codes (SELECT, DELETE)
+        - supabase.users (UPDATE is_verified)
+
+    - id: forgot_password
+      path: /auth/forgot-password
+      method: POST
+      service: backend
+      connects_to:
+        - supabase.users (SELECT)
+        - mail.service (reset email)
+
+    - id: reset_password
+      path: /auth/reset-password
+      method: POST
+      service: backend
+      connects_to:
+        - supabase.users (UPDATE password)
+
+# =============================================================================
+# SECTION: ONBOARDING
+# =============================================================================
+onboarding:
+  endpoints:
+    # --- Conversational Onboarding (AI-driven) ---
+    - id: onboarding_start
+      path: /onboarding/conversational/start
+      method: POST
+      service: backend
+      frontend_caller: conversationalOnboardingService.ts:82
+      proxies_to: ai_service:/onboarding/start
+      connects_to:
+        - redis (session create)
+        - dynamodb.staging-user-profiles (init)
+      request: { user_id }
+      response: { session_id, greeting }
+      notes: "Creates onboarding session, generates initial AI greeting"
+
+    - id: onboarding_chat
+      path: /onboarding/conversational/chat
+      method: POST
+      service: backend
+      frontend_caller: conversationalOnboardingService.ts:100
+      proxies_to: ai_service:/onboarding/chat
+      connects_to:
+        - redis (session state)
+        - claude_haiku (slot extraction)
+        - dynamodb.staging-user-profiles (slot update)
+      request: { session_id, message }
+      response: { ai_response, progress, slots_filled, is_complete }
+      notes: "60s timeout, deduplication enabled (5s window)"
+
+    - id: onboarding_progress
+      path: /onboarding/conversational/progress/:sessionId
+      method: GET
+      service: backend
+      frontend_caller: conversationalOnboardingService.ts:118
+      proxies_to: ai_service:/onboarding/progress/:session_id
+      connects_to:
+        - redis (session read)
+
+    - id: onboarding_complete
+      path: /onboarding/conversational/complete
+      method: POST
+      service: backend
+      frontend_caller: conversationalOnboardingService.ts:154
+      proxies_to: ai_service:/onboarding/complete
+      connects_to:
+        - dynamodb.staging-user-profiles (finalize persona)
+        - openai_embeddings (generate 6 vectors)
+        - supabase.user_embeddings (store vectors)
+        - inline_matching (trigger match generation)
+        - dynamodb.staging-user-matches (store matches)
+        - supabase.users (UPDATE onboarding_status)
+      request: { user_id, session_id, persona_approved }
+      response: { success, matches_count }
+      notes: "CRITICAL - triggers entire matching pipeline"
+
+    # --- Legacy Onboarding ---
+    - id: onboarding_sections
+      path: /onboarding/sections
+      method: GET
+      service: backend
+      connects_to:
+        - supabase.onboarding_sections
+
+    - id: onboarding_questions
+      path: /onboarding/questions/:id
+      method: GET
+      service: backend
+      connects_to:
+        - supabase.onboarding_questions
+
+    - id: upload_resume
+      path: /onboarding/upload-resume
+      method: POST
+      service: backend
+      proxies_to: ai_service:/onboarding/upload-resume
+      connects_to:
+        - s3 (file storage)
+        - claude_haiku (resume parsing)
+
+# =============================================================================
+# SECTION: MATCHING
+# =============================================================================
+matching:
+  endpoints:
+    - id: get_matches
+      path: /dashboard/onboarding-matches
+      method: GET
+      service: backend
+      frontend_caller: matchService.ts:12
+      connects_to:
+        - dynamodb.staging-user-matches (read)
+        - supabase.matches (sync)
+      response: { matches: [{user, score, explanation}] }
+
+    - id: decide_match
+      path: /dashboard/decide-match
+      method: POST
+      service: backend
+      frontend_caller: matchService.ts:19
+      proxies_to: ai_service:/feedback/match
+      connects_to:
+        - supabase.match_feedback (INSERT)
+        - dynamodb.staging-user-matches (update status)
+        - feedback_embedding_adjuster (if thumbs up/down)
+      request: { match_id, decision: accept|reject|skip }
+
+    - id: match_explanation
+      path: /dashboard/match-explanation/:matchId
+      method: GET
+      service: backend
+      proxies_to: ai_service:/match/explanation
+      connects_to:
+        - claude_haiku (generate explanation)
+      response: { explanation, compatibility_points }
+
+    - id: ice_breakers
+      path: /dashboard/ice-breakers/:matchId
+      method: GET
+      service: backend
+      proxies_to: ai_service:/match/ice-breakers
+      connects_to:
+        - claude_haiku (generate ice breakers)
+      response: { ice_breakers: [string] }
+
+    - id: list_matches
+      path: /dashboard/list-matches
+      method: GET
+      service: backend
+      frontend_caller: matchService.ts:55
+      connects_to:
+        - supabase.matches (pagination)
+
+    - id: submit_feedback
+      path: /dashboard/submit-match-feedback
+      method: POST
+      service: backend
+      proxies_to: ai_service:/feedback/outcome
+      connects_to:
+        - supabase.match_feedback
+        - feedback_embedding_adjuster (2% adjustment)
+
+  # --- AI Service Internal Matching ---
+  ai_matching:
+    - id: multi_vector_matches
+      path: /matching/{user_id}/multi-vector-matches
+      method: GET
+      service: ai_service
+      connects_to:
+        - supabase.user_embeddings (vector search)
+        - multi_vector_matcher (7-step algorithm)
+      notes: "Industry 25%, Stage 20%, Goal 20%, Geography 15%, Engagement 10%, Dealbreakers 10%"
+
+    - id: inline_matching
+      path: internal
+      service: ai_service
+      triggered_by: onboarding_complete
+      connects_to:
+        - supabase.user_embeddings
+        - dynamodb.staging-user-matches
+      notes: "Runs IMMEDIATELY on onboarding completion, not cron"
+
+# =============================================================================
+# SECTION: DASHBOARD
+# =============================================================================
+dashboard:
+  endpoints:
+    - id: quick_stats
+      path: /dashboard/quick-stats
+      method: GET
+      service: backend
+      frontend_caller: dashboardService.ts:4
+      connects_to:
+        - supabase.users (count)
+        - supabase.matches (count)
+
+    - id: get_profile
+      path: /profile/get-profile
+      method: GET
+      service: backend
+      frontend_caller: profileService.ts:15
+      connects_to:
+        - supabase.users
+        - supabase.user_summaries
+
+    - id: update_profile
+      path: /profile/update-profile
+      method: PATCH
+      service: backend
+      connects_to:
+        - supabase.users (UPDATE)
+        - ai_service:/user/regenerate-persona (if significant change)
+
+    - id: discover_search
+      path: /discover/search
+      method: GET
+      service: backend
+      frontend_caller: discoverService.ts:64
+      connects_to:
+        - supabase.users (full-text search)
+        - supabase.user_summaries
+
+    - id: discover_interest
+      path: /discover/interest
+      method: POST
+      service: backend
+      connects_to:
+        - supabase.connection_interests (INSERT)
+
+    - id: discover_browse
+      path: /discover/browse
+      method: POST
+      service: backend
+      connects_to:
+        - supabase.browse_history (INSERT)
+
+  # --- Chat ---
+  chat:
+    - id: get_stream_token
+      path: /ai-conversations/token
+      method: GET
+      service: backend
+      frontend_caller: chatServices.ts:425
+      connects_to:
+        - Stream Chat API (generate token)
+
+    - id: initiate_conversation
+      path: /ai-conversations/initiate-user-to-user-conversation
+      method: POST
+      service: backend
+      connects_to:
+        - Stream Chat API (create channel)
+        - supabase.ai_conversations (log)
+
+# =============================================================================
+# ADMIN ENDPOINTS
+# =============================================================================
+admin:
+  endpoints:
+    - id: system_health
+      path: /dashboard/admin/system-health
+      method: GET
+      service: backend
+      proxies_to: ai_service:/admin/system-health
+      connects_to:
+        - All databases (health check)
+
+    - id: wiring_audit
+      path: /dashboard/admin/wiring-audit
+      method: GET
+      service: backend
+      proxies_to: ai_service:/admin/wiring-audit
+      connects_to:
+        - dynamodb (user profiles)
+        - supabase (embeddings, matches)
+      response: { pipeline_status, broken_users, efficiency }
+
+    - id: matching_diagnostics
+      path: /dashboard/admin/matching-diagnostics
+      method: GET
+      service: backend
+      proxies_to: ai_service:/admin/matching-diagnostics
+
+    - id: list_users
+      path: /admin/list-users
+      method: GET
+      service: ai_service
+      connects_to:
+        - dynamodb.staging-user-profiles
+        - supabase.user_embeddings
+        - supabase.matches
+
+    - id: regenerate_embeddings
+      path: /admin/regenerate-embeddings
+      method: POST
+      service: ai_service
+      connects_to:
+        - openai_embeddings
+        - supabase.user_embeddings
+
+    - id: clear_resync_matches
+      path: /admin/clear-and-resync-matches
+      method: POST
+      service: ai_service
+      connects_to:
+        - dynamodb.staging-user-matches (clear)
+        - inline_matching (regenerate all)

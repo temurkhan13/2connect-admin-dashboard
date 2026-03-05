@@ -1,0 +1,122 @@
+# 2Connect Platform Specifications
+# This is the SOURCE OF TRUTH - code MUST match this
+
+onboarding:
+  # CORE_SLOTS - Required for ALL users
+  # Code location: app/services/llm_slot_extractor.py:992
+  CORE_SLOTS:
+    - primary_goal
+    - requirements
+    - offerings
+    - user_type
+    - industry_focus
+    - stage_preference
+    - geography
+
+  # Completion threshold
+  completion_progress: 100  # Must reach 100% to complete
+  min_slots_for_completion: 7  # All CORE_SLOTS filled
+
+  # Session config
+  session_timeout_seconds: 3600  # 1 hour
+  chat_timeout_ms: 60000  # 60s frontend timeout
+  max_retries: 1  # Frontend retries on timeout
+  deduplication_window_seconds: 5  # Prevent duplicate submissions
+
+  # Adaptive slot groups (added based on primary_goal)
+  INVESTOR_SLOTS:
+    - check_size
+    - portfolio_size
+    - investment_thesis
+    trigger: "Looking to Invest"
+
+  FOUNDER_SLOTS:
+    - company_stage
+    - funding_need
+    - team_size
+    trigger: "Seeking Investment"
+
+  COFOUNDER_SLOTS:
+    - skills_have
+    - skills_need
+    - commitment_level
+    - equity_expectations
+    trigger: "Finding Co-founder"
+
+  HIRING_SLOTS:
+    - role_type
+    - seniority_level
+    - remote_preference
+    - compensation_range
+    trigger: "Hiring Talent"
+
+  MENTORSHIP_SLOTS:
+    - mentorship_areas
+    - experience_level
+    - time_commitment
+    trigger: "Seeking Mentor OR Offering Advisory"
+
+matching:
+  # Threshold for creating a match
+  # Code location: app/services/inline_matching_service.py:72
+  SIMILARITY_THRESHOLD: 0.5  # Minimum score to create match
+  STRONG_THRESHOLD: 0.7  # High-quality match tier
+  WORTH_EXPLORING_THRESHOLD: 0.55  # Medium match tier
+
+  # Multi-vector weights (must sum to 1.0)
+  # Code location: app/services/multi_vector_matcher.py
+  EMBEDDING_WEIGHTS:
+    industry: 0.25
+    stage: 0.20
+    primary_goal: 0.20
+    geography: 0.15
+    engagement: 0.10
+    dealbreakers: 0.10
+
+  # Scoring formula
+  # Code location: app/services/inline_matching_service.py
+  FORMULA: |
+    FINAL = BASE_SCORE
+          × (0.7 + 0.3 × intent_quality)
+          × bidirectional_factor
+          × (0.9 + 0.1 × activity_boost)
+          × (0.95 + 0.05 × temporal_boost)
+
+  # Intent complementarity scores
+  INTENT_PAIRS:
+    INVESTOR_FOUNDER: 1.0
+    MENTOR_MENTEE: 1.0
+    TALENT_SEEKING_OPPORTUNITY: 1.0
+    COFOUNDER_COFOUNDER: 0.8
+    PARTNERSHIP_PARTNERSHIP: 0.8
+    SAME_OBJECTIVE: 0.3  # e.g., INVESTOR_INVESTOR
+
+  # Filters
+  BLOCK_SAME_OBJECTIVE: true
+  ENFORCE_DEALBREAKERS: true
+
+  # Storage
+  MAX_MATCHES_PER_USER: 50
+
+feedback:
+  # Embedding adjustment on feedback
+  # Code location: app/services/feedback_embedding_adjuster.py
+  BASE_RATE: 0.02  # 2% adjustment per feedback
+  MAX_RATE: 0.10  # 10% cap to prevent overfit
+
+  # Normalization
+  NORMALIZE_AFTER_ADJUSTMENT: true
+
+databases:
+  # DynamoDB table names
+  DYNAMODB_PROFILES_TABLE: staging-user-profiles
+  DYNAMODB_MATCHES_TABLE: staging-user-matches
+
+  # Supabase key tables
+  SUPABASE_USERS_TABLE: users
+  SUPABASE_EMBEDDINGS_TABLE: user_embeddings
+  SUPABASE_MATCHES_TABLE: matches
+
+  # Redis key prefixes
+  REDIS_SESSION_PREFIX: "onboarding:session:"
+  REDIS_DEDUP_PREFIX: "onboarding:dedup:"
