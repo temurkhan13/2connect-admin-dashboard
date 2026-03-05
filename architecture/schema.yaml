@@ -1,0 +1,96 @@
+# 2Connect Platform Architecture Schema
+# Last Updated: 2026-03-05
+# This file is the source of truth for the architecture dashboard
+
+meta:
+  name: 2Connect
+  description: AI-powered professional networking platform
+  version: "1.0"
+  updated: "2026-03-05"
+
+services:
+  frontend:
+    name: Frontend (React)
+    repo: reciprocity-frontend
+    url: https://2connectv1-frontend.vercel.app
+    tech: React, TypeScript, Tailwind
+    local_path: C:/Users/hp/reciprocity-frontend
+
+  backend:
+    name: Backend (NestJS)
+    repo: reciprocity-backend
+    url: https://twoconnectv1-backend.onrender.com/api/v1
+    tech: NestJS, TypeScript, TypeORM
+    local_path: C:/Users/hp/reciprocity-backend
+
+  ai_service:
+    name: AI Service (FastAPI)
+    repo: reciprocity-ai
+    url: https://twoconnectv1-ai.onrender.com/api/v1
+    tech: FastAPI, Python, LangChain
+    local_path: C:/Users/hp/reciprocity-ai
+
+databases:
+  supabase:
+    name: Supabase (PostgreSQL)
+    type: postgres
+    used_by: [backend, ai_service]
+    tables:
+      - users
+      - user_onboarding_answers
+      - user_summaries
+      - matches
+      - match_feedback
+      - ai_conversations
+      - analytics_events
+      - connection_interests
+      - browse_history
+      - user_embeddings
+
+  dynamodb:
+    name: DynamoDB (AWS)
+    type: dynamodb
+    used_by: [ai_service]
+    tables:
+      - staging-user-profiles: "User personas, offerings, requirements"
+      - staging-user-matches: "Match results and scores"
+
+  redis:
+    name: Redis (Upstash)
+    type: redis
+    used_by: [ai_service]
+    purpose: "Session cache, rate limiting, deduplication"
+
+ai_models:
+  claude_haiku:
+    name: Claude 3 Haiku
+    provider: Anthropic
+    used_for:
+      - Slot extraction during onboarding
+      - Follow-up question generation
+    location: app/services/llm_slot_extractor.py
+
+  openai_embeddings:
+    name: text-embedding-3-small
+    provider: OpenAI
+    used_for:
+      - Multi-vector embeddings (6 dimensions)
+      - Basic embeddings (requirements/offerings)
+    location: app/services/embedding_service.py
+
+sections:
+  - id: login
+    name: Login/Signup
+    description: User authentication flow
+
+  - id: onboarding
+    name: Onboarding
+    description: Conversational AI onboarding and slot extraction
+
+  - id: matching
+    name: Matching
+    description: Hybrid multi-vector matching algorithm
+
+  - id: dashboard
+    name: Dashboard
+    description: User dashboard, matches, discover
