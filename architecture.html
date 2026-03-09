@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Last Updated: 2026-03-09 | Reflects: REC-487, BUG-027, BUG-029, multi-vector steering, background processing -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -398,9 +399,16 @@
 
                 <!-- Config reminder -->
                 <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 mb-6 text-xs">
-                    <span class="text-yellow-400 font-medium">Required Slots (7):</span>
-                    <span class="text-gray-300 ml-2">primary_goal, user_type, industry_focus, stage_preference, geography, offerings, requirements</span>
-                    <span class="text-gray-500 ml-4">| Timeout: 60s | Max Retries: 1 | Dedup Window: 5s</span>
+                    <div class="flex items-center gap-4 flex-wrap">
+                        <div>
+                            <span class="text-yellow-400 font-medium">Multi-Vector Dimensions (6):</span>
+                            <span class="text-gray-300 ml-2">primary_goal, industry, stage, geography, engagement_style, dealbreakers</span>
+                        </div>
+                        <div class="text-gray-500">| Timeout: 60s | Max Retries: 1 | Dedup: 5s | <span class="text-cyan-400">Max 2 questions/topic</span></div>
+                    </div>
+                    <div class="mt-2 text-gray-400">
+                        <span class="text-green-400">Completion Gate:</span> Requires ≥4/6 dimensions filled | Progress = 70% multi-vector + 30% slots
+                    </div>
                 </div>
 
                 <div class="space-y-4">
@@ -440,9 +448,9 @@
                             <div class="step-number bg-purple-600 text-white">2</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">AI Service creates session</span>
+                                    <span class="font-medium">AI Service creates session (+ slot restoration)</span>
                                     <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
-                                    <span class="text-xs text-gray-500">onboarding.py:92-151</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BUG-029</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-4 text-xs">
                                     <div>
@@ -453,19 +461,20 @@
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="text-gray-400 mb-1">2. Check for existing slots:</div>
+                                        <div class="text-gray-400 mb-1">2. Restore slots from Supabase:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            SELECT * FROM user_onboarding_answers<br>
+                                            SELECT * FROM onboarding_answers<br>
                                             WHERE user_id = ?<br>
-                                            <span class="text-gray-500">(restore if user returning)</span>
+                                            <span class="text-green-400">Survives Redis session expiry!</span><br>
+                                            <span class="text-gray-500">Calculate real progress from restored</span>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="text-gray-400 mb-1">3. Generate greeting:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            "Hi! I'm here to learn about<br>
-                                            your goals. What brings you<br>
-                                            to 2Connect?"
+                                            <span class="text-cyan-400">If returning user with slots:</span><br>
+                                            "Welcome back! Let's continue..."<br>
+                                            <span class="text-gray-500">Else: standard greeting</span>
                                         </div>
                                     </div>
                                 </div>
@@ -601,52 +610,48 @@
                         <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
                     </div>
 
-                    <!-- Step 6 - LLM -->
+                    <!-- Step 6 - LLM with Multi-Vector Steering -->
                     <div class="bg-pink-900/30 rounded-lg border border-pink-700 p-4">
                         <div class="flex items-start gap-4">
                             <div class="step-number bg-pink-600 text-white">6</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">Claude Haiku extracts slots</span>
+                                    <span class="font-medium">Claude Haiku extracts slots + multi-vector steering</span>
                                     <span class="data-badge bg-pink-900 text-pink-400">CLAUDE API</span>
-                                    <span class="text-xs text-gray-500">llm_slot_extractor.py:644-932</span>
+                                    <span class="text-xs text-gray-500">llm_slot_extractor.py</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                <div class="grid grid-cols-3 gap-4 text-xs">
                                     <div>
-                                        <div class="text-gray-400 mb-1">Prompt to Claude Haiku:</div>
+                                        <div class="text-gray-400 mb-1">Pre-LLM Checks:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            System: "Extract these slots from user message:<br>
-                                            - primary_goal (enum)<br>
-                                            - user_type (enum)<br>
-                                            - industry_focus (list)<br>
-                                            ..."<br>
+                                            <span class="text-cyan-400">1. _get_blacklisted_topics()</span><br>
+                                            &nbsp;&nbsp;Topics with 2+ questions blocked<br>
                                             <br>
-                                            User: "I'm a SaaS founder looking for Series A"<br>
+                                            <span class="text-cyan-400">2. _get_missing_dimensions()</span><br>
+                                            &nbsp;&nbsp;Check 6 multi-vector gaps<br>
                                             <br>
-                                            Model: claude-3-haiku-20240307<br>
-                                            Temperature: 0.1 | Max tokens: 1500
+                                            <span class="text-cyan-400">3. After Q4: Force engagement/dealbreakers</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="text-gray-400 mb-1">Claude returns:</div>
+                                        <div class="text-gray-400 mb-1">Prompt to Claude Haiku:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            {<br>
-                                              "extracted_slots": {<br>
-                                                "user_type": {<br>
-                                                  "value": "Founder",<br>
-                                                  "confidence": 0.95<br>
-                                                },<br>
-                                                "primary_goal": {<br>
-                                                  "value": "Seeking Investment",<br>
-                                                  "confidence": 0.92<br>
-                                                },<br>
-                                                "industry_focus": {<br>
-                                                  "value": ["SaaS"],<br>
-                                                  "confidence": 0.88<br>
-                                                }<br>
-                                              },<br>
-                                              "follow_up_question": "What stage..."<br>
-                                            }
+                                            System: Extract slots + steering:<br>
+                                            <span class="text-yellow-400">BLACKLIST: [industry, geography]</span><br>
+                                            <span class="text-green-400">PRIORITIZE: engagement_style</span><br>
+                                            <br>
+                                            Model: claude-3-haiku-20240307<br>
+                                            Temperature: 0.1
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Post-LLM Validation:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-red-400">If question on blacklisted topic:</span><br>
+                                            &nbsp;&nbsp;Replace with forced question<br>
+                                            &nbsp;&nbsp;for missing dimension<br>
+                                            <br>
+                                            <span class="text-gray-500">HARD constraint - LLM cannot ignore</span>
                                         </div>
                                     </div>
                                 </div>
@@ -775,31 +780,42 @@
                         </div>
                     </div>
 
-                    <!-- Step 10 - Complete workflow -->
+                    <!-- Step 10 - Complete workflow (REC-487: Background Processing) -->
                     <div class="bg-purple-900/30 rounded-lg border border-purple-700 p-4">
                         <div class="flex items-start gap-4">
                             <div class="step-number bg-purple-600 text-white">10</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">Complete workflow executes</span>
+                                    <span class="font-medium">Complete workflow (background processing)</span>
                                     <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
-                                    <span class="text-xs text-gray-500">onboarding.py:524-935 (411 lines)</span>
+                                    <span class="data-badge bg-green-900 text-green-400">REC-487</span>
                                 </div>
-                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                <div class="grid grid-cols-3 gap-4 text-xs">
                                     <div class="space-y-2">
+                                        <div class="text-gray-400 mb-1">Sync (~3s) - Returns immediately:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            <span class="text-yellow-400">Step 10a:</span> Get all slots from Redis/Supabase<br>
-                                            <span class="text-yellow-400">Step 10b:</span> Convert to Q&A pairs format<br>
-                                            <span class="text-yellow-400">Step 10c:</span> Create DynamoDB UserProfile<br>
-                                            <span class="text-yellow-400">Step 10d:</span> Generate user_summary (markdown)
+                                            <span class="text-green-400">✓</span> Get slots from Redis/Supabase<br>
+                                            <span class="text-green-400">✓</span> Convert to Q&A pairs<br>
+                                            <span class="text-green-400">✓</span> Create DynamoDB UserProfile<br>
+                                            <span class="text-green-400">✓</span> Return { profile_created: true }
                                         </div>
                                     </div>
                                     <div class="space-y-2">
+                                        <div class="text-gray-400 mb-1">Background (~60s) - ThreadPoolExecutor:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            <span class="text-cyan-400">Step 10e:</span> Generate 6-vector embeddings (OpenAI)<br>
-                                            <span class="text-cyan-400">Step 10f:</span> Generate 2 basic embeddings<br>
-                                            <span class="text-green-400">Step 10g:</span> <span class="font-bold">INLINE MATCHING</span> &rarr; Next Flow<br>
-                                            <span class="text-cyan-400">Step 10h:</span> Update Supabase status='completed'
+                                            <span class="text-cyan-400">⟳</span> Generate 6-vector embeddings<br>
+                                            <span class="text-cyan-400">⟳</span> Generate 2 basic embeddings<br>
+                                            <span class="text-cyan-400">⟳</span> Run inline matching<br>
+                                            <span class="text-cyan-400">⟳</span> Generate persona summary
+                                        </div>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <div class="text-gray-400 mb-1">Retry Logic:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-yellow-400">Retry 1:</span> 60s delay<br>
+                                            <span class="text-yellow-400">Retry 2:</span> 120s delay<br>
+                                            <span class="text-yellow-400">Retry 3:</span> 240s delay<br>
+                                            <span class="text-red-400">If all fail:</span> Sentry alert
                                         </div>
                                     </div>
                                 </div>
@@ -859,9 +875,26 @@
                     </div>
 
                     <!-- Trigger next flow -->
-                    <div class="bg-green-900/50 rounded-lg border border-green-500 p-4 text-center">
-                        <div class="text-green-400 font-bold text-lg mb-2">TRIGGERS MATCHING FLOW</div>
-                        <div class="text-xs text-gray-400">inline_matching_service.calculate_and_sync_matches_bidirectional() is called INLINE (not cron)</div>
+                    <div class="bg-green-900/50 rounded-lg border border-green-500 p-4">
+                        <div class="text-green-400 font-bold text-lg mb-2 text-center">TRIGGERS MATCHING FLOW (Background)</div>
+                        <div class="grid grid-cols-2 gap-4 text-xs mt-3">
+                            <div class="bg-gray-900 p-3 rounded">
+                                <div class="text-cyan-400 font-medium mb-1">User sees immediately:</div>
+                                <div class="text-gray-300">
+                                    Dashboard with "Finding your perfect matches..."<br>
+                                    Spinner + polling every 5s<br>
+                                    Auto-clears after 2 min or when matches appear
+                                </div>
+                            </div>
+                            <div class="bg-gray-900 p-3 rounded">
+                                <div class="text-purple-400 font-medium mb-1">Background (ThreadPoolExecutor):</div>
+                                <div class="text-gray-300">
+                                    calculate_and_sync_matches_bidirectional()<br>
+                                    With retry: 60s → 120s → 240s<br>
+                                    Sentry alert if all retries fail
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -886,8 +919,17 @@
                 <div class="space-y-4">
 
                     <!-- Entry point -->
-                    <div class="bg-purple-900/30 rounded-lg border border-purple-600 p-3 text-center text-sm">
-                        <span class="text-purple-400">Triggered by: onboarding.py:complete() &rarr; inline_matching_service.py:75</span>
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-600 p-3 text-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-purple-400">Triggered by: onboarding.py:complete()</span>
+                                <span class="text-gray-400 mx-2">→</span>
+                                <span class="text-cyan-400">ThreadPoolExecutor (background)</span>
+                            </div>
+                            <div class="text-xs text-gray-400">
+                                Retry: 60s → 120s → 240s | Sentry on failure
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Step 1 -->
@@ -1240,9 +1282,61 @@
         <div id="content-dashboard" class="tab-content hidden">
             <div class="max-w-5xl mx-auto">
                 <h2 class="text-xl font-bold mb-2">Dashboard Match Viewing Flow</h2>
-                <p class="text-gray-400 text-sm mb-6">How users view their matches and make decisions</p>
+                <p class="text-gray-400 text-sm mb-6">How users view their matches and make decisions (with background match generation)</p>
+
+                <!-- REC-487 Note -->
+                <div class="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3 mb-6 text-xs">
+                    <span class="text-cyan-400 font-medium">REC-487:</span>
+                    <span class="text-gray-300 ml-2">After onboarding, matches are generated in background (~60s). Dashboard shows "Finding matches..." with polling.</span>
+                </div>
 
                 <div class="space-y-4">
+
+                    <!-- Step 0 - From onboarding -->
+                    <div class="bg-purple-900/30 rounded-lg border border-purple-600 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">0</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Post-onboarding: "Finding matches..." state</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">FRONTEND</span>
+                                    <span class="data-badge bg-green-900 text-green-400">REC-487</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Session flag check:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            sessionStorage.get('justCompletedOnboarding')<br>
+                                            <span class="text-cyan-400">IF true:</span> Show loading state
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Loading UI:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Spinner + "Finding your perfect<br>
+                                            matches..." message<br>
+                                            <span class="text-yellow-400">Poll every 5 seconds</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Auto-clear:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Clear after 2 min timeout<br>
+                                            <span class="text-green-400">OR when matches appear</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-cyan-400">
+                            <div class="text-xs mb-1">Matches ready OR timeout</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
 
                     <!-- Step 1 -->
                     <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
@@ -1250,12 +1344,12 @@
                             <div class="step-number bg-blue-600 text-white">1</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">User navigates to Dashboard</span>
+                                    <span class="font-medium">User views Dashboard (or poll refreshes)</span>
                                     <span class="data-badge bg-blue-900 text-blue-400">FRONTEND</span>
                                 </div>
                                 <div class="text-xs">
                                     <div class="code bg-gray-900 p-2 rounded inline-block">
-                                        DashboardPage.tsx mounts<br>
+                                        PendingMatches.tsx / MatchListing.tsx<br>
                                         useEffect &rarr; matchService.ts:11<br>
                                         <span class="text-green-400">GET</span> /api/v1/dashboard/onboarding-matches<br>
                                         Headers: { Authorization: "Bearer {jwt}" }
