@@ -403,10 +403,11 @@
                             <span class="text-yellow-400 font-medium">Multi-Vector Dimensions (6):</span>
                             <span class="text-gray-300 ml-2">primary_goal, industry, stage, geography, engagement_style, dealbreakers</span>
                         </div>
-                        <div class="text-gray-500">| Timeout: 60s | Max Retries: 1 | Dedup: 5s | <span class="text-cyan-400">Max 2 questions/topic</span></div>
+                        <div class="text-gray-500">| Timeout: 60s | Max Retries: 1 | Dedup: 5s | <span class="text-cyan-400">Max 2 questions/topic</span> | <span class="text-red-400">Jaccard ≥70% duplicate block</span></div>
                     </div>
                     <div class="mt-2 text-gray-400">
-                        <span class="text-green-400">Completion Gate:</span> Requires ≥4/6 dimensions filled | Progress = 70% multi-vector + 30% slots
+                        <span class="text-green-400">Completion Gate:</span> Requires ≥4/6 dimensions filled | Progress = 70% multi-vector + 30% slots<br>
+                        <span class="text-purple-400">Resume Context:</span> Uploaded resumes extracted immediately via extract_text_from_content() → stored in Redis → passed to LLM slot extraction
                     </div>
                 </div>
 
@@ -629,7 +630,11 @@
                                             <span class="text-cyan-400">2. _get_missing_dimensions()</span><br>
                                             &nbsp;&nbsp;Check 6 multi-vector gaps<br>
                                             <br>
-                                            <span class="text-cyan-400">3. After Q4: Force engagement/dealbreakers</span>
+                                            <span class="text-cyan-400">3. After Q4: Force engagement/dealbreakers</span><br>
+                                            <br>
+                                            <span class="text-cyan-400">4. _question_covers_filled_slot()</span><br>
+                                            &nbsp;&nbsp;SLOT_QUESTION_KEYWORDS mapping<br>
+                                            &nbsp;&nbsp;Blocks questions on already-filled slots
                                         </div>
                                     </div>
                                     <div>
@@ -646,11 +651,17 @@
                                     <div>
                                         <div class="text-gray-400 mb-1">Post-LLM Validation:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            <span class="text-red-400">If question on blacklisted topic:</span><br>
+                                            <span class="text-red-400">1. If question on blacklisted topic:</span><br>
                                             &nbsp;&nbsp;Replace with forced question<br>
-                                            &nbsp;&nbsp;for missing dimension<br>
                                             <br>
-                                            <span class="text-gray-500">HARD constraint - LLM cannot ignore</span>
+                                            <span class="text-red-400">2. Jaccard word similarity ≥70%:</span><br>
+                                            &nbsp;&nbsp;Block exact duplicate questions<br>
+                                            <br>
+                                            <span class="text-red-400">3. company_name "trademark test":</span><br>
+                                            &nbsp;&nbsp;Reject generic descriptions<br>
+                                            &nbsp;&nbsp;Require proper noun capitalization<br>
+                                            <br>
+                                            <span class="text-gray-500">HARD constraints - LLM cannot ignore</span>
                                         </div>
                                     </div>
                                 </div>
@@ -846,6 +857,7 @@
                                 persona: {<br>
                                   name, archetype,<br>
                                   requirements, offerings,<br>
+                                  <span class="text-yellow-400">// CRITICAL: requirements ≠ offerings</span><br>
                                   user_type, industry<br>
                                 }<br>
                                 processing_status: "completed"
