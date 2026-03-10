@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-09 | Reflects: REC-487, BUG-027, BUG-029, multi-vector steering, background processing -->
+<!-- Last Updated: 2026-03-10 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, multi-vector steering, background processing, DynamoDB→Supabase migration -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -76,7 +76,6 @@
             </div>
             <div class="flex items-center gap-2 text-xs">
                 <span class="px-2 py-1 bg-orange-900/50 border border-orange-700 rounded">Supabase</span>
-                <span class="px-2 py-1 bg-yellow-900/50 border border-yellow-700 rounded">DynamoDB</span>
                 <span class="px-2 py-1 bg-red-900/50 border border-red-700 rounded">Redis</span>
                 <span class="px-2 py-1 bg-pink-900/50 border border-pink-700 rounded">Claude/OpenAI</span>
             </div>
@@ -384,7 +383,7 @@
                         </div>
                         <div class="bg-gray-700 p-3 rounded">
                             <div class="text-gray-400 font-medium mb-1">NOT YET CREATED</div>
-                            <div class="text-gray-500">DynamoDB profile, Redis session, embeddings - these come during onboarding</div>
+                            <div class="text-gray-500">Supabase user_profiles, Redis session, embeddings - these come during onboarding</div>
                         </div>
                     </div>
                 </div>
@@ -519,18 +518,18 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-yellow-900/30 rounded-lg border border-yellow-700 p-4">
+                        <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
                             <div class="flex items-start gap-4">
-                                <div class="step-number bg-yellow-600 text-white">3b</div>
+                                <div class="step-number bg-orange-600 text-white">3b</div>
                                 <div class="flex-1">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <span class="font-medium">Profile initialized in DynamoDB</span>
-                                        <span class="data-badge bg-yellow-900 text-yellow-400">DYNAMODB</span>
+                                        <span class="font-medium">Profile initialized in Supabase</span>
+                                        <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
                                     </div>
                                     <div class="text-xs">
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            Table: staging-user-profiles<br>
-                                            PK: user_id<br>
+                                            Table: user_profiles<br>
+                                            PK: user_id (FK → users.id)<br>
                                             processing_status: "not_initiated"<br>
                                             persona_status: "not_initiated"<br>
                                             profile: { raw_questions: [] }
@@ -796,7 +795,7 @@
                                         <div class="code bg-gray-900 p-2 rounded">
                                             <span class="text-green-400">✓</span> Get slots from Redis/Supabase<br>
                                             <span class="text-green-400">✓</span> Convert to Q&A pairs<br>
-                                            <span class="text-green-400">✓</span> Create DynamoDB UserProfile<br>
+                                            <span class="text-green-400">✓</span> Create Supabase user_profiles record<br>
                                             <span class="text-green-400">✓</span> Return { profile_created: true }
                                         </div>
                                     </div>
@@ -825,13 +824,13 @@
 
                     <!-- Storage outputs -->
                     <div class="flex justify-center gap-4">
-                        <div class="flex flex-col items-center text-yellow-400">
+                        <div class="flex flex-col items-center text-orange-400">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                            <div class="text-xs">DynamoDB</div>
+                            <div class="text-xs">Supabase (profiles)</div>
                         </div>
                         <div class="flex flex-col items-center text-orange-400">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                            <div class="text-xs">Supabase</div>
+                            <div class="text-xs">Supabase (embeddings)</div>
                         </div>
                         <div class="flex flex-col items-center text-cyan-400">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
@@ -841,8 +840,8 @@
 
                     <!-- Final storage -->
                     <div class="grid grid-cols-3 gap-4">
-                        <div class="bg-yellow-900/30 rounded-lg border border-yellow-700 p-3">
-                            <div class="text-yellow-400 font-medium text-sm mb-2">DynamoDB: staging-user-profiles</div>
+                        <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-3">
+                            <div class="text-orange-400 font-medium text-sm mb-2">Supabase: user_profiles</div>
                             <div class="code text-xs bg-gray-900 p-2 rounded">
                                 persona: {<br>
                                   name, archetype,<br>
@@ -1206,22 +1205,22 @@
                     </div>
 
                     <!-- Step 10 -->
-                    <div class="bg-yellow-900/30 rounded-lg border border-yellow-700 p-4">
+                    <div class="bg-orange-900/30 rounded-lg border border-orange-700 p-4">
                         <div class="flex items-start gap-4">
-                            <div class="step-number bg-yellow-600 text-white">10</div>
+                            <div class="step-number bg-orange-600 text-white">10</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">Store matches in DynamoDB</span>
-                                    <span class="data-badge bg-yellow-900 text-yellow-400">DYNAMODB</span>
+                                    <span class="font-medium">Store matches in Supabase</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">SUPABASE</span>
                                 </div>
                                 <div class="text-xs">
                                     <div class="code bg-gray-900 p-2 rounded inline-block">
-                                        Table: staging-user-matches<br>
-                                        PK: user_id<br>
+                                        Table: user_match_cache<br>
+                                        PK: user_id (FK → users.id)<br>
                                         <br>
-                                        BatchWriteItem([<br>
-                                          { user_id, matched_user_id, score: 0.78, tier: "strong", ... },<br>
-                                          { user_id, matched_user_id, score: 0.62, tier: "worth_exploring", ... },<br>
+                                        INSERT matches JSONB ([<br>
+                                          { matched_user_id, score: 0.78, tier: "strong", ... },<br>
+                                          { matched_user_id, score: 0.62, tier: "worth_exploring", ... },<br>
                                           ...<br>
                                         ])
                                     </div>
@@ -1846,7 +1845,7 @@
                             <span class="text-gray-500">&rarr;</span>
                             <span class="px-2 py-1 bg-green-900 rounded">Complete</span>
                             <span class="text-gray-500">&rarr;</span>
-                            <span class="text-yellow-400">[DynamoDB: profile]</span>
+                            <span class="text-orange-400">[Supabase: user_profiles]</span>
                             <span class="text-gray-500">&rarr;</span>
                             <span class="text-cyan-400">[OpenAI: embeddings]</span>
                             <span class="text-gray-500">&rarr;</span>
@@ -1856,7 +1855,7 @@
                         </div>
                         <div class="flex items-center gap-2 flex-wrap mt-2">
                             <span class="text-gray-500">&rarr;</span>
-                            <span class="text-yellow-400">[DynamoDB: matches]</span>
+                            <span class="text-orange-400">[Supabase: user_match_cache]</span>
                             <span class="text-gray-500">&rarr;</span>
                             <span class="text-orange-400">[Supabase: matches]</span>
                             <span class="text-gray-500">&rarr;</span>
