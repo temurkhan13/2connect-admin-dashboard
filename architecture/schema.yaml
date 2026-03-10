@@ -1,6 +1,7 @@
 # 2Connect Platform Architecture Schema
-# Last Updated: 2026-03-05
+# Last Updated: 2026-03-10
 # This file is the source of truth for the architecture dashboard
+# Note: DynamoDB migrated to Supabase on 2026-03-09
 
 meta:
   name: 2Connect
@@ -39,8 +40,11 @@ databases:
       - users
       - user_onboarding_answers
       - user_summaries
+      - user_profiles  # Migrated from DynamoDB staging-user-profiles (2026-03-09)
+      - user_match_cache  # Migrated from DynamoDB staging-user-matches (2026-03-09)
       - matches
       - match_feedback
+      - notified_match_pairs  # Migrated from DynamoDB (2026-03-09)
       - ai_conversations
       - analytics_events
       - connection_interests
@@ -49,14 +53,6 @@ databases:
       - verification_codes  # Email verification codes
       - onboarding_sections  # Legacy onboarding (unused)
       - onboarding_questions  # Legacy onboarding (unused)
-
-  dynamodb:
-    name: DynamoDB (AWS)
-    type: dynamodb
-    used_by: [ai_service]
-    tables:
-      - staging-user-profiles: "User personas, offerings, requirements"
-      - staging-user-matches: "Match results and scores"
 
   redis:
     name: Redis (Upstash)

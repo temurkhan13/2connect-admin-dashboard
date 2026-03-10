@@ -76,7 +76,7 @@ onboarding:
       proxies_to: ai_service:/onboarding/start
       connects_to:
         - redis (session create)
-        - dynamodb.staging-user-profiles (init)
+        - supabase.user_profiles (init)
       request: { user_id }
       response: { session_id, greeting }
       notes: "Creates onboarding session, generates initial AI greeting"
@@ -90,7 +90,7 @@ onboarding:
       connects_to:
         - redis (session state)
         - claude_haiku (slot extraction)
-        - dynamodb.staging-user-profiles (slot update)
+        - supabase.user_profiles (slot update)
       request: { session_id, message }
       response: { ai_response, progress, slots_filled, is_complete }
       notes: "60s timeout, deduplication enabled (5s window)"
@@ -111,11 +111,11 @@ onboarding:
       frontend_caller: conversationalOnboardingService.ts:154
       proxies_to: ai_service:/onboarding/complete
       connects_to:
-        - dynamodb.staging-user-profiles (finalize persona)
+        - supabase.user_profiles (finalize persona)
         - openai_embeddings (generate 6 vectors)
         - supabase.user_embeddings (store vectors)
         - inline_matching (trigger match generation)
-        - dynamodb.staging-user-matches (store matches)
+        - supabase.user_match_cache (store matches)
         - supabase.users (UPDATE onboarding_status)
       request: { user_id, session_id, persona_approved }
       response: { success, matches_count }
@@ -156,7 +156,7 @@ matching:
       service: backend
       frontend_caller: matchService.ts:12
       connects_to:
-        - dynamodb.staging-user-matches (read)
+        - supabase.user_match_cache (read)
         - supabase.matches (sync)
       response: { matches: [{user, score, explanation}] }
 
@@ -168,7 +168,7 @@ matching:
       proxies_to: ai_service:/feedback/match
       connects_to:
         - supabase.match_feedback (INSERT)
-        - dynamodb.staging-user-matches (update status)
+        - supabase.user_match_cache (update status)
         - feedback_embedding_adjuster (if thumbs up/down)
       request: { match_id, decision: accept|reject|skip }
 
@@ -224,7 +224,7 @@ matching:
       triggered_by: onboarding_complete
       connects_to:
         - supabase.user_embeddings
-        - dynamodb.staging-user-matches
+        - supabase.user_match_cache
       notes: "Runs IMMEDIATELY on onboarding completion, not cron"
 
 # =============================================================================
@@ -318,7 +318,7 @@ admin:
       service: backend
       proxies_to: ai_service:/admin/wiring-audit
       connects_to:
-        - dynamodb (user profiles)
+        - supabase.user_profiles
         - supabase (embeddings, matches)
       response: { pipeline_status, broken_users, efficiency }
 
@@ -333,7 +333,7 @@ admin:
       method: GET
       service: ai_service
       connects_to:
-        - dynamodb.staging-user-profiles
+        - supabase.user_profiles
         - supabase.user_embeddings
         - supabase.matches
 
@@ -350,5 +350,5 @@ admin:
       method: POST
       service: ai_service
       connects_to:
-        - dynamodb.staging-user-matches (clear)
+        - supabase.user_match_cache (clear)
         - inline_matching (regenerate all)
