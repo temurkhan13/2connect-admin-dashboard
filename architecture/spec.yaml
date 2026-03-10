@@ -116,12 +116,10 @@ feedback:
   NORMALIZE_AFTER_ADJUSTMENT: true
 
 databases:
-  # DynamoDB table names
-  DYNAMODB_PROFILES_TABLE: staging-user-profiles
-  DYNAMODB_MATCHES_TABLE: staging-user-matches
-
-  # Supabase key tables
+  # Supabase key tables (DynamoDB migrated 2026-03-09)
   SUPABASE_USERS_TABLE: users
+  SUPABASE_PROFILES_TABLE: user_profiles  # Was: DynamoDB staging-user-profiles
+  SUPABASE_MATCH_CACHE_TABLE: user_match_cache  # Was: DynamoDB staging-user-matches
   SUPABASE_EMBEDDINGS_TABLE: user_embeddings
   SUPABASE_MATCHES_TABLE: matches
 
