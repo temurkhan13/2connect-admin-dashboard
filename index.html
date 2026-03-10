@@ -154,7 +154,11 @@
                                         <div>• users</div>
                                         <div>• user_summaries</div>
                                         <div>• user_embeddings</div>
+                                        <div>• user_profiles</div>
+                                        <div>• user_match_cache</div>
                                         <div>• matches</div>
+                                        <div>• match_feedback</div>
+                                        <div>• notified_match_pairs</div>
                                         <div>• onboarding_answers</div>
                                         <div>• onboarding_slots</div>
                                         <div>• connection_interests</div>
@@ -162,30 +166,7 @@
                                         <div>• messages</div>
                                         <div>• activity_log</div>
                                     </div>
-                                    <div class="mt-2 text-gray-500 text-[10px]">pgvector enabled for embeddings</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- DynamoDB -->
-                        <div class="group relative cursor-help">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
-                                    <span class="text-gray-300 border-b border-dashed border-gray-600">DynamoDB</span>
-                                </div>
-                                <span class="text-gray-500 text-xs">AWS us-east-1</span>
-                            </div>
-                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
-                                <div class="bg-gray-900 border border-yellow-700 rounded-lg p-3 shadow-xl text-xs">
-                                    <div class="font-semibold text-yellow-400 mb-2">DynamoDB Tables</div>
-                                    <div class="space-y-2 text-gray-300">
-                                        <div><span class="text-yellow-300">staging-user-profiles</span> - AI personas (archetype, requirements, offerings)</div>
-                                        <div><span class="text-yellow-300">staging-user-matches</span> - Calculated matches per user</div>
-                                        <div><span class="text-yellow-300">user_feedback</span> - Match feedback for learning</div>
-                                        <div><span class="text-yellow-300">notified_match_pairs</span> - Email notification tracking</div>
-                                        <div><span class="text-yellow-300">ai_chat_records</span> - AI conversation transcripts</div>
-                                    </div>
+                                    <div class="mt-2 text-gray-500 text-[10px]">pgvector enabled for embeddings | Migrated from DynamoDB 2026-03-09</div>
                                 </div>
                             </div>
                         </div>
@@ -665,8 +646,8 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div class="bg-gray-750 rounded-lg p-3">
-                            <p class="text-orange-400 text-sm font-medium">DynamoDB</p>
-                            <p class="text-gray-400 text-xs">staging-user-matches table</p>
+                            <p class="text-orange-400 text-sm font-medium">Supabase</p>
+                            <p class="text-gray-400 text-xs">user_match_cache table</p>
                         </div>
                         <div class="bg-gray-750 rounded-lg p-3">
                             <p class="text-orange-400 text-sm font-medium">Bidirectional Update</p>
@@ -1200,7 +1181,6 @@
             'supabase_database': 'Supabase PostgreSQL database storing user accounts, matches, messages, and application data.',
             'render_database': 'Render PostgreSQL database with pgvector extension. Stores embeddings for vector similarity search.',
             'cronjobs_redis': 'Redis for Celery task queue. Powers background jobs like scheduled matching and embedding generation.',
-            'dynamodb': 'AWS DynamoDB storing user profiles, personas, and match records for fast NoSQL access.',
 
             // Onboarding
             'slot_extractor': 'LLM-powered slot extraction that parses user responses during onboarding into structured data (industry, goals, requirements, offerings). Uses AI to understand natural language.',
@@ -1518,7 +1498,7 @@
                             </div>
                             ` : '<p class="text-gray-500 text-sm mb-3">Persona not generated</p>'}
                             <div class="pt-3 border-t border-gray-700 space-y-1 text-sm">
-                                <div class="flex justify-between"><span class="text-gray-400">DynamoDB:</span><span>${matches.count || 0}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-400">Cached:</span><span>${matches.count || 0}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-400">Backend:</span><span>${matches.details?.backend_count || user.matches_count || 0}</span></div>
                             </div>
                         </div>
@@ -1992,7 +1972,7 @@
                         </div>
                         ` : '<p class="text-gray-500 text-sm mb-4">Persona not generated</p>'}
                         <div class="pt-3 border-t border-gray-700">
-                            <div class="flex justify-between text-sm"><span class="text-gray-400">DynamoDB Matches:</span><span>${matches.count || 0}</span></div>
+                            <div class="flex justify-between text-sm"><span class="text-gray-400">Cached Matches:</span><span>${matches.count || 0}</span></div>
                             <div class="flex justify-between text-sm"><span class="text-gray-400">Backend Matches:</span><span>${matches.details?.backend_count || 0}</span></div>
                             <div class="flex justify-between text-sm"><span class="text-gray-400">Last Sync:</span><span class="text-xs">${matches.details?.stored_at ? new Date(matches.details.stored_at).toLocaleDateString() : 'Never'}</span></div>
                         </div>
@@ -2132,8 +2112,7 @@
                 `Are you sure you want to permanently delete:\n` +
                 `${email}\n\n` +
                 `This will remove the user from:\n` +
-                `• PostgreSQL (Supabase)\n` +
-                `• DynamoDB (profile & matches)\n` +
+                `• Supabase (account, profiles, matches)\n` +
                 `• AI Database (embeddings)\n\n` +
                 `This action CANNOT be undone!`
             );
