@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-10 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, multi-vector steering, background processing, DynamoDB→Supabase migration -->
+<!-- Last Updated: 2026-03-12 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, BUG-043 (resume pre-extraction), BUG-045-048 (objective-aware filtering), new intents (OPPORTUNITY_SEEKING, PARTNERSHIP, JOB_SEEKER, RECRUITER), DynamoDB→Supabase migration -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -407,7 +407,7 @@
                     </div>
                     <div class="mt-2 text-gray-400">
                         <span class="text-green-400">Completion Gate:</span> Requires ≥4/6 dimensions filled | Progress = 70% multi-vector + 30% slots<br>
-                        <span class="text-purple-400">Resume Context:</span> Uploaded resumes extracted immediately via extract_text_from_content() → stored in Redis → passed to LLM slot extraction
+                        <span class="text-purple-400">Resume Pre-Extraction (BUG-043):</span> Uploaded resumes are processed immediately — text extracted via extract_text_from_content() → slots pre-extracted via extract_slots_from_resume() → stored in Redis → accelerates onboarding by pre-filling known slots
                     </div>
                 </div>
 
@@ -1056,7 +1056,10 @@
                                         <div class="code bg-gray-900 p-2 rounded">
                                             INVESTOR &harr; FOUNDER = <span class="text-green-400">1.0</span><br>
                                             MENTOR &harr; MENTEE = <span class="text-green-400">1.0</span><br>
+                                            TALENT_SEEKING &harr; OPPORTUNITY_SEEKING = <span class="text-green-400">1.0</span><br>
+                                            RECRUITER &harr; JOB_SEEKER = <span class="text-green-400">1.0</span><br>
                                             COFOUNDER &harr; COFOUNDER = <span class="text-yellow-400">0.8</span><br>
+                                            PARTNERSHIP &harr; PARTNERSHIP = <span class="text-yellow-400">0.85</span><br>
                                             SAME_TYPE = <span class="text-red-400">0.3</span>
                                         </div>
                                     </div>
