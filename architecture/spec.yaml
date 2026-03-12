@@ -1,4 +1,5 @@
 # 2Connect Platform Specifications
+# Last Updated: 2026-03-12
 # This is the SOURCE OF TRUTH - code MUST match this
 
 onboarding:
@@ -63,6 +64,25 @@ onboarding:
     - compensation_expectation
     trigger: "Offering Advisory"
 
+  JOB_SEEKER_SLOTS:
+    - job_title_seeking
+    - experience_years
+    - salary_range
+    - work_preference
+    trigger: "Looking for Job" or "Career Change"
+
+  PARTNERSHIP_SLOTS:
+    - partnership_type
+    - company_size
+    - collaboration_scope
+    trigger: "Seeking Partnership" or "B2B Collaboration"
+
+  RECRUITER_SLOTS:
+    - roles_hiring
+    - company_represented
+    - hiring_timeline
+    trigger: user_type is "Recruiter"
+
 matching:
   # Threshold for creating a match
   # Code location: app/services/inline_matching_service.py:72
@@ -94,9 +114,10 @@ matching:
   INTENT_PAIRS:
     INVESTOR_FOUNDER: 1.0
     MENTOR_MENTEE: 1.0
-    TALENT_SEEKING_OPPORTUNITY: 1.0
+    TALENT_SEEKING_OPPORTUNITY_SEEKING: 1.0
+    RECRUITER_JOB_SEEKER: 1.0
     COFOUNDER_COFOUNDER: 0.8
-    PARTNERSHIP_PARTNERSHIP: 0.8
+    PARTNERSHIP_PARTNERSHIP: 0.85
     SAME_OBJECTIVE: 0.3  # e.g., INVESTOR_INVESTOR
 
   # Filters

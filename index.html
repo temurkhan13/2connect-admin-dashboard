@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-03-12T11:00:00Z - Added Job Seeker/Partnership/Recruiter slots, new intents, recent improvements -->
+<!-- Build: 2026-03-12T15:30:00Z - Added Job Seeker/Partnership/Recruiter slots, new intents (OPPORTUNITY_SEEKING, PARTNERSHIP), intent complementarity fixes, BUG-043 to BUG-048 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -787,12 +787,12 @@
                                 <p class="text-gray-400 text-xs">INVESTOR ↔ FOUNDER</p>
                                 <p class="text-gray-400 text-xs">MENTOR ↔ MENTEE</p>
                                 <p class="text-gray-400 text-xs">TALENT_SEEKING ↔ OPPORTUNITY_SEEKING</p>
+                                <p class="text-gray-400 text-xs">RECRUITER ↔ JOB_SEEKER</p>
                             </div>
                             <div class="bg-yellow-900/30 border border-yellow-700 rounded p-3">
-                                <p class="text-yellow-400 font-medium">Good (0.85)</p>
-                                <p class="text-gray-400 text-xs">COFOUNDER ↔ COFOUNDER</p>
-                                <p class="text-gray-400 text-xs">PARTNERSHIP ↔ PARTNERSHIP</p>
-                                <p class="text-gray-400 text-xs">RECRUITER ↔ JOB_SEEKER</p>
+                                <p class="text-yellow-400 font-medium">Good (0.8-0.85)</p>
+                                <p class="text-gray-400 text-xs">COFOUNDER ↔ COFOUNDER (0.8)</p>
+                                <p class="text-gray-400 text-xs">PARTNERSHIP ↔ PARTNERSHIP (0.85)</p>
                             </div>
                             <div class="bg-red-900/30 border border-red-700 rounded p-3">
                                 <p class="text-red-400 font-medium">Poor (0.3)</p>
