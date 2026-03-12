@@ -973,8 +973,8 @@
                         </div>
 
                         <div class="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
-                            <p class="text-blue-400 text-sm font-medium">🤖 LLM Used: Claude Haiku</p>
-                            <p class="text-gray-400 text-xs mt-1">claude-3-haiku-20240307 (NOT OpenAI GPT-4)</p>
+                            <p class="text-blue-400 text-sm font-medium">🤖 LLM Used: Claude Sonnet 4.5</p>
+                            <p class="text-gray-400 text-xs mt-1">claude-sonnet-4-5-20250929 (upgraded from Haiku Mar 2026)</p>
                             <p class="text-gray-400 text-xs">OpenAI only used for embeddings</p>
                         </div>
 
@@ -1493,6 +1493,33 @@
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_requirements ? 'bg-green-500' : 'bg-red-500'}"></div><span>Requirements</span></div>
                                     <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_offerings ? 'bg-green-500' : 'bg-red-500'}"></div><span>Offerings</span></div>
                                 </div>
+                            </div>
+                            <!-- BUG-069: Focus Slot Visibility -->
+                            <div class="mt-3 pt-3 border-t border-gray-700">
+                                <h5 class="text-xs text-gray-400 mb-2">Objective & Focus Slots:</h5>
+                                ${(() => {
+                                    const archetype = (persona.archetype || '').toLowerCase();
+                                    const focusSlotsMap = {
+                                        'investor': ['check_size', 'portfolio_size', 'investment_thesis', 'stage_preference', 'industry_focus'],
+                                        'founder': ['funding_need', 'company_stage', 'industry_focus', 'geography', 'timeline'],
+                                        'entrepreneur': ['funding_need', 'company_stage', 'industry_focus', 'geography', 'timeline'],
+                                        'cofounder': ['skills_have', 'skills_need', 'commitment_level', 'equity_expectations', 'industry_focus'],
+                                        'co-founder': ['skills_have', 'skills_need', 'commitment_level', 'equity_expectations', 'industry_focus'],
+                                        'advisor': ['expertise_areas', 'time_commitment', 'compensation_preference', 'industry_focus'],
+                                        'mentor': ['mentorship_areas', 'experience_level', 'time_commitment', 'industry_focus'],
+                                        'job seeker': ['salary_expectations', 'remote_preference', 'notice_period', 'industry_focus'],
+                                        'hiring': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'industry_focus']
+                                    };
+                                    let detected = null;
+                                    for (const [key, slots] of Object.entries(focusSlotsMap)) {
+                                        if (archetype.includes(key)) { detected = { objective: key, slots }; break; }
+                                    }
+                                    if (detected) {
+                                        return '<div class="flex items-center gap-2 mb-2"><span class="text-xs px-2 py-0.5 bg-blue-600 rounded">' + detected.objective.charAt(0).toUpperCase() + detected.objective.slice(1) + '</span><span class="text-gray-500 text-xs">→ ' + detected.slots.length + ' focus slots</span></div>' +
+                                            '<div class="grid grid-cols-2 gap-1 text-xs">' + detected.slots.map(s => '<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div><span class="text-gray-400">' + s.replace(/_/g, ' ') + '</span></div>').join('') + '</div>';
+                                    }
+                                    return '<span class="text-gray-500 text-xs">⚠️ Objective not detected from archetype: "' + (persona.archetype || 'none') + '"</span>';
+                                })()}
                             </div>
                             ` : ''}
                         </div>
