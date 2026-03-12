@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-03-05T16:15:00Z - Added Hard Delete User button + AI Pipeline tab -->
+<!-- Build: 2026-03-12T11:00:00Z - Added Job Seeker/Partnership/Recruiter slots, new intents, recent improvements -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -548,6 +548,14 @@
                                     <span class="text-purple-400 w-32">Seeking Mentor</span>
                                     <span class="text-gray-400">→ mentorship_areas, time_commitment</span>
                                 </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-400 w-32">Looking for Job</span>
+                                    <span class="text-gray-400">→ job_title, experience_years, salary_range</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-400 w-32">Seeking Partnership</span>
+                                    <span class="text-gray-400">→ partnership_type, collaboration_scope</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -756,6 +764,14 @@
                                 <span class="text-purple-400">TALENT_SEEKING</span>
                                 <p class="text-gray-500 text-xs">"hiring", "recruit"</p>
                             </div>
+                            <div class="bg-gray-750 rounded p-2">
+                                <span class="text-purple-400">OPPORTUNITY_SEEKING</span>
+                                <p class="text-gray-500 text-xs">"looking for job", "career"</p>
+                            </div>
+                            <div class="bg-gray-750 rounded p-2">
+                                <span class="text-purple-400">PARTNERSHIP</span>
+                                <p class="text-gray-500 text-xs">"partner", "collaborate"</p>
+                            </div>
                         </div>
                     </div>
 
@@ -770,12 +786,13 @@
                                 <p class="text-green-400 font-medium">Perfect (1.0)</p>
                                 <p class="text-gray-400 text-xs">INVESTOR ↔ FOUNDER</p>
                                 <p class="text-gray-400 text-xs">MENTOR ↔ MENTEE</p>
-                                <p class="text-gray-400 text-xs">TALENT_SEEKING ↔ OPPORTUNITY</p>
+                                <p class="text-gray-400 text-xs">TALENT_SEEKING ↔ OPPORTUNITY_SEEKING</p>
                             </div>
                             <div class="bg-yellow-900/30 border border-yellow-700 rounded p-3">
-                                <p class="text-yellow-400 font-medium">Good (0.8)</p>
+                                <p class="text-yellow-400 font-medium">Good (0.85)</p>
                                 <p class="text-gray-400 text-xs">COFOUNDER ↔ COFOUNDER</p>
                                 <p class="text-gray-400 text-xs">PARTNERSHIP ↔ PARTNERSHIP</p>
+                                <p class="text-gray-400 text-xs">RECRUITER ↔ JOB_SEEKER</p>
                             </div>
                             <div class="bg-red-900/30 border border-red-700 rounded p-3">
                                 <p class="text-red-400 font-medium">Poor (0.3)</p>
@@ -889,6 +906,21 @@
                                 <p class="text-gray-400 text-xs">mentorship_areas, experience_level, time_commitment</p>
                                 <p class="text-gray-500 text-xs mt-1">When: "Seeking Mentor" or "Offering Advisory"</p>
                             </div>
+                            <div class="bg-emerald-900/30 border border-emerald-700 rounded-lg p-3">
+                                <p class="text-emerald-400 font-medium">JOB_SEEKER_SLOTS</p>
+                                <p class="text-gray-400 text-xs">job_title_seeking, experience_years, salary_range, work_preference</p>
+                                <p class="text-gray-500 text-xs mt-1">When: "Looking for Job" or "Career Change"</p>
+                            </div>
+                            <div class="bg-amber-900/30 border border-amber-700 rounded-lg p-3">
+                                <p class="text-amber-400 font-medium">PARTNERSHIP_SLOTS</p>
+                                <p class="text-gray-400 text-xs">partnership_type, company_size, collaboration_scope</p>
+                                <p class="text-gray-500 text-xs mt-1">When: "Seeking Partnership" or "B2B Collaboration"</p>
+                            </div>
+                            <div class="bg-rose-900/30 border border-rose-700 rounded-lg p-3">
+                                <p class="text-rose-400 font-medium">RECRUITER_SLOTS</p>
+                                <p class="text-gray-400 text-xs">roles_hiring, company_represented, hiring_timeline</p>
+                                <p class="text-gray-500 text-xs mt-1">When: user_type is "Recruiter"</p>
+                            </div>
                         </div>
                     </div>
 
@@ -944,6 +976,17 @@
                             <p class="text-blue-400 text-sm font-medium">🤖 LLM Used: Claude Haiku</p>
                             <p class="text-gray-400 text-xs mt-1">claude-3-haiku-20240307 (NOT OpenAI GPT-4)</p>
                             <p class="text-gray-400 text-xs">OpenAI only used for embeddings</p>
+                        </div>
+
+                        <div class="mt-4 p-3 bg-green-900/30 border border-green-700 rounded-lg">
+                            <p class="text-green-400 text-sm font-medium mb-2">🆕 Recent Improvements (Mar 2026)</p>
+                            <div class="space-y-1 text-xs text-gray-400">
+                                <p>• <span class="text-green-300">Resume Pre-Extraction</span> - Slots extracted immediately on upload (BUG-043)</p>
+                                <p>• <span class="text-green-300">Multi-Goal Detection</span> - Handles users with multiple objectives (BUG-048)</p>
+                                <p>• <span class="text-green-300">LLM JSON Enforcement</span> - Strict format + fallback parsing (BUG-041/042)</p>
+                                <p>• <span class="text-green-300">Objective-Aware Filtering</span> - Irrelevant slots skipped (BUG-045/046/047)</p>
+                                <p>• <span class="text-green-300">Duplicate Question Guard</span> - Hard constraint prevents repeats</p>
+                            </div>
                         </div>
                     </div>
                 </div>
