@@ -1465,6 +1465,7 @@
             const emb = diag.embeddings || {};
             const matches = diag.matches || {};
             const embTypes = emb.details?.types || [];
+            const focusSlotTypes = embTypes.filter(t => t.startsWith('focus_slot_'));
 
             return `
             <tr class="bg-gray-850 border-t border-gray-600">
@@ -1501,6 +1502,7 @@
                                 <h5 class="text-xs text-gray-400 mb-2">Objective & Focus Slots:</h5>
                                 ${(() => {
                                     const archetype = (persona.archetype || '').toLowerCase();
+                                    // BUG-079 FIX: Added 'candidate' key for "Experienced Executive Candidate" archetype
                                     const focusSlotsMap = {
                                         'investor': ['check_size', 'portfolio_size', 'investment_thesis', 'stage_preference', 'industry_focus'],
                                         'founder': ['funding_need', 'company_stage', 'industry_focus', 'geography', 'timeline'],
@@ -1509,8 +1511,10 @@
                                         'co-founder': ['skills_have', 'skills_need', 'commitment_level', 'equity_expectations', 'industry_focus'],
                                         'advisor': ['expertise_areas', 'time_commitment', 'compensation_preference', 'industry_focus'],
                                         'mentor': ['mentorship_areas', 'experience_level', 'time_commitment', 'industry_focus'],
-                                        'job seeker': ['salary_expectations', 'remote_preference', 'notice_period', 'industry_focus'],
-                                        'hiring': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'industry_focus']
+                                        'job seeker': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'skills_have'],
+                                        'candidate': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'skills_have'],
+                                        'hiring': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'industry_focus'],
+                                        'service': ['service_type', 'industry_focus', 'stage_preference', 'geography', 'budget_range']
                                     };
                                     let detected = null;
                                     for (const [key, slots] of Object.entries(focusSlotsMap)) {
@@ -1551,6 +1555,15 @@
                                         return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${status}"></div><span>${label}</span></div>`;
                                     }).join('')}
                                 </div>
+                                ${focusSlotTypes.length > 0 ? `
+                                <h5 class="text-xs text-gray-400 mt-3 mb-2">Focus Slots (${focusSlotTypes.length}):</h5>
+                                <div class="flex flex-wrap gap-1">
+                                    ${focusSlotTypes.map(t => {
+                                        const slotName = t.replace('focus_slot_', '').replace(/_/g, ' ');
+                                        return `<span class="px-2 py-0.5 rounded text-xs bg-orange-600 text-white">${slotName}</span>`;
+                                    }).join('')}
+                                </div>
+                                ` : ''}
                                 ${embTypes.length > 3 ? `
                                 <details class="mt-2">
                                     <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-400">View all ${embTypes.length} types</summary>
@@ -1931,13 +1944,14 @@
             const emb = result.embeddings || {};
             const matches = result.matches || {};
 
-            // Parse embedding types to categorize basic vs multi-vector
+            // Parse embedding types to categorize basic vs multi-vector vs focus slots
             const embTypes = emb.details?.types || [];
             const basicTypes = embTypes.filter(t => ['Requirements', 'Offerings', 'Combined', 'requirements', 'offerings', 'combined'].includes(t));
             const mvTypes = embTypes.filter(t =>
                 t.includes('primary_goal') || t.includes('industry') || t.includes('stage') ||
                 t.includes('geography') || t.includes('engagement') || t.includes('dealbreaker')
             );
+            const focusSlotTypes = embTypes.filter(t => t.startsWith('focus_slot_'));
 
             const html = `
                 <!-- Summary Cards Row -->
@@ -2029,6 +2043,15 @@
                                     return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${status}"></div><span class="capitalize">${dim.replace('_', ' ')}</span></div>`;
                                 }).join('')}
                             </div>
+                            ${focusSlotTypes.length > 0 ? `
+                            <h5 class="text-xs text-gray-400 mt-3 mb-2">Focus Slot Embeddings (${focusSlotTypes.length}):</h5>
+                            <div class="flex flex-wrap gap-1">
+                                ${focusSlotTypes.map(t => {
+                                    const slotName = t.replace('focus_slot_', '').replace(/_/g, ' ');
+                                    return `<span class="px-2 py-0.5 rounded text-xs bg-orange-600 text-white">${slotName}</span>`;
+                                }).join('')}
+                            </div>
+                            ` : ''}
                         </div>
                         ` : '<p class="text-gray-500 text-xs mt-2">No embeddings generated</p>'}
                     </div>
