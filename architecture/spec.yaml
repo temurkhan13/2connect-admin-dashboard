@@ -1,5 +1,5 @@
 # 2Connect Platform Specifications
-# Last Updated: 2026-03-12
+# Last Updated: 2026-03-13
 # This is the SOURCE OF TRUTH - code MUST match this
 
 onboarding:
@@ -24,6 +24,26 @@ onboarding:
   chat_timeout_ms: 60000  # 60s frontend timeout
   max_retries: 1  # Frontend retries on timeout
   deduplication_window_seconds: 5  # Prevent duplicate submissions
+
+  # LLM Architecture (BUG-071 separated services, BUG-055 Sonnet upgrade)
+  LLM_MODEL: claude-sonnet-4-5-20250929  # Upgraded from Haiku in BUG-055
+  EXTRACTION_SERVICE: llm_slot_extractor.py  # ONLY extracts slots
+  QUESTION_SERVICE: llm_question_generator.py  # ONLY generates questions
+  MAX_SLOTS_PER_TURN: 3  # BUG-088 progressive disclosure
+  PRIMARY_GOAL_MANDATORY: true  # BUG-090 must extract first
+
+  # 10 Objective Types (BUG-074 added JOB_SEARCH, BUG-075 added SERVICES)
+  OBJECTIVE_TYPES:
+    - FUNDRAISING
+    - INVESTING
+    - HIRING
+    - PARTNERSHIP
+    - MENTORSHIP
+    - COFOUNDER
+    - PRODUCT_LAUNCH
+    - NETWORKING
+    - JOB_SEARCH  # BUG-074
+    - SERVICES    # BUG-075
 
   # Adaptive slot groups (added based on primary_goal)
   INVESTOR_SLOTS:
@@ -64,12 +84,24 @@ onboarding:
     - compensation_expectation
     trigger: "Offering Advisory"
 
-  JOB_SEEKER_SLOTS:
-    - job_title_seeking
-    - experience_years
-    - salary_range
-    - work_preference
-    trigger: "Looking for Job" or "Career Change"
+  # JOB_SEARCH objective (BUG-074) - for job seekers and candidates
+  JOB_SEARCH_SLOTS:
+    - role_type
+    - seniority_level
+    - remote_preference
+    - compensation_range
+    - skills_have
+    trigger: "Find New Job" or user_type is "Job Seeker"
+    note: "Renamed from JOB_SEEKER_SLOTS to match ObjectiveType.JOB_SEARCH"
+
+  # SERVICES objective (BUG-075) - for consultants, freelancers, agencies
+  SERVICES_SLOTS:
+    - service_type
+    - budget_range
+    - expertise
+    - engagement_style
+    - portfolio_type
+    trigger: "Offering Services" or user_type is "Service Provider"
 
   PARTNERSHIP_SLOTS:
     - partnership_type

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-12 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, BUG-043 (resume pre-extraction), BUG-045-048 (objective-aware filtering), new intents (OPPORTUNITY_SEEKING, PARTNERSHIP, JOB_SEEKER, RECRUITER), DynamoDB→Supabase migration -->
+<!-- Last Updated: 2026-03-13 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, BUG-043 (resume pre-extraction), BUG-045-048 (objective-aware filtering), BUG-055-101 (Sonnet upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, trust LLM over code-level restrictions), new intents (OPPORTUNITY_SEEKING, PARTNERSHIP, JOB_SEEKER, RECRUITER), 10 ObjectiveTypes (JOB_SEARCH, SERVICES added), DynamoDB→Supabase migration -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -616,52 +616,50 @@
                             <div class="step-number bg-pink-600 text-white">6</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">Claude Haiku extracts slots + multi-vector steering</span>
+                                    <span class="font-medium">Claude Sonnet 4.5 extracts slots (BUG-055)</span>
                                     <span class="data-badge bg-pink-900 text-pink-400">CLAUDE API</span>
                                     <span class="text-xs text-gray-500">llm_slot_extractor.py</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-4 text-xs">
                                     <div>
-                                        <div class="text-gray-400 mb-1">Pre-LLM Checks:</div>
+                                        <div class="text-gray-400 mb-1">Pre-LLM Processing:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            <span class="text-cyan-400">1. _get_blacklisted_topics()</span><br>
-                                            &nbsp;&nbsp;Topics with 2+ questions blocked<br>
-                                            <br>
-                                            <span class="text-cyan-400">2. _get_missing_dimensions()</span><br>
+                                            <span class="text-cyan-400">1. _get_missing_dimensions()</span><br>
                                             &nbsp;&nbsp;Check 6 multi-vector gaps<br>
                                             <br>
-                                            <span class="text-cyan-400">3. After Q4: Force engagement/dealbreakers</span><br>
+                                            <span class="text-cyan-400">2. Get objective-specific slots</span><br>
+                                            &nbsp;&nbsp;onboarding_focus_slots[objective]<br>
                                             <br>
-                                            <span class="text-cyan-400">4. _question_covers_filled_slot()</span><br>
-                                            &nbsp;&nbsp;SLOT_QUESTION_KEYWORDS mapping<br>
-                                            &nbsp;&nbsp;Blocks questions on already-filled slots
+                                            <span class="text-cyan-400">3. Calculate missing slots</span><br>
+                                            &nbsp;&nbsp;Programmatic, not LLM-driven (BUG-087)<br>
+                                            <br>
+                                            <span class="text-gray-500">BUG-092-099: Trust LLM over code</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="text-gray-400 mb-1">Prompt to Claude Haiku:</div>
+                                        <div class="text-gray-400 mb-1">Prompt to Claude Sonnet 4.5:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            System: Extract slots + steering:<br>
-                                            <span class="text-yellow-400">BLACKLIST: [industry, geography]</span><br>
-                                            <span class="text-green-400">PRIORITIZE: engagement_style</span><br>
+                                            System: EXTRACTION ONLY (BUG-071)<br>
+                                            <span class="text-yellow-400">MAX 3 SLOTS PER TURN (BUG-088)</span><br>
+                                            <span class="text-green-400">primary_goal FIRST (BUG-090)</span><br>
                                             <br>
-                                            Model: claude-3-haiku-20240307<br>
+                                            Model: claude-sonnet-4-5-20250929<br>
                                             Temperature: 0.1
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="text-gray-400 mb-1">Post-LLM Validation:</div>
+                                        <div class="text-gray-400 mb-1">Post-Extraction Processing:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            <span class="text-red-400">1. If question on blacklisted topic:</span><br>
-                                            &nbsp;&nbsp;Replace with forced question<br>
+                                            <span class="text-green-400">1. Code-level TOP 3 enforcement</span><br>
+                                            &nbsp;&nbsp;Limit to top 3 by priority order<br>
                                             <br>
-                                            <span class="text-red-400">2. Jaccard word similarity ≥70%:</span><br>
-                                            &nbsp;&nbsp;Block exact duplicate questions<br>
+                                            <span class="text-green-400">2. Call Question Generator (BUG-071)</span><br>
+                                            &nbsp;&nbsp;Separate Sonnet call for questions<br>
                                             <br>
-                                            <span class="text-red-400">3. company_name "trademark test":</span><br>
-                                            &nbsp;&nbsp;Reject generic descriptions<br>
-                                            &nbsp;&nbsp;Require proper noun capitalization<br>
+                                            <span class="text-green-400">3. Word boundary detection (BUG-100)</span><br>
+                                            &nbsp;&nbsp;Regex \b prevents false positives<br>
                                             <br>
-                                            <span class="text-gray-500">HARD constraints - LLM cannot ignore</span>
+                                            <span class="text-gray-500">Soft guidance, not hard constraints</span>
                                         </div>
                                     </div>
                                 </div>
