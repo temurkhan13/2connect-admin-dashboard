@@ -1,7 +1,8 @@
 # 2Connect Platform Architecture Schema
-# Last Updated: 2026-03-12
+# Last Updated: 2026-03-13
 # This file is the source of truth for the architecture dashboard
 # Note: DynamoDB migrated to Supabase on 2026-03-09
+# Note: Haiku→Sonnet upgrade in BUG-055, separated services in BUG-071
 
 meta:
   name: 2Connect
@@ -82,20 +83,24 @@ external_services:
     purpose: "Google sign-in authentication"
 
 ai_models:
-  claude_haiku:
-    name: Claude 3 Haiku
+  claude_sonnet:
+    name: Claude Sonnet 4.5
     provider: Anthropic
+    note: "Upgraded from Haiku in BUG-055 for better accuracy"
     used_for:
-      - Slot extraction during onboarding
-      - Follow-up question generation
-    location: app/services/llm_slot_extractor.py
+      - Slot extraction (ONLY extraction, BUG-071)
+      - Question generation (separate service, BUG-071)
+    locations:
+      extraction: app/services/llm_slot_extractor.py
+      question_gen: app/services/llm_question_generator.py
 
   openai_embeddings:
     name: text-embedding-3-small
     provider: OpenAI
     used_for:
       - Multi-vector embeddings (6 dimensions)
-      - Basic embeddings (requirements/offerings)
+      - JOB_SEARCH embeddings (role_type, skills, compensation)
+      - SERVICES embeddings (expertise, engagement, portfolio)
     location: app/services/embedding_service.py
 
 sections:
