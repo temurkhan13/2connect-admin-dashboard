@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<!-- Last Updated: 2026-03-17 | 2Connect Mobile App (React Native + Expo) Architecture -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2Connect Mobile App Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; }
+        .flow-step { position: relative; }
+        .flow-step::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -20px;
+            width: 2px;
+            height: 20px;
+            background: linear-gradient(to bottom, #3b82f6, transparent);
+        }
+        .flow-step:last-child::after { display: none; }
+        .flow-arrow {
+            width: 40px;
+            height: 2px;
+            background: linear-gradient(to right, #3b82f6, #8b5cf6);
+            position: relative;
+        }
+        .flow-arrow::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -4px;
+            border: 5px solid transparent;
+            border-left: 8px solid #8b5cf6;
+        }
+        .data-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; }
+        .trigger-line {
+            border-left: 2px dashed #f59e0b;
+            padding-left: 12px;
+            margin-left: 8px;
+        }
+        .code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1e293b; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        .storage-icon { display: inline-flex; align-items: center; gap: 4px; }
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        .connector-v {
+            width: 2px;
+            background: linear-gradient(to bottom, currentColor, transparent);
+        }
+        .connector-h {
+            height: 2px;
+            background: linear-gradient(to right, currentColor, transparent);
+        }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-700 px-6 py-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-gray-400 hover:text-white text-sm">&larr; Dashboard</a>
+                <h1 class="text-lg font-bold">2Connect Mobile App Architecture</h1>
+                <span class="px-2 py-1 bg-purple-900 text-purple-400 text-xs rounded">MOBILE</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+                <span class="px-2 py-1 bg-cyan-900/50 border border-cyan-700 rounded">Expo/RN</span>
+                <span class="px-2 py-1 bg-yellow-900/50 border border-yellow-700 rounded">Zustand</span>
+                <span class="px-2 py-1 bg-blue-900/50 border border-blue-700 rounded">React Query</span>
+                <span class="px-2 py-1 bg-green-900/50 border border-green-700 rounded">Stream Chat</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <div class="bg-gray-800 border-b border-gray-700 px-6">
+        <div class="flex gap-1">
+            <button onclick="showTab('overview')" id="tab-overview" class="tab-btn px-4 py-2 text-sm border-b-2 border-blue-500 text-blue-400">1. Overview</button>
+            <button onclick="showTab('auth')" id="tab-auth" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">2. Auth Flow</button>
+            <button onclick="showTab('onboarding')" id="tab-onboarding" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">3. Onboarding Flow</button>
+            <button onclick="showTab('navigation')" id="tab-navigation" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">4. Navigation</button>
+            <button onclick="showTab('state')" id="tab-state" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">5. State Management</button>
+            <button onclick="showTab('api')" id="tab-api" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">6. API Layer</button>
+            <button onclick="showTab('screens')" id="tab-screens" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">7. Screens</button>
+            <button onclick="showTab('services')" id="tab-services" class="tab-btn px-4 py-2 text-sm border-b-2 border-transparent text-gray-400 hover:text-white">8. Services</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="p-6 overflow-auto" style="height: calc(100vh - 100px);">
+
+        <!-- ==================== OVERVIEW ==================== -->
+        <div id="content-overview" class="tab-content">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Mobile App Overview</h2>
+                <p class="text-gray-400 text-sm mb-6">React Native + Expo cross-platform mobile application</p>
+
+                <!-- Tech Stack Grid -->
+                <div class="grid grid-cols-4 gap-4 mb-8">
+                    <div class="bg-gray-800 rounded-lg border border-cyan-700 p-4">
+                        <div class="text-cyan-400 font-medium mb-2">Framework</div>
+                        <div class="text-sm space-y-1">
+                            <div class="flex justify-between"><span class="text-gray-400">Expo SDK</span><span>55.0.5</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">React Native</span><span>0.83.2</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">TypeScript</span><span>5.9.2</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg border border-yellow-700 p-4">
+                        <div class="text-yellow-400 font-medium mb-2">State Management</div>
+                        <div class="text-sm space-y-1">
+                            <div class="flex justify-between"><span class="text-gray-400">Zustand</span><span>5.0.0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">React Query</span><span>5.0.0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">AsyncStorage</span><span>Persist</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="text-green-400 font-medium mb-2">Integrations</div>
+                        <div class="text-sm space-y-1">
+                            <div class="flex justify-between"><span class="text-gray-400">Stream Chat</span><span>5.0.0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Sentry</span><span>7.11.0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Axios</span><span>1.6.0</span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-800 rounded-lg border border-purple-700 p-4">
+                        <div class="text-purple-400 font-medium mb-2">Features</div>
+                        <div class="text-sm space-y-1">
+                            <div class="flex justify-between"><span class="text-gray-400">Biometrics</span><span>Face/Touch ID</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Push Notifications</span><span>Expo</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Secure Storage</span><span>Tokens</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Structure -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 mb-6">
+                    <div class="text-white font-medium mb-3">Project Structure</div>
+                    <div class="grid grid-cols-3 gap-6 text-xs">
+                        <div>
+                            <div class="text-cyan-400 mb-2">src/app/ (Expo Router)</div>
+                            <div class="code bg-gray-900 p-3 rounded space-y-1">
+                                <div><span class="text-gray-500">├─</span> _layout.tsx <span class="text-gray-500"># Root + Sentry</span></div>
+                                <div><span class="text-gray-500">├─</span> index.tsx <span class="text-gray-500"># Splash</span></div>
+                                <div><span class="text-gray-500">├─</span> (auth)/ <span class="text-gray-500"># Auth stack</span></div>
+                                <div><span class="text-gray-500">│  ├─</span> login.tsx</div>
+                                <div><span class="text-gray-500">│  ├─</span> register.tsx</div>
+                                <div><span class="text-gray-500">│  └─</span> verify-email.tsx</div>
+                                <div><span class="text-gray-500">├─</span> (onboarding)/ <span class="text-gray-500"># AI chat</span></div>
+                                <div><span class="text-gray-500">│  ├─</span> chat.tsx</div>
+                                <div><span class="text-gray-500">│  └─</span> preview.tsx</div>
+                                <div><span class="text-gray-500">└─</span> (tabs)/ <span class="text-gray-500"># Main app</span></div>
+                                <div><span class="text-gray-500">   ├─</span> index.tsx <span class="text-gray-500"># Dashboard</span></div>
+                                <div><span class="text-gray-500">   ├─</span> discover.tsx</div>
+                                <div><span class="text-gray-500">   ├─</span> matches.tsx</div>
+                                <div><span class="text-gray-500">   ├─</span> messages.tsx</div>
+                                <div><span class="text-gray-500">   └─</span> profile.tsx</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-yellow-400 mb-2">src/stores/ (Zustand)</div>
+                            <div class="code bg-gray-900 p-3 rounded space-y-1 mb-4">
+                                <div><span class="text-gray-500">├─</span> authStore.ts <span class="text-green-400"># Persisted</span></div>
+                                <div><span class="text-gray-500">├─</span> onboardingStore.ts <span class="text-green-400"># Persisted</span></div>
+                                <div><span class="text-gray-500">├─</span> matchesStore.ts</div>
+                                <div><span class="text-gray-500">└─</span> discoverStore.ts</div>
+                            </div>
+                            <div class="text-blue-400 mb-2">src/hooks/ (React Query)</div>
+                            <div class="code bg-gray-900 p-3 rounded space-y-1">
+                                <div><span class="text-gray-500">├─</span> useAuth.ts</div>
+                                <div><span class="text-gray-500">├─</span> useOnboarding.ts</div>
+                                <div><span class="text-gray-500">├─</span> useMatches.ts</div>
+                                <div><span class="text-gray-500">├─</span> useDiscover.ts</div>
+                                <div><span class="text-gray-500">├─</span> useProfile.ts</div>
+                                <div><span class="text-gray-500">└─</span> useDashboard.ts</div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-pink-400 mb-2">src/services/ (API Layer)</div>
+                            <div class="code bg-gray-900 p-3 rounded space-y-1 mb-4">
+                                <div><span class="text-gray-500">├─</span> api.ts <span class="text-gray-500"># Axios instances</span></div>
+                                <div><span class="text-gray-500">├─</span> auth.ts</div>
+                                <div><span class="text-gray-500">├─</span> onboarding.ts</div>
+                                <div><span class="text-gray-500">├─</span> matches.ts</div>
+                                <div><span class="text-gray-500">├─</span> discover.ts</div>
+                                <div><span class="text-gray-500">├─</span> profile.ts</div>
+                                <div><span class="text-gray-500">└─</span> dashboard.ts</div>
+                            </div>
+                            <div class="text-green-400 mb-2">src/providers/</div>
+                            <div class="code bg-gray-900 p-3 rounded space-y-1">
+                                <div><span class="text-gray-500">├─</span> QueryProvider.tsx</div>
+                                <div><span class="text-gray-500">└─</span> StreamChatProvider.tsx</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Connections -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <div class="text-white font-medium mb-3">Backend Connections</div>
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="bg-gray-900 rounded p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                <span class="text-green-400 font-medium">Backend API</span>
+                            </div>
+                            <div class="code text-xs">
+                                <div class="text-gray-400">URL:</div>
+                                <div class="text-white">https://twoconnectv1-backend.onrender.com/api/v1</div>
+                                <div class="text-gray-400 mt-2">Timeout: <span class="text-yellow-400">30 seconds</span></div>
+                                <div class="text-gray-400">Used for: Auth, Matches, Profile, Dashboard</div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-900 rounded p-3">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="w-3 h-3 bg-pink-500 rounded-full"></span>
+                                <span class="text-pink-400 font-medium">AI Service</span>
+                            </div>
+                            <div class="code text-xs">
+                                <div class="text-gray-400">URL:</div>
+                                <div class="text-white">https://twoconnectv1-ai.onrender.com/api/v1</div>
+                                <div class="text-gray-400 mt-2">Timeout: <span class="text-yellow-400">60 seconds</span> (LLM calls)</div>
+                                <div class="text-gray-400">Used for: Onboarding chat, slot extraction</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== AUTH FLOW ==================== -->
+        <div id="content-auth" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Authentication Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">Login, registration, email verification, and token management</p>
+
+                <div class="space-y-4">
+                    <!-- Step 1: App Launch -->
+                    <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-blue-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">App Launch - Check Auth State</span>
+                                    <span class="data-badge bg-cyan-900 text-cyan-400">SPLASH</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Splash screen (index.tsx):</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            1. Check AsyncStorage for accessToken<br>
+                                            2. If token exists &rarr; validate with /auth/me<br>
+                                            3. If 401 &rarr; attempt token refresh<br>
+                                            4. If refresh fails &rarr; clearAuth()
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Routing decision:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-red-400">No token</span> &rarr; (auth) stack<br>
+                                            <span class="text-yellow-400">Token + !onboarded</span> &rarr; (onboarding)<br>
+                                            <span class="text-green-400">Token + onboarded</span> &rarr; (tabs)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 2: Login -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Login Flow</span>
+                                    <span class="data-badge bg-green-900 text-green-400">AUTH</span>
+                                    <span class="text-xs text-gray-500">src/app/(auth)/login.tsx</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">User input:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            email: string<br>
+                                            password: string
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">API call:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /auth/signin<br>
+                                            services/auth.ts:login()
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Response stored:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            authStore.setUser(user)<br>
+                                            authStore.setTokens(access, refresh)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 3: Register -->
+                    <div class="bg-gray-800 rounded-lg border border-purple-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-purple-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Registration Flow</span>
+                                    <span class="data-badge bg-purple-900 text-purple-400">AUTH</span>
+                                    <span class="text-xs text-gray-500">src/app/(auth)/register.tsx</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">User input:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            firstName, lastName, email, password<br>
+                                            <span class="text-green-400">POST</span> /auth/signup
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Next step:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Navigate to verify-email.tsx<br>
+                                            User enters OTP code from email<br>
+                                            <span class="text-green-400">POST</span> /auth/verify-email
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 4: Token Refresh -->
+                    <div class="bg-gray-800 rounded-lg border border-yellow-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-yellow-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Token Refresh (Axios Interceptor)</span>
+                                    <span class="data-badge bg-yellow-900 text-yellow-400">AUTO</span>
+                                    <span class="text-xs text-gray-500">src/services/api.ts</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Request interceptor:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Inject Bearer token from authStore<br>
+                                            headers.Authorization = `Bearer ${token}`
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Response interceptor (401):</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            1. <span class="text-green-400">POST</span> /auth/refresh<br>
+                                            2. Update tokens in store<br>
+                                            3. Retry original request<br>
+                                            4. If fails &rarr; logout
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OAuth Section -->
+                <div class="mt-8 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <div class="text-white font-medium mb-3">OAuth Sign-in Options</div>
+                    <div class="grid grid-cols-2 gap-4 text-xs">
+                        <div class="bg-gray-900 rounded p-3">
+                            <div class="text-blue-400 font-medium mb-2">Google Sign-In</div>
+                            <div class="code">
+                                <span class="text-green-400">POST</span> /auth/google-signin<br>
+                                Body: { idToken: string }<br>
+                                Returns: { user, accessToken, refreshToken }
+                            </div>
+                        </div>
+                        <div class="bg-gray-900 rounded p-3">
+                            <div class="text-gray-300 font-medium mb-2">Apple Sign-In</div>
+                            <div class="code">
+                                <span class="text-green-400">POST</span> /auth/apple-signin<br>
+                                Body: { identityToken, firstName?, lastName? }<br>
+                                Returns: { user, accessToken, refreshToken }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ONBOARDING FLOW ==================== -->
+        <div id="content-onboarding" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">AI Onboarding Flow</h2>
+                <p class="text-gray-400 text-sm mb-6">Conversational AI extracts user profile slots through natural chat</p>
+
+                <div class="space-y-4">
+                    <!-- Step 1: Start Session -->
+                    <div class="bg-gray-800 rounded-lg border border-pink-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-pink-600 text-white">1</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Start Onboarding Session</span>
+                                    <span class="data-badge bg-pink-900 text-pink-400">AI SERVICE</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">API call:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /onboarding/conversational/start<br>
+                                            services/onboarding.ts:start()
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Response:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            { sessionId, welcomeMessage, progress: 0 }<br>
+                                            onboardingStore.startSession(sessionId)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 2: Chat Loop -->
+                    <div class="bg-gray-800 rounded-lg border border-pink-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-pink-600 text-white">2</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Conversational Chat Loop</span>
+                                    <span class="data-badge bg-pink-900 text-pink-400">CLAUDE SONNET 4.5</span>
+                                    <span class="text-xs text-gray-500">src/app/(onboarding)/chat.tsx</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">User sends message:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /conversational/chat<br>
+                                            { sessionId, message }
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">AI extracts slots:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            MAX 3 slots per turn<br>
+                                            primary_goal extracted FIRST<br>
+                                            Objective-specific focus slots
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Response:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            { aiResponse, extractedSlots, progress }<br>
+                                            onboardingStore.updateSlots()<br>
+                                            onboardingStore.setProgress()
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 3: Resume Upload (Optional) -->
+                    <div class="bg-gray-800 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-orange-600 text-white">3</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Resume Upload (Optional Accelerator)</span>
+                                    <span class="data-badge bg-orange-900 text-orange-400">OPTIONAL</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Upload:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /onboarding/resume/upload<br>
+                                            Content-Type: multipart/form-data<br>
+                                            Supported: PDF, DOCX
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Effect:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Resume text extracted (BUG-043)<br>
+                                            Slots pre-extracted &rarr; Redis<br>
+                                            Progress jumps significantly
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <svg class="w-6 h-6 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                    </div>
+
+                    <!-- Step 4: Preview & Complete -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-green-600 text-white">4</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Preview & Complete</span>
+                                    <span class="data-badge bg-green-900 text-green-400">FINALIZE</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Preview (80%+ progress):</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Navigate to preview.tsx<br>
+                                            Show extracted slots for review<br>
+                                            User can edit before confirming
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Complete:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">POST</span> /conversational/complete<br>
+                                            Backend: persona &rarr; embeddings &rarr; summary<br>
+                                            authStore.updateOnboardingComplete(true)<br>
+                                            Navigate to (tabs) dashboard
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onboarding Store State -->
+                <div class="mt-8 bg-gray-800 rounded-lg border border-yellow-700 p-4">
+                    <div class="text-yellow-400 font-medium mb-3">onboardingStore State (Zustand + AsyncStorage)</div>
+                    <div class="code bg-gray-900 p-3 rounded text-xs">
+                        {<br>
+                        &nbsp;&nbsp;sessionId: string | null,<br>
+                        &nbsp;&nbsp;isActive: boolean,<br>
+                        &nbsp;&nbsp;progressPercentage: number <span class="text-gray-500">// 0-100</span>,<br>
+                        &nbsp;&nbsp;messages: ChatMessage[],<br>
+                        &nbsp;&nbsp;isTyping: boolean,<br>
+                        &nbsp;&nbsp;extractedSlots: { primary_goal, industry_focus, stage_preference, ... },<br>
+                        &nbsp;&nbsp;resumeUploaded: boolean,<br>
+                        &nbsp;&nbsp;resumeFileName: string<br>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== NAVIGATION ==================== -->
+        <div id="content-navigation" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Navigation Architecture</h2>
+                <p class="text-gray-400 text-sm mb-6">Expo Router file-based navigation with conditional stacks</p>
+
+                <!-- Navigation Tree -->
+                <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+                    <div class="text-white font-medium mb-4">Route Structure (Expo Router)</div>
+                    <div class="grid grid-cols-1 gap-4">
+                        <!-- Root -->
+                        <div class="bg-gray-900 rounded-lg p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-4 h-4 bg-blue-500 rounded"></div>
+                                <span class="text-blue-400 font-medium">Root Layout (_layout.tsx)</span>
+                                <span class="text-xs text-gray-500">Sentry + Providers + Navigation Container</span>
+                            </div>
+
+                            <div class="ml-6 space-y-3">
+                                <!-- Splash -->
+                                <div class="flex items-center gap-3">
+                                    <div class="w-3 h-3 bg-cyan-500 rounded"></div>
+                                    <span class="text-cyan-400">index.tsx</span>
+                                    <span class="text-xs text-gray-500">Splash screen - checks auth state</span>
+                                </div>
+
+                                <!-- Auth Stack -->
+                                <div class="bg-gray-800 rounded p-3">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div class="w-3 h-3 bg-red-500 rounded"></div>
+                                        <span class="text-red-400 font-medium">(auth)/ Stack</span>
+                                        <span class="text-xs bg-red-900 text-red-400 px-2 py-0.5 rounded">Unauthenticated</span>
+                                    </div>
+                                    <div class="ml-4 space-y-1 text-xs text-gray-400">
+                                        <div>├─ login.tsx</div>
+                                        <div>├─ register.tsx</div>
+                                        <div>├─ verify-email.tsx</div>
+                                        <div>├─ forgot-password.tsx</div>
+                                        <div>└─ reset-password.tsx</div>
+                                    </div>
+                                </div>
+
+                                <!-- Onboarding Stack -->
+                                <div class="bg-gray-800 rounded p-3">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div class="w-3 h-3 bg-yellow-500 rounded"></div>
+                                        <span class="text-yellow-400 font-medium">(onboarding)/ Stack</span>
+                                        <span class="text-xs bg-yellow-900 text-yellow-400 px-2 py-0.5 rounded">Auth + !Onboarded</span>
+                                    </div>
+                                    <div class="ml-4 space-y-1 text-xs text-gray-400">
+                                        <div>├─ chat.tsx <span class="text-pink-400">(AI conversation)</span></div>
+                                        <div>├─ preview.tsx <span class="text-gray-500">(review slots)</span></div>
+                                        <div>└─ resume.tsx <span class="text-gray-500">(optional upload)</span></div>
+                                    </div>
+                                </div>
+
+                                <!-- Tabs Navigator -->
+                                <div class="bg-gray-800 rounded p-3">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div class="w-3 h-3 bg-green-500 rounded"></div>
+                                        <span class="text-green-400 font-medium">(tabs)/ Tab Navigator</span>
+                                        <span class="text-xs bg-green-900 text-green-400 px-2 py-0.5 rounded">Auth + Onboarded</span>
+                                    </div>
+                                    <div class="ml-4 grid grid-cols-5 gap-2 text-xs">
+                                        <div class="bg-gray-900 rounded p-2 text-center">
+                                            <div class="text-white">🏠</div>
+                                            <div class="text-gray-400">index.tsx</div>
+                                            <div class="text-gray-500">Dashboard</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2 text-center">
+                                            <div class="text-white">🔍</div>
+                                            <div class="text-gray-400">discover.tsx</div>
+                                            <div class="text-gray-500">Search</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2 text-center">
+                                            <div class="text-white">🤝</div>
+                                            <div class="text-gray-400">matches.tsx</div>
+                                            <div class="text-gray-500">Matches</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2 text-center">
+                                            <div class="text-white">💬</div>
+                                            <div class="text-gray-400">messages.tsx</div>
+                                            <div class="text-gray-500">Chat</div>
+                                        </div>
+                                        <div class="bg-gray-900 rounded p-2 text-center">
+                                            <div class="text-white">👤</div>
+                                            <div class="text-gray-400">profile.tsx</div>
+                                            <div class="text-gray-500">Profile</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Detail Routes -->
+                                <div class="bg-gray-800 rounded p-3">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <div class="w-3 h-3 bg-purple-500 rounded"></div>
+                                        <span class="text-purple-400 font-medium">Detail Screens</span>
+                                    </div>
+                                    <div class="ml-4 space-y-1 text-xs text-gray-400">
+                                        <div>├─ chat/[id].tsx <span class="text-gray-500">(Stream Chat channel)</span></div>
+                                        <div>├─ match/[id].tsx <span class="text-gray-500">(Match detail + AI explanation)</span></div>
+                                        <div>├─ profile/edit.tsx</div>
+                                        <div>└─ profile/settings.tsx</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== STATE MANAGEMENT ==================== -->
+        <div id="content-state" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">State Management</h2>
+                <p class="text-gray-400 text-sm mb-6">Zustand for client state, React Query for server state</p>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Zustand Stores -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium text-yellow-400">Zustand Stores (Client State)</h3>
+
+                        <!-- authStore -->
+                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-4">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-yellow-400 font-medium">authStore.ts</span>
+                                <span class="text-xs bg-green-900 text-green-400 px-2 py-0.5 rounded">PERSISTED</span>
+                            </div>
+                            <div class="code bg-gray-900 p-3 rounded text-xs">
+                                <span class="text-gray-500">// State</span><br>
+                                user: User | null<br>
+                                accessToken: string | null<br>
+                                refreshToken: string | null<br>
+                                isAuthenticated: boolean<br>
+                                biometricsEnabled: boolean<br>
+                                <br>
+                                <span class="text-gray-500">// Actions</span><br>
+                                setUser(), setTokens(), clearAuth()<br>
+                                setBiometricsEnabled()<br>
+                                updateOnboardingComplete()
+                            </div>
+                        </div>
+
+                        <!-- onboardingStore -->
+                        <div class="bg-gray-800 rounded-lg border border-yellow-700 p-4">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-yellow-400 font-medium">onboardingStore.ts</span>
+                                <span class="text-xs bg-green-900 text-green-400 px-2 py-0.5 rounded">PERSISTED</span>
+                            </div>
+                            <div class="code bg-gray-900 p-3 rounded text-xs">
+                                <span class="text-gray-500">// State</span><br>
+                                sessionId, isActive, progressPercentage<br>
+                                messages: ChatMessage[]<br>
+                                extractedSlots: ExtractedSlots<br>
+                                resumeUploaded, resumeFileName<br>
+                                <br>
+                                <span class="text-gray-500">// Actions</span><br>
+                                startSession(), endSession()<br>
+                                addMessage(), updateSlots()<br>
+                                setProgress(), resetOnboarding()
+                            </div>
+                        </div>
+
+                        <!-- matchesStore -->
+                        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                            <div class="flex items-center gap-2 mb-3">
+                                <span class="text-gray-400 font-medium">matchesStore.ts</span>
+                                <span class="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded">UI ONLY</span>
+                            </div>
+                            <div class="code bg-gray-900 p-3 rounded text-xs">
+                                activeTab: 'pending' | 'approved' | ...<br>
+                                selectedMatchId: string | null<br>
+                                isRefreshing: boolean
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- React Query -->
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium text-blue-400">React Query (Server State)</h3>
+
+                        <!-- QueryProvider Config -->
+                        <div class="bg-gray-800 rounded-lg border border-blue-700 p-4">
+                            <div class="text-blue-400 font-medium mb-3">QueryProvider Configuration</div>
+                            <div class="code bg-gray-900 p-3 rounded text-xs">
+                                staleTime: <span class="text-yellow-400">30 seconds</span><br>
+                                gcTime: <span class="text-yellow-400">5 minutes</span><br>
+                                retry: <span class="text-yellow-400">2</span> (exponential backoff)<br>
+                                refetchOnWindowFocus: true<br>
+                                refetchOnMount: true<br>
+                                networkMode: 'online'
+                            </div>
+                        </div>
+
+                        <!-- Query Keys -->
+                        <div class="bg-gray-800 rounded-lg border border-blue-700 p-4">
+                            <div class="text-blue-400 font-medium mb-3">Query Keys</div>
+                            <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                                <div>['user'] <span class="text-gray-500">- Current user profile</span></div>
+                                <div>['matches', status] <span class="text-gray-500">- Match list</span></div>
+                                <div>['match', id] <span class="text-gray-500">- Single match</span></div>
+                                <div>['discover', params] <span class="text-gray-500">- Search results</span></div>
+                                <div>['dashboard'] <span class="text-gray-500">- Dashboard stats</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Hooks -->
+                        <div class="bg-gray-800 rounded-lg border border-blue-700 p-4">
+                            <div class="text-blue-400 font-medium mb-3">Custom Hooks (src/hooks/)</div>
+                            <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                                <div class="text-green-400">// Auth</div>
+                                <div>useLogin(), useRegister(), useLogout()</div>
+                                <div class="text-green-400 mt-2">// Onboarding</div>
+                                <div>useStartOnboarding(), useSendMessage()</div>
+                                <div class="text-green-400 mt-2">// Matches</div>
+                                <div>useMatches(), useMatch(), useUpdateStatus()</div>
+                                <div class="text-green-400 mt-2">// Discover</div>
+                                <div>useDiscoverSearch(), useExpressInterest()</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== API LAYER ==================== -->
+        <div id="content-api" class="tab-content hidden">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">API Layer</h2>
+                <p class="text-gray-400 text-sm mb-6">All endpoints called by the mobile app</p>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Auth Endpoints -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="text-green-400 font-medium mb-3">Authentication</div>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                            <div><span class="text-green-400">POST</span> /auth/signin</div>
+                            <div><span class="text-green-400">POST</span> /auth/signup</div>
+                            <div><span class="text-green-400">POST</span> /auth/verify-email</div>
+                            <div><span class="text-green-400">POST</span> /auth/resend-verification</div>
+                            <div><span class="text-green-400">POST</span> /auth/forgot-password</div>
+                            <div><span class="text-green-400">POST</span> /auth/reset-password</div>
+                            <div><span class="text-blue-400">GET</span> /auth/me</div>
+                            <div><span class="text-green-400">POST</span> /auth/logout</div>
+                            <div><span class="text-green-400">POST</span> /auth/google-signin</div>
+                            <div><span class="text-green-400">POST</span> /auth/apple-signin</div>
+                            <div><span class="text-blue-400">GET</span> /auth/stream-chat-token</div>
+                            <div><span class="text-green-400">POST</span> /auth/refresh</div>
+                        </div>
+                    </div>
+
+                    <!-- Onboarding Endpoints -->
+                    <div class="bg-gray-800 rounded-lg border border-pink-700 p-4">
+                        <div class="text-pink-400 font-medium mb-3">Onboarding (AI Service)</div>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                            <div><span class="text-green-400">POST</span> /onboarding/conversational/start</div>
+                            <div><span class="text-green-400">POST</span> /onboarding/conversational/chat</div>
+                            <div><span class="text-blue-400">GET</span> /onboarding/conversational/progress</div>
+                            <div><span class="text-green-400">POST</span> /onboarding/conversational/complete</div>
+                            <div><span class="text-green-400">POST</span> /onboarding/resume/upload</div>
+                        </div>
+                    </div>
+
+                    <!-- Matches Endpoints -->
+                    <div class="bg-gray-800 rounded-lg border border-purple-700 p-4">
+                        <div class="text-purple-400 font-medium mb-3">Matches</div>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                            <div><span class="text-blue-400">GET</span> /matches <span class="text-gray-500">?status=&page=&limit=</span></div>
+                            <div><span class="text-blue-400">GET</span> /matches/:id</div>
+                            <div><span class="text-yellow-400">PATCH</span> /matches/:id/status</div>
+                            <div><span class="text-blue-400">GET</span> /dashboard/match-explanation/:id</div>
+                        </div>
+                    </div>
+
+                    <!-- Discover Endpoints -->
+                    <div class="bg-gray-800 rounded-lg border border-cyan-700 p-4">
+                        <div class="text-cyan-400 font-medium mb-3">Discover</div>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                            <div><span class="text-blue-400">GET</span> /discover/search <span class="text-gray-500">?query=&objectives[]=</span></div>
+                            <div><span class="text-green-400">POST</span> /discover/interest</div>
+                            <div><span class="text-blue-400">GET</span> /discover/filters</div>
+                        </div>
+                    </div>
+
+                    <!-- Profile Endpoints -->
+                    <div class="bg-gray-800 rounded-lg border border-orange-700 p-4">
+                        <div class="text-orange-400 font-medium mb-3">Profile</div>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                            <div><span class="text-blue-400">GET</span> /profile</div>
+                            <div><span class="text-yellow-400">PATCH</span> /profile</div>
+                            <div><span class="text-green-400">POST</span> /profile/photo</div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Endpoints -->
+                    <div class="bg-gray-800 rounded-lg border border-blue-700 p-4">
+                        <div class="text-blue-400 font-medium mb-3">Dashboard</div>
+                        <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
+                            <div><span class="text-blue-400">GET</span> /dashboard/quick-stats</div>
+                            <div><span class="text-blue-400">GET</span> /dashboard/recent-matches/:limit</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Axios Interceptors -->
+                <div class="mt-6 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <div class="text-white font-medium mb-3">Axios Configuration (src/services/api.ts)</div>
+                    <div class="grid grid-cols-2 gap-4 text-xs">
+                        <div class="bg-gray-900 rounded p-3">
+                            <div class="text-yellow-400 mb-2">Request Interceptor</div>
+                            <div class="code">
+                                const token = authStore.getState().accessToken<br>
+                                if (token) {<br>
+                                &nbsp;&nbsp;headers.Authorization = `Bearer ${token}`<br>
+                                }
+                            </div>
+                        </div>
+                        <div class="bg-gray-900 rounded p-3">
+                            <div class="text-red-400 mb-2">Error Response Mapping</div>
+                            <div class="code">
+                                404 &rarr; "Resource not found"<br>
+                                401 &rarr; Attempt refresh, then "Session expired"<br>
+                                403 &rarr; "No permission"<br>
+                                429 &rarr; "Too many requests"<br>
+                                500 &rarr; "Server error"
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SCREENS ==================== -->
+        <div id="content-screens" class="tab-content hidden">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">Screen Inventory</h2>
+                <p class="text-gray-400 text-sm mb-6">All screens in the mobile app with their features</p>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <!-- Auth Screens -->
+                    <div class="space-y-3">
+                        <h3 class="text-red-400 font-medium">Auth Screens</h3>
+                        <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
+                            <div class="text-white font-medium">login.tsx</div>
+                            <div class="text-gray-400 mt-1">Email + password form, Google/Apple OAuth buttons, forgot password link</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
+                            <div class="text-white font-medium">register.tsx</div>
+                            <div class="text-gray-400 mt-1">First name, last name, email, password with validation</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
+                            <div class="text-white font-medium">verify-email.tsx</div>
+                            <div class="text-gray-400 mt-1">OTP code input, resend button, countdown timer</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
+                            <div class="text-white font-medium">forgot-password.tsx</div>
+                            <div class="text-gray-400 mt-1">Email input, sends reset link</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
+                            <div class="text-white font-medium">reset-password.tsx</div>
+                            <div class="text-gray-400 mt-1">New password with confirmation</div>
+                        </div>
+                    </div>
+
+                    <!-- Onboarding Screens -->
+                    <div class="space-y-3">
+                        <h3 class="text-yellow-400 font-medium">Onboarding Screens</h3>
+                        <div class="bg-gray-800 rounded border border-yellow-700 p-3 text-xs">
+                            <div class="text-white font-medium">chat.tsx</div>
+                            <div class="text-gray-400 mt-1">AI conversational interface, message bubbles, progress bar, typing indicator</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-yellow-700 p-3 text-xs">
+                            <div class="text-white font-medium">preview.tsx</div>
+                            <div class="text-gray-400 mt-1">Review extracted slots, edit capability, confirm button</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-yellow-700 p-3 text-xs">
+                            <div class="text-white font-medium">resume.tsx</div>
+                            <div class="text-gray-400 mt-1">Document picker for PDF/DOCX, upload progress, skip option</div>
+                        </div>
+                    </div>
+
+                    <!-- Main Tab Screens -->
+                    <div class="space-y-3">
+                        <h3 class="text-green-400 font-medium">Main Tab Screens</h3>
+                        <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
+                            <div class="text-white font-medium">index.tsx (Dashboard)</div>
+                            <div class="text-gray-400 mt-1">Welcome card, stats grid (matches, approved, pending), recent matches list, activity feed</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
+                            <div class="text-white font-medium">discover.tsx</div>
+                            <div class="text-gray-400 mt-1">Search input, filter chips (objectives, industries, urgency), anonymous profile cards, express interest button</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
+                            <div class="text-white font-medium">matches.tsx</div>
+                            <div class="text-gray-400 mt-1">Tab bar (All/Pending/Approved/Declined), infinite scroll list, match cards with score</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
+                            <div class="text-white font-medium">messages.tsx</div>
+                            <div class="text-gray-400 mt-1">Stream Chat channel list, unread badges, presence indicators</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
+                            <div class="text-white font-medium">profile.tsx</div>
+                            <div class="text-gray-400 mt-1">User info display, avatar, edit button, settings link, logout</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detail Screens -->
+                <div class="mt-6">
+                    <h3 class="text-purple-400 font-medium mb-3">Detail Screens</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-gray-800 rounded border border-purple-700 p-3 text-xs">
+                            <div class="text-white font-medium">match/[id].tsx</div>
+                            <div class="text-gray-400 mt-1">Full profile view (non-anonymous), AI match explanation (synergy areas, friction points, talking points), approve/decline buttons, message option</div>
+                        </div>
+                        <div class="bg-gray-800 rounded border border-purple-700 p-3 text-xs">
+                            <div class="text-white font-medium">chat/[id].tsx</div>
+                            <div class="text-gray-400 mt-1">Stream Chat channel UI, message history, input bar, media attachments, presence</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== SERVICES ==================== -->
+        <div id="content-services" class="tab-content hidden">
+            <div class="max-w-5xl mx-auto">
+                <h2 class="text-xl font-bold mb-2">External Services & Integrations</h2>
+                <p class="text-gray-400 text-sm mb-6">Third-party services integrated into the mobile app</p>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Stream Chat -->
+                    <div class="bg-gray-800 rounded-lg border border-green-700 p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 bg-green-600 rounded flex items-center justify-center text-white font-bold">S</div>
+                            <div>
+                                <div class="text-green-400 font-medium">Stream Chat</div>
+                                <div class="text-xs text-gray-500">stream-chat-expo v5.0.0</div>
+                            </div>
+                        </div>
+                        <div class="text-xs space-y-2">
+                            <div class="text-gray-400">Real-time messaging between matched users</div>
+                            <div class="code bg-gray-900 p-2 rounded">
+                                <span class="text-gray-500">// Setup in StreamChatProvider.tsx</span><br>
+                                1. GET /auth/stream-chat-token<br>
+                                2. Connect user to Stream<br>
+                                3. OverlayProvider for UI<br>
+                                4. Disconnect on logout
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sentry -->
+                    <div class="bg-gray-800 rounded-lg border border-orange-700 p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 bg-orange-600 rounded flex items-center justify-center text-white font-bold">S</div>
+                            <div>
+                                <div class="text-orange-400 font-medium">Sentry</div>
+                                <div class="text-xs text-gray-500">@sentry/react-native v7.11.0</div>
+                            </div>
+                        </div>
+                        <div class="text-xs space-y-2">
+                            <div class="text-gray-400">Error tracking and performance monitoring</div>
+                            <div class="code bg-gray-900 p-2 rounded">
+                                <span class="text-gray-500">// Initialized in _layout.tsx</span><br>
+                                Crash reporting<br>
+                                Performance transactions<br>
+                                Breadcrumbs from console
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expo Services -->
+                    <div class="bg-gray-800 rounded-lg border border-cyan-700 p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 bg-cyan-600 rounded flex items-center justify-center text-white font-bold">E</div>
+                            <div>
+                                <div class="text-cyan-400 font-medium">Expo Services</div>
+                                <div class="text-xs text-gray-500">Expo SDK 55</div>
+                            </div>
+                        </div>
+                        <div class="text-xs space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="bg-gray-900 rounded p-2">
+                                    <div class="text-cyan-300">SecureStore</div>
+                                    <div class="text-gray-500">Token storage</div>
+                                </div>
+                                <div class="bg-gray-900 rounded p-2">
+                                    <div class="text-cyan-300">LocalAuthentication</div>
+                                    <div class="text-gray-500">Biometrics</div>
+                                </div>
+                                <div class="bg-gray-900 rounded p-2">
+                                    <div class="text-cyan-300">Notifications</div>
+                                    <div class="text-gray-500">Push notifications</div>
+                                </div>
+                                <div class="bg-gray-900 rounded p-2">
+                                    <div class="text-cyan-300">ImagePicker</div>
+                                    <div class="text-gray-500">Camera/Gallery</div>
+                                </div>
+                                <div class="bg-gray-900 rounded p-2">
+                                    <div class="text-cyan-300">DocumentPicker</div>
+                                    <div class="text-gray-500">Resume upload</div>
+                                </div>
+                                <div class="bg-gray-900 rounded p-2">
+                                    <div class="text-cyan-300">Router</div>
+                                    <div class="text-gray-500">File-based nav</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Backend AI -->
+                    <div class="bg-gray-800 rounded-lg border border-pink-700 p-4">
+                        <div class="flex items-center gap-3 mb-3">
+                            <div class="w-8 h-8 bg-pink-600 rounded flex items-center justify-center text-white font-bold">AI</div>
+                            <div>
+                                <div class="text-pink-400 font-medium">Backend AI (Claude Sonnet 4.5)</div>
+                                <div class="text-xs text-gray-500">via AI Service API</div>
+                            </div>
+                        </div>
+                        <div class="text-xs space-y-2">
+                            <div class="text-gray-400">Conversational onboarding and match explanations</div>
+                            <div class="code bg-gray-900 p-2 rounded">
+                                <span class="text-gray-500">// Features</span><br>
+                                Slot extraction (MAX 3/turn)<br>
+                                Question generation (BUG-071)<br>
+                                Match explanations (synergy/friction)<br>
+                                Progressive disclosure (BUG-088)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Color System -->
+                <div class="mt-6 bg-gray-800 rounded-lg border border-gray-700 p-4">
+                    <div class="text-white font-medium mb-3">Color System (src/constants/colors.ts)</div>
+                    <div class="grid grid-cols-5 gap-4">
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-lg mx-auto mb-2" style="background: #6638A6;"></div>
+                            <div class="text-xs text-gray-400">Primary Purple</div>
+                            <div class="text-xs text-white">#6638A6</div>
+                            <div class="text-xs text-gray-500">Auth buttons</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-lg mx-auto mb-2" style="background: #031347;"></div>
+                            <div class="text-xs text-gray-400">Secondary Navy</div>
+                            <div class="text-xs text-white">#031347</div>
+                            <div class="text-xs text-gray-500">In-app actions</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-lg mx-auto mb-2" style="background: #190D57;"></div>
+                            <div class="text-xs text-gray-400">Heading Navy</div>
+                            <div class="text-xs text-white">#190D57</div>
+                            <div class="text-xs text-gray-500">Text, buttons</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-lg mx-auto mb-2" style="background: #339FC1;"></div>
+                            <div class="text-xs text-gray-400">Theme Blue</div>
+                            <div class="text-xs text-white">#339FC1</div>
+                            <div class="text-xs text-gray-500">Stats, accents</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-lg mx-auto mb-2 border border-gray-600" style="background: #FFFFFF;"></div>
+                            <div class="text-xs text-gray-400">Background</div>
+                            <div class="text-xs text-white">#FFFFFF</div>
+                            <div class="text-xs text-gray-500">App background</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function showTab(tabName) {
+            // Hide all content
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            // Show selected content
+            document.getElementById('content-' + tabName).classList.remove('hidden');
+
+            // Update tab styles
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-400');
+                btn.classList.add('border-transparent', 'text-gray-400');
+            });
+            document.getElementById('tab-' + tabName).classList.remove('border-transparent', 'text-gray-400');
+            document.getElementById('tab-' + tabName).classList.add('border-blue-500', 'text-blue-400');
+        }
+    </script>
+</body>
+</html>

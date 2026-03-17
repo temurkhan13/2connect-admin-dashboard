@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-13 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, BUG-043 (resume pre-extraction), BUG-045-048 (objective-aware filtering), BUG-055-101 (Sonnet upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, trust LLM over code-level restrictions), new intents (OPPORTUNITY_SEEKING, PARTNERSHIP, JOB_SEEKER, RECRUITER), 10 ObjectiveTypes (JOB_SEARCH, SERVICES added), DynamoDB→Supabase migration -->
+<!-- Last Updated: 2026-03-17 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, BUG-043 (resume pre-extraction), BUG-045-048 (objective-aware filtering), BUG-055-103 (Sonnet upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, trust LLM over code-level restrictions, focus slot embeddings, engagement_style fix), new intents (OPPORTUNITY_SEEKING, PARTNERSHIP, JOB_SEEKER, RECRUITER), 10 ObjectiveTypes (JOB_SEARCH, SERVICES added), DynamoDB→Supabase migration -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2Connect Data Flow Architecture</title>
+    <title>2Connect Web App Architecture</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #0f172a; }
@@ -71,7 +71,7 @@
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <a href="index.html" class="text-gray-400 hover:text-white text-sm">&larr; Dashboard</a>
-                <h1 class="text-lg font-bold">2Connect Data Flow Architecture</h1>
+                <h1 class="text-lg font-bold">2Connect Web App Architecture</h1>
                 <span class="px-2 py-1 bg-blue-900 text-blue-400 text-xs rounded">FLOW VIEW</span>
             </div>
             <div class="flex items-center gap-2 text-xs">
