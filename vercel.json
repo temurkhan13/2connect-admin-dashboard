@@ -17,6 +17,10 @@
       "dest": "/architecture.html"
     },
     {
+      "src": "/architecture-mobile.html",
+      "dest": "/architecture-mobile.html"
+    },
+    {
       "src": "/architecture/(.*)",
       "dest": "/architecture/$1"
     },
