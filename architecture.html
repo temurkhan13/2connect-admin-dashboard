@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-17 | Reflects: REC-487, BUG-027, BUG-029, BUG-033, BUG-043 (resume pre-extraction), BUG-045-048 (objective-aware filtering), BUG-055-103 (Sonnet upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, trust LLM over code-level restrictions, focus slot embeddings, engagement_style fix), new intents (OPPORTUNITY_SEEKING, PARTNERSHIP, JOB_SEEKER, RECRUITER), 10 ObjectiveTypes (JOB_SEARCH, SERVICES added), DynamoDB→Supabase migration -->
+<!-- Last Updated: 2026-03-24 | Reflects: BUG-027-133, push notifications (Redis events + Service Worker), slot restoration from Supabase (BUG-098/100), Sonnet 4.5 upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, 10 ObjectiveTypes, DynamoDB→Supabase migration -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -450,7 +450,7 @@
                                 <div class="flex items-center gap-3 mb-2">
                                     <span class="font-medium">AI Service creates session (+ slot restoration)</span>
                                     <span class="data-badge bg-purple-900 text-purple-400">AI SERVICE</span>
-                                    <span class="data-badge bg-green-900 text-green-400">BUG-029</span>
+                                    <span class="data-badge bg-green-900 text-green-400">BUG-029/098/100</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-4 text-xs">
                                     <div>
@@ -465,8 +465,8 @@
                                         <div class="code bg-gray-900 p-2 rounded">
                                             SELECT * FROM onboarding_answers<br>
                                             WHERE user_id = ?<br>
-                                            <span class="text-green-400">Survives Redis session expiry!</span><br>
-                                            <span class="text-gray-500">Calculate real progress from restored</span>
+                                            <span class="text-green-400">ALWAYS restored (BUG-098)</span><br>
+                                            <span class="text-green-400">Saved to Redis after (BUG-100)</span>
                                         </div>
                                     </div>
                                     <div>
@@ -1280,10 +1280,60 @@
                         </div>
                     </div>
 
+                    <!-- Arrow -->
+                    <div class="flex justify-center">
+                        <div class="flex flex-col items-center text-cyan-400">
+                            <div class="text-xs mb-1">Push</div>
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Step 12 - Push Notifications -->
+                    <div class="bg-cyan-900/30 rounded-lg border border-cyan-700 p-4">
+                        <div class="flex items-start gap-4">
+                            <div class="step-number bg-cyan-600 text-white">12</div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="font-medium">Push notification via Redis events</span>
+                                    <span class="data-badge bg-cyan-900 text-cyan-400">REAL-TIME</span>
+                                    <span class="text-xs text-gray-500">app/events/publisher.py</span>
+                                </div>
+                                <div class="grid grid-cols-3 gap-4 text-xs">
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Redis event published:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            EventPublisher.publish(<br>
+                                            &nbsp;&nbsp;"matches_ready",<br>
+                                            &nbsp;&nbsp;{ user_id, match_count }<br>
+                                            )<br>
+                                            <span class="text-gray-500">Fire-and-forget pattern</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Event types:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            <span class="text-green-400">matches_ready</span><br>
+                                            <span class="text-blue-400">onboarding_complete</span><br>
+                                            <span class="text-purple-400">match_accepted</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-gray-400 mb-1">Frontend Service Worker:</div>
+                                        <div class="code bg-gray-900 p-2 rounded">
+                                            Browser push notification<br>
+                                            Smart navigation on click<br>
+                                            <span class="text-gray-500">Background + closed tabs</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Final -->
                     <div class="bg-blue-900/50 rounded-lg border border-blue-500 p-4 text-center">
-                        <div class="text-blue-400 font-bold text-lg mb-2">MATCHES READY FOR DASHBOARD</div>
-                        <div class="text-xs text-gray-400">User can now see their matches at /dashboard</div>
+                        <div class="text-blue-400 font-bold text-lg mb-2">MATCHES READY + USER NOTIFIED</div>
+                        <div class="text-xs text-gray-400">User receives push notification and can view matches at /dashboard</div>
                     </div>
 
                 </div>

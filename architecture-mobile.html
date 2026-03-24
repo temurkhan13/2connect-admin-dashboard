@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-17 | 2Connect Mobile App (React Native + Expo) Architecture -->
+<!-- Last Updated: 2026-03-24 | 2Connect Mobile App (React Native + Expo) Architecture | BUG-141 to BUG-165 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -128,8 +128,8 @@
                         <div class="text-green-400 font-medium mb-2">Integrations</div>
                         <div class="text-sm space-y-1">
                             <div class="flex justify-between"><span class="text-gray-400">Stream Chat</span><span>5.0.0</span></div>
+                            <div class="flex justify-between"><span class="text-gray-400">Bottom Sheet</span><span>v5.2.8</span></div>
                             <div class="flex justify-between"><span class="text-gray-400">Sentry</span><span>7.11.0</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Axios</span><span>1.6.0</span></div>
                         </div>
                     </div>
                     <div class="bg-gray-800 rounded-lg border border-purple-700 p-4">
@@ -152,8 +152,7 @@
                                 <div><span class="text-gray-500">├─</span> _layout.tsx <span class="text-gray-500"># Root + Sentry</span></div>
                                 <div><span class="text-gray-500">├─</span> index.tsx <span class="text-gray-500"># Splash</span></div>
                                 <div><span class="text-gray-500">├─</span> (auth)/ <span class="text-gray-500"># Auth stack</span></div>
-                                <div><span class="text-gray-500">│  ├─</span> login.tsx</div>
-                                <div><span class="text-gray-500">│  ├─</span> register.tsx</div>
+                                <div><span class="text-gray-500">│  ├─</span> login.tsx <span class="text-yellow-400">(Login+Signup tabs)</span></div>
                                 <div><span class="text-gray-500">│  └─</span> verify-email.tsx</div>
                                 <div><span class="text-gray-500">├─</span> (onboarding)/ <span class="text-gray-500"># AI chat</span></div>
                                 <div><span class="text-gray-500">│  ├─</span> chat.tsx</div>
@@ -162,7 +161,7 @@
                                 <div><span class="text-gray-500">   ├─</span> index.tsx <span class="text-gray-500"># Dashboard</span></div>
                                 <div><span class="text-gray-500">   ├─</span> discover.tsx</div>
                                 <div><span class="text-gray-500">   ├─</span> matches.tsx</div>
-                                <div><span class="text-gray-500">   ├─</span> messages.tsx</div>
+                                <div><span class="text-gray-500">   ├─</span> messages.tsx <span class="text-gray-500"># Inbox</span></div>
                                 <div><span class="text-gray-500">   └─</span> profile.tsx</div>
                             </div>
                         </div>
@@ -287,23 +286,26 @@
                             <div class="step-number bg-green-600 text-white">2</div>
                             <div class="flex-1">
                                 <div class="flex items-center gap-3 mb-2">
-                                    <span class="font-medium">Login Flow</span>
+                                    <span class="font-medium">Login / Signup (Single Screen)</span>
                                     <span class="data-badge bg-green-900 text-green-400">AUTH</span>
+                                    <span class="data-badge bg-yellow-900 text-yellow-400">BUG-163</span>
                                     <span class="text-xs text-gray-500">src/app/(auth)/login.tsx</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-4 text-xs">
                                     <div>
-                                        <div class="text-gray-400 mb-1">User input:</div>
+                                        <div class="text-gray-400 mb-1">Tab toggle (no navigation):</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            email: string<br>
-                                            password: string
+                                            <span class="text-cyan-400">Login tab:</span> email + password<br>
+                                            <span class="text-cyan-400">Signup tab:</span> name + email + pwd<br>
+                                            <span class="text-gray-500">Instant switch, no animation</span>
                                         </div>
                                     </div>
                                     <div>
-                                        <div class="text-gray-400 mb-1">API call:</div>
+                                        <div class="text-gray-400 mb-1">API calls:</div>
                                         <div class="code bg-gray-900 p-2 rounded">
-                                            <span class="text-green-400">POST</span> /auth/signin<br>
-                                            services/auth.ts:login()
+                                            <span class="text-green-400">POST</span> /auth/signin (login)<br>
+                                            <span class="text-green-400">POST</span> /auth/signup (register)<br>
+                                            Google logo (BUG-161)
                                         </div>
                                     </div>
                                     <div>
@@ -692,7 +694,7 @@
                                         <div>├─ chat/[id].tsx <span class="text-gray-500">(Stream Chat channel)</span></div>
                                         <div>├─ match/[id].tsx <span class="text-gray-500">(Match detail + AI explanation)</span></div>
                                         <div>├─ profile/edit.tsx</div>
-                                        <div>└─ profile/settings.tsx</div>
+                                        <div>└─ profile/settings.tsx <span class="text-gray-500">(BUG-159: 4 tabs)</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -837,7 +839,7 @@
                             <div><span class="text-green-400">POST</span> /auth/logout</div>
                             <div><span class="text-green-400">POST</span> /auth/google-signin</div>
                             <div><span class="text-green-400">POST</span> /auth/apple-signin</div>
-                            <div><span class="text-blue-400">GET</span> /auth/stream-chat-token</div>
+                            <div><span class="text-blue-400">GET</span> /ai-conversations/token <span class="text-gray-500">(BUG-164)</span></div>
                             <div><span class="text-green-400">POST</span> /auth/refresh</div>
                         </div>
                     </div>
@@ -877,9 +879,10 @@
 
                     <!-- Profile Endpoints -->
                     <div class="bg-gray-800 rounded-lg border border-orange-700 p-4">
-                        <div class="text-orange-400 font-medium mb-3">Profile</div>
+                        <div class="text-orange-400 font-medium mb-3">Profile <span class="text-yellow-400 text-xs">(BUG-156)</span></div>
                         <div class="code bg-gray-900 p-3 rounded text-xs space-y-1">
-                            <div><span class="text-blue-400">GET</span> /profile</div>
+                            <div><span class="text-blue-400">GET</span> /profile/get-profile <span class="text-gray-500">(not /users/me)</span></div>
+                            <div><span class="text-blue-400">GET</span> /profile/get-summary <span class="text-gray-500">(AI summary)</span></div>
                             <div><span class="text-yellow-400">PATCH</span> /profile</div>
                             <div><span class="text-green-400">POST</span> /profile/photo</div>
                         </div>
@@ -934,12 +937,8 @@
                     <div class="space-y-3">
                         <h3 class="text-red-400 font-medium">Auth Screens</h3>
                         <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
-                            <div class="text-white font-medium">login.tsx</div>
-                            <div class="text-gray-400 mt-1">Email + password form, Google/Apple OAuth buttons, forgot password link</div>
-                        </div>
-                        <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
-                            <div class="text-white font-medium">register.tsx</div>
-                            <div class="text-gray-400 mt-1">First name, last name, email, password with validation</div>
+                            <div class="text-white font-medium">login.tsx <span class="text-yellow-400">(BUG-163)</span></div>
+                            <div class="text-gray-400 mt-1">Single screen with Login/Signup tab toggle (no navigation animation). Google logo (BUG-161), Apple OAuth, forgot password link</div>
                         </div>
                         <div class="bg-gray-800 rounded border border-red-700 p-3 text-xs">
                             <div class="text-white font-medium">verify-email.tsx</div>
@@ -976,24 +975,24 @@
                     <div class="space-y-3">
                         <h3 class="text-green-400 font-medium">Main Tab Screens</h3>
                         <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
-                            <div class="text-white font-medium">index.tsx (Dashboard)</div>
-                            <div class="text-gray-400 mt-1">Welcome card, stats grid (matches, approved, pending), recent matches list, activity feed</div>
+                            <div class="text-white font-medium">index.tsx (Dashboard) <span class="text-yellow-400">(BUG-153)</span></div>
+                            <div class="text-gray-400 mt-1">Welcome card, stats grid, ALL matches with status badges (Approved/Passed), "Initiate AI Chat" for approved. Uses /dashboard/onboarding-matches (same as web)</div>
                         </div>
                         <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
-                            <div class="text-white font-medium">discover.tsx</div>
-                            <div class="text-gray-400 mt-1">Search input, filter chips (objectives, industries, urgency), anonymous profile cards, express interest button</div>
+                            <div class="text-white font-medium">discover.tsx <span class="text-yellow-400">(BUG-145-152)</span></div>
+                            <div class="text-gray-400 mt-1">Ionicons (not emojis), profile count badge, backend wrapper unwrap, freshness bar (green/yellow/gray), relative time, cleanProfileSummary(), aligned with web app</div>
                         </div>
                         <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
-                            <div class="text-white font-medium">matches.tsx</div>
-                            <div class="text-gray-400 mt-1">Tab bar (All/Pending/Approved/Declined), infinite scroll list, match cards with score</div>
+                            <div class="text-white font-medium">matches.tsx <span class="text-yellow-400">(BUG-141-143,154)</span></div>
+                            <div class="text-gray-400 mt-1">Tab bar with status_label filtering (handles spaces), match detail preserves cached user data on status update, hides buttons for already-decided matches</div>
                         </div>
                         <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
-                            <div class="text-white font-medium">messages.tsx</div>
-                            <div class="text-gray-400 mt-1">Stream Chat channel list, unread badges, presence indicators</div>
+                            <div class="text-white font-medium">messages.tsx (Inbox) <span class="text-yellow-400">(BUG-160)</span></div>
+                            <div class="text-gray-400 mt-1">Renamed to "Inbox" with count badge, Ionicons, empty state "When you connect with matches..." (matches web), no infinite spinner</div>
                         </div>
                         <div class="bg-gray-800 rounded border border-green-700 p-3 text-xs">
-                            <div class="text-white font-medium">profile.tsx</div>
-                            <div class="text-gray-400 mt-1">User info display, avatar, edit button, settings link, logout</div>
+                            <div class="text-white font-medium">profile.tsx <span class="text-yellow-400">(BUG-155-157)</span></div>
+                            <div class="text-gray-400 mt-1">Correct endpoints: /profile/get-profile + /profile/get-summary (BUG-156), Ionicons (BUG-157), collapsible AI Summary, visible Logout (BUG-155), Member Since, Role</div>
                         </div>
                     </div>
                 </div>
@@ -1003,8 +1002,8 @@
                     <h3 class="text-purple-400 font-medium mb-3">Detail Screens</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="bg-gray-800 rounded border border-purple-700 p-3 text-xs">
-                            <div class="text-white font-medium">match/[id].tsx</div>
-                            <div class="text-gray-400 mt-1">Full profile view (non-anonymous), AI match explanation (synergy areas, friction points, talking points), approve/decline buttons, message option</div>
+                            <div class="text-white font-medium">match/[id].tsx <span class="text-yellow-400">(BUG-142/143)</span></div>
+                            <div class="text-gray-400 mt-1">Full profile view, AI explanation, status-aware buttons (hide for decided matches), preserves cached user data on status update to avoid "UNKNOWN" display</div>
                         </div>
                         <div class="bg-gray-800 rounded border border-purple-700 p-3 text-xs">
                             <div class="text-white font-medium">chat/[id].tsx</div>
@@ -1035,9 +1034,9 @@
                             <div class="text-gray-400">Real-time messaging between matched users</div>
                             <div class="code bg-gray-900 p-2 rounded">
                                 <span class="text-gray-500">// Setup in StreamChatProvider.tsx</span><br>
-                                1. GET /auth/stream-chat-token<br>
+                                1. GET /ai-conversations/token (BUG-164)<br>
                                 2. Connect user to Stream<br>
-                                3. OverlayProvider for UI<br>
+                                3. bottom-sheet v5 (BUG-165)<br>
                                 4. Disconnect on logout
                             </div>
                         </div>
@@ -1157,6 +1156,30 @@
                             <div class="text-xs text-gray-400">Background</div>
                             <div class="text-xs text-white">#FFFFFF</div>
                             <div class="text-xs text-gray-500">App background</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Recent Bug Fixes -->
+                <div class="mt-6 bg-gray-800 rounded-lg border border-green-700 p-4">
+                    <div class="text-green-400 font-medium mb-3">Recent Bug Fixes (Mar 2026)</div>
+                    <div class="grid grid-cols-2 gap-4 text-xs">
+                        <div class="space-y-1 text-gray-400">
+                            <p>BUG-141: Filter by status_label for approved matches</p>
+                            <p>BUG-142/143: Fix match detail for approved matches</p>
+                            <p>BUG-145-149: Discover screen complete rework</p>
+                            <p>BUG-150/151: View profile modal + Member Since</p>
+                            <p>BUG-152: Ionicons for Discover, profile count</p>
+                            <p>BUG-153: Dashboard shows ALL matches with badges</p>
+                            <p>BUG-154: status_label with spaces handling</p>
+                        </div>
+                        <div class="space-y-1 text-gray-400">
+                            <p>BUG-155: Visible Logout option in Profile</p>
+                            <p>BUG-156: Correct /profile/get-profile endpoint</p>
+                            <p>BUG-157: Ionicons + collapsible AI Summary</p>
+                            <p>BUG-158/159: Settings rewritten to match web</p>
+                            <p>BUG-160: Inbox header, no infinite spinner</p>
+                            <p>BUG-161-163: Merged Login/Signup, Google logo</p>
+                            <p>BUG-164/165: Stream Chat token + bottom-sheet v5</p>
                         </div>
                     </div>
                 </div>
