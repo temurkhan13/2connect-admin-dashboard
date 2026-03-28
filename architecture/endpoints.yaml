@@ -89,7 +89,7 @@ onboarding:
       proxies_to: ai_service:/onboarding/chat
       connects_to:
         - redis (session state)
-        - claude_haiku (slot extraction)
+        - claude-sonnet-4-5 (slot extraction)
         - supabase.user_profiles (slot update)
       request: { session_id, message }
       response: { ai_response, progress, slots_filled, is_complete }
@@ -112,7 +112,7 @@ onboarding:
       proxies_to: ai_service:/onboarding/complete
       connects_to:
         - supabase.user_profiles (finalize persona)
-        - openai_embeddings (generate 6 vectors)
+        - openai_embeddings (generate 15+ vectors via Celery)
         - supabase.user_embeddings (store vectors)
         - inline_matching (trigger match generation)
         - supabase.user_match_cache (store matches)
@@ -120,6 +120,31 @@ onboarding:
       request: { user_id, session_id, persona_approved }
       response: { success, matches_count }
       notes: "CRITICAL - triggers entire matching pipeline"
+
+    - id: onboarding_finalize
+      path: /onboarding/finalize/{session_id}
+      method: POST
+      service: ai_service
+      connects_to:
+        - supabase.user_profiles (finalize persona)
+      notes: "Called after persona approval"
+
+    - id: onboarding_slots
+      path: /onboarding/slots/{session_id}
+      method: GET
+      service: ai_service
+      connects_to:
+        - redis (session slots)
+
+    - id: approve_summary
+      path: /user/approve-summary
+      method: POST
+      service: ai_service
+      connects_to:
+        - celery (trigger embedding generation + matching)
+        - openai_embeddings
+        - supabase.user_embeddings
+      notes: "Called after user approves persona. Triggers async embedding + matching pipeline."
 
     # --- Legacy Onboarding ---
     - id: onboarding_sections
@@ -143,7 +168,7 @@ onboarding:
       proxies_to: ai_service:/onboarding/upload-resume
       connects_to:
         - s3 (file storage)
-        - claude_haiku (resume parsing)
+        - claude-sonnet-4-5 (resume parsing)
 
 # =============================================================================
 # SECTION: MATCHING
@@ -178,7 +203,7 @@ matching:
       service: backend
       proxies_to: ai_service:/match/explanation
       connects_to:
-        - claude_haiku (generate explanation)
+        - claude-sonnet-4-5 (generate explanation)
       response: { explanation, compatibility_points }
 
     - id: ice_breakers
@@ -187,7 +212,7 @@ matching:
       service: backend
       proxies_to: ai_service:/match/ice-breakers
       connects_to:
-        - claude_haiku (generate ice breakers)
+        - claude-sonnet-4-5 (generate ice breakers)
       response: { ice_breakers: [string] }
 
     - id: list_matches
@@ -209,14 +234,43 @@ matching:
 
   # --- AI Service Internal Matching ---
   ai_matching:
+    - id: get_user_matches
+      path: /matching/{user_id}/matches
+      method: GET
+      service: ai_service
+      connects_to:
+        - supabase.user_match_cache (read cached matches)
+
+    - id: requirements_matches
+      path: /matching/{user_id}/requirements-matches
+      method: GET
+      service: ai_service
+      connects_to:
+        - supabase.user_embeddings (forward vector search)
+
+    - id: offerings_matches
+      path: /matching/{user_id}/offerings-matches
+      method: GET
+      service: ai_service
+      connects_to:
+        - supabase.user_embeddings (reverse vector search)
+
     - id: multi_vector_matches
       path: /matching/{user_id}/multi-vector-matches
       method: GET
       service: ai_service
       connects_to:
         - supabase.user_embeddings (vector search)
-        - multi_vector_matcher (7-step algorithm)
-      notes: "Industry 25%, Stage 20%, Goal 20%, Geography 15%, Engagement 10%, Dealbreakers 10%"
+        - multi_vector_matcher
+      notes: "6-vector base score, then hybrid scoring with 15 dimensions"
+
+    - id: matching_stats
+      path: /matching/stats
+      method: GET
+      service: ai_service
+      connects_to:
+        - supabase.user_embeddings (count)
+        - supabase.user_match_cache (count)
 
     - id: inline_matching
       path: internal
@@ -225,7 +279,7 @@ matching:
       connects_to:
         - supabase.user_embeddings
         - supabase.user_match_cache
-      notes: "Runs IMMEDIATELY on onboarding completion, not cron"
+      notes: "Runs IMMEDIATELY on onboarding completion. Additive weighted formula + tiered sorting."
 
 # =============================================================================
 # SECTION: DASHBOARD
@@ -345,6 +399,35 @@ admin:
         - openai_embeddings
         - supabase.user_embeddings
 
+    - id: regenerate_matches
+      path: /admin/regenerate-matches
+      method: POST
+      service: ai_service
+      connects_to:
+        - inline_matching_service (recalculate)
+        - supabase.user_match_cache (store)
+        - backend /webhooks/matches-ready (sync)
+      request: { admin_key, user_id, threshold? }
+      notes: "Single user rematch. Synchronous — may timeout on Render."
+
+    - id: regenerate_all_matches
+      path: /admin/regenerate-all-matches
+      method: POST
+      service: ai_service
+      connects_to:
+        - inline_matching_service (batch recalculate)
+        - supabase.user_match_cache
+      request: { admin_key, threshold?, dry_run? }
+      notes: "Batch rematch ALL completed users. May timeout — use rematch_local.py instead."
+
+    - id: regenerate_embeddings_sync
+      path: /admin/regenerate-embeddings-sync
+      method: POST
+      service: ai_service
+      connects_to:
+        - openai_embeddings (synchronous)
+        - supabase.user_embeddings
+
     - id: clear_resync_matches
       path: /admin/clear-and-resync-matches
       method: POST
@@ -352,3 +435,105 @@ admin:
       connects_to:
         - supabase.user_match_cache (clear)
         - inline_matching (regenerate all)
+        - backend /webhooks/matches-ready (sync)
+
+    - id: sync_matches_dynamodb
+      path: /admin/sync-matches-from-dynamodb
+      method: POST
+      service: ai_service
+      notes: "Legacy — reads from DynamoDB match cache and syncs to backend"
+
+    - id: hard_delete_user
+      path: /admin/hard-delete-user/{user_id}
+      method: DELETE
+      service: ai_service
+      connects_to:
+        - supabase.user_profiles (DELETE)
+        - supabase.user_embeddings (DELETE)
+        - supabase.user_match_cache (DELETE)
+        - supabase.onboarding_answers (DELETE)
+
+    - id: user_diagnostics
+      path: /admin/user-diagnostics
+      method: GET
+      service: ai_service
+      connects_to:
+        - supabase.user_profiles
+        - supabase.user_embeddings
+        - supabase.user_match_cache
+
+    - id: recover_user
+      path: /admin/recover-user/{user_id}
+      method: POST
+      service: ai_service
+      notes: "Re-runs persona generation and embedding pipeline for broken users"
+
+    - id: verify_test_users
+      path: /admin/verify-test-users
+      method: POST
+      service: ai_service
+
+    - id: scheduled_matchmaking
+      path: /user/run-scheduled-matchmaking
+      method: GET
+      service: ai_service
+      connects_to:
+        - celery (async task)
+        - supabase.user_profiles (needs_matchmaking=true)
+      notes: "Triggers Celery task for users with needs_matchmaking flag"
+
+    # --- Feedback AI Endpoints ---
+    - id: feedback_dimensions
+      path: /feedback/dimensions
+      method: POST
+      service: ai_service
+      connects_to:
+        - supabase.match_feedback
+
+    - id: feedback_analytics
+      path: /feedback/analytics
+      method: GET
+      service: ai_service
+
+    - id: feedback_recommendations
+      path: /feedback/recommendations
+      method: GET
+      service: ai_service
+
+    - id: feedback_close_loop
+      path: /feedback/close-loop
+      method: POST
+      service: ai_service
+      connects_to:
+        - feedback_embedding_adjuster
+
+    - id: feedback_user
+      path: /feedback/user/{user_id}
+      method: GET
+      service: ai_service
+
+    - id: feedback_health
+      path: /feedback/admin/health
+      method: GET
+      service: ai_service
+
+    # --- Templates & Prediction ---
+    - id: get_objectives
+      path: /templates/objectives
+      method: GET
+      service: ai_service
+      notes: "Returns all 10 objective types for onboarding"
+
+    - id: predict_answer
+      path: /predict-answer
+      method: POST
+      service: ai_service
+      connects_to:
+        - claude-sonnet-4-5
+
+    - id: modify_question
+      path: /modify-question
+      method: POST
+      service: ai_service
+      connects_to:
+        - claude-sonnet-4-5
