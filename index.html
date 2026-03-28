@@ -324,7 +324,7 @@
             <!-- Multi-Vector Summary -->
             <div class="grid grid-cols-3 gap-4 mb-6">
                 <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
-                    <p class="text-purple-400 text-sm">Multi-Vector Complete (6/6)</p>
+                    <p class="text-purple-400 text-sm">Embeddings Complete (6+)</p>
                     <p id="mvComplete" class="text-2xl font-bold text-purple-300">-</p>
                 </div>
                 <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
@@ -1730,7 +1730,7 @@
             // Recalculate stats from cached data
             const summary = {
                 total_users: users.length,
-                with_multi_vector: users.filter(u => u.embeddings?.multi_vector_complete === 6).length,
+                with_multi_vector: users.filter(u => u.embeddings?.multi_vector_complete >= 6).length,
                 with_basic_embeddings: users.filter(u => u.embeddings?.has_basic).length,
                 with_matches: users.filter(u => u.matches?.backend_count > 0).length,
                 intent_breakdown: {}
@@ -1802,7 +1802,7 @@
                     <td class="px-4 py-3">
                         <div class="flex flex-col gap-1">
                             <span class="px-2 py-0.5 rounded text-xs ${hasBasic ? 'bg-green-600' : 'bg-red-600'}">${hasBasic ? 'Basic' : 'None'}</span>
-                            <span class="px-2 py-0.5 rounded text-xs ${hasMV ? 'bg-purple-600' : 'bg-gray-600'}">MV: ${emb.multi_vector_complete || 0}/${emb.multi_vector_total || 6}</span>
+                            <span class="px-2 py-0.5 rounded text-xs ${hasMV ? 'bg-purple-600' : 'bg-gray-600'}">Emb: ${emb.count || emb.multi_vector_complete || 0}</span>
                         </div>
                     </td>
                     <td class="px-4 py-3">
