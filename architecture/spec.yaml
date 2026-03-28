@@ -116,45 +116,119 @@ onboarding:
     trigger: user_type is "Recruiter"
 
 matching:
-  # Threshold for creating a match
-  # Code location: app/services/inline_matching_service.py:72
+  # Updated: March 28, 2026 — Additive weighted formula with tiered sorting
+  # Code location: app/services/inline_matching_service.py, enhanced_matching_service.py
+
   SIMILARITY_THRESHOLD: 0.5  # Minimum score to create match
-  STRONG_THRESHOLD: 0.7  # High-quality match tier
-  WORTH_EXPLORING_THRESHOLD: 0.55  # Medium match tier
+  STRONG_THRESHOLD: 0.75  # High-quality match tier
+  WORTH_EXPLORING_THRESHOLD: 0.60  # Medium match tier
 
-  # Multi-vector weights (must sum to 1.0)
-  # 6 separate embeddings generated per user via OpenAI text-embedding-3-small
-  # Code location: app/services/multi_vector_matcher.py
-  EMBEDDING_WEIGHTS:
-    industry: 0.25
-    stage: 0.20
-    primary_goal: 0.20
-    geography: 0.15
-    engagement: 0.10
-    dealbreakers: 0.10
+  # Scoring components (additive weighted, sum = 0.85, plus intent additive 0.15)
+  # Code location: app/services/inline_matching_service.py, enhanced_matching_service.py
+  SCORE_WEIGHTS:
+    core_score: 0.40       # Bidirectional: geometric mean of forward x reverse
+    dimension_score: 0.35  # Dimensional alignment across 15 embedding types
+    signal_score: 0.10     # Activity (60%, clamped 0.7-1.0) + temporal (40%, clamped 0.8-1.0)
+    intent_additive: 0.15  # intent_quality × 0.15 added on top of base
 
-  # Scoring formula
-  # Code location: app/services/inline_matching_service.py
+  # Dimensional embedding weights (for dimension_score)
+  # 15 embedding types used. Weights are intent-dependent via IntentScoringConfig.
+  # industry_combined weight = config.industry_match_weight × 2.0 (varies 2.0-4.0 by intent)
+  # stage_combined weight = config.stage_match_weight (varies 0.5-3.0 by intent)
+  # All other dimensions default to weight 1.0
+  # Code location: enhanced_matching_service.py:940-990
+  DIMENSION_TYPES:
+    - industry_combined    # weight: intent-dependent (2.0-4.0)
+    - stage_combined       # weight: intent-dependent (0.5-3.0)
+    - skills_combined      # weight: 1.0
+    - culture_combined     # weight: 0.5
+    - traction_combined    # weight: 1.0
+    - market_combined      # weight: 1.0
+    - team_combined        # weight: 1.0
+    - funding_combined     # weight: 1.0
+    - check_size_combined  # weight: 1.0
+    - portfolio_combined   # weight: 1.0
+    - thesis_combined      # weight: 1.0
+    - focus_slot_industry  # weight: 1.0
+    - focus_slot_stage     # weight: 1.0
+    - focus_slot_geography # weight: 1.0
+    - focus_slot_engagement_style  # weight: 1.0
+
+  # Scoring formula (4 phases)
+  # Code location: app/services/inline_matching_service.py, enhanced_matching_service.py
   FORMULA: |
-    FINAL = BASE_SCORE
-          × (0.7 + 0.3 × intent_quality)
-          × bidirectional_factor
-          × (0.9 + 0.1 × activity_boost)
-          × (0.95 + 0.05 × temporal_boost)
+    Phase 1 — Base Score:
+      base_total = core_score × 0.40 + dimension_score × 0.35 + signal_score × 0.10
 
-  # Intent complementarity scores
+    Phase 2 — Intent Multiplier:
+      if intent_quality < 0.50:
+        final = base_total × (intent_quality / 0.50) + intent_quality × 0.15   # Crush bad pairs
+      elif intent_quality >= 0.95:
+        final = base_total × 1.15 + intent_quality × 0.15                      # Boost perfect pairs
+      else:
+        final = base_total + intent_quality × 0.15                              # Standard additive
+
+    Phase 3 — Ceiling + Spread:
+      final = final ^ 0.85                    # Power scaling for score spread
+      final = min(final, intent_quality)       # Score can NEVER exceed intent quality
+
+    Phase 4 — Tiered Ranking (transactional intents only):
+      For founder_investor, investor_founder, talent_seeking, opportunity_seeking:
+        Perfect matches (IQ >= 0.95) ALWAYS rank above non-perfect matches
+        Within each tier, ranked by score
+
+  # Intent complementarity scores (40+ pairs)
+  # Code location: enhanced_matching_service.py:778-867, inline_matching_service.py:1001-1091
   INTENT_PAIRS:
-    INVESTOR_FOUNDER: 1.0
-    MENTOR_MENTEE: 1.0
-    TALENT_SEEKING_OPPORTUNITY_SEEKING: 1.0
-    RECRUITER_JOB_SEEKER: 1.0
-    COFOUNDER_COFOUNDER: 0.8
-    PARTNERSHIP_PARTNERSHIP: 0.85
-    SAME_OBJECTIVE: 0.3  # e.g., INVESTOR_INVESTOR
+    # Perfect complementary (1.0) — opposite sides of a transaction
+    INVESTOR_FOUNDER <> FOUNDER_INVESTOR: 1.0
+    MENTOR_MENTEE <> MENTEE_MENTOR: 1.0
+    TALENT_SEEKING <> OPPORTUNITY_SEEKING: 1.0
+    RECRUITER <> TALENT_SEEKING: 0.95
+    RECRUITER <> OPPORTUNITY_SEEKING: 0.90
+
+    # Strong complementary (0.80-0.90)
+    SERVICE_PROVIDER <> FOUNDER_INVESTOR: 0.85   # Consultants serve founders
+    PARTNERSHIP <> PARTNERSHIP: 0.85              # B2B partner match
+    PARTNERSHIP <> SERVICE_PROVIDER: 0.80         # Natural partners
+    COFOUNDER <> COFOUNDER: 0.90                  # Both seeking co-founders
+    TALENT_SEEKING <> INVESTOR_FOUNDER: 0.75      # Score=0.75 but HARD-BLOCKED (block takes precedence)
+
+    # Moderate (0.50-0.70)
+    SERVICE_PROVIDER <> TALENT_SEEKING: 0.70      # Staffing/HR consultants
+    PARTNERSHIP <> FOUNDER_INVESTOR: 0.65         # Distribution/channel partners
+    PARTNERSHIP <> INVESTOR_FOUNDER: 0.60         # Strategic partnerships
+    PARTNERSHIP <> TALENT_SEEKING: 0.55           # Agency/vendor partners
+    COFOUNDER <> MENTOR_MENTEE: 0.60
+    COFOUNDER <> SERVICE_PROVIDER: 0.50
+    SERVICE_PROVIDER <> SERVICE_PROVIDER: 0.50    # Referral network
+    PARTNERSHIP <> MENTOR_MENTEE: 0.50
+    OPPORTUNITY_SEEKING <> MENTOR_MENTEE: 0.50
+    COFOUNDER <> OPPORTUNITY_SEEKING: 0.45
+    COFOUNDER <> INVESTOR_FOUNDER: 0.40
+    FOUNDER_INVESTOR <> TALENT_SEEKING: 0.45
+    OPPORTUNITY_SEEKING <> FOUNDER_INVESTOR: 0.35
+    OPPORTUNITY_SEEKING <> INVESTOR_FOUNDER: 0.30
+    OPPORTUNITY_SEEKING <> SERVICE_PROVIDER: 0.30
+    OPPORTUNITY_SEEKING <> PARTNERSHIP: 0.25
+    OPPORTUNITY_SEEKING <> MENTEE_MENTOR: 0.15    # Near-blocked: two needy users
+    GENERAL <> any: 0.40-0.50                      # Weak signal across all pairs
+    RECRUITER <> RECRUITER: 0.60
+
+    # Blocked (hard-filtered before scoring)
+    SAME_OBJECTIVE: blocked                       # investor<>investor, founder<>founder, etc.
+    INVESTOR <> SERVICE_PROVIDER: blocked          # Investors should only see founders
+    INVESTOR <> PARTNERSHIP: blocked
+    INVESTOR <> GENERAL: blocked
+    INVESTOR <> TALENT_SEEKING: blocked            # Despite IQ=0.75, hard block takes precedence
+    MENTEE <> OPPORTUNITY_SEEKING: blocked          # Two people needing help, neither can serve
+    DEFAULT_UNKNOWN: 0.35                          # Unknown pairs get weak score
 
   # Filters
   BLOCK_SAME_OBJECTIVE: true
+  BLOCK_INVESTOR_NON_FOUNDER: true  # Investors only see founders in their list
   ENFORCE_DEALBREAKERS: true
+  ASYMMETRY_PENALTY: true  # |forward - reverse| > 0.15 reduces core_score up to 30%
 
   # Storage
   MAX_MATCHES_PER_USER: 50

@@ -1,5 +1,5 @@
 # 2Connect Platform Architecture Schema
-# Last Updated: 2026-03-13
+# Last Updated: 2026-03-28
 # This file is the source of truth for the architecture dashboard
 # Note: DynamoDB migrated to Supabase on 2026-03-09
 # Note: Haiku→Sonnet upgrade in BUG-055, separated services in BUG-071
@@ -8,7 +8,7 @@ meta:
   name: 2Connect
   description: AI-powered professional networking platform
   version: "1.0"
-  updated: "2026-03-05"
+  updated: "2026-03-28"
 
 services:
   frontend:
@@ -85,11 +85,14 @@ external_services:
 ai_models:
   claude_sonnet:
     name: Claude Sonnet 4.5
+    model_id: claude-sonnet-4-5-20250929
     provider: Anthropic
     note: "Upgraded from Haiku in BUG-055 for better accuracy"
     used_for:
       - Slot extraction (ONLY extraction, BUG-071)
       - Question generation (separate service, BUG-071)
+      - Persona generation
+      - Match explanations
     locations:
       extraction: app/services/llm_slot_extractor.py
       question_gen: app/services/llm_question_generator.py
