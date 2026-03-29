@@ -630,7 +630,11 @@
                         <span class="text-xs bg-green-600/30 text-green-400 px-2 py-1 rounded">INLINE (Event-Based)</span>
                     </div>
 
-                    <p class="text-gray-400 text-sm mb-4">Runs IMMEDIATELY when user completes onboarding. Not a cron job.</p>
+                    <p class="text-gray-400 text-sm mb-4">Runs IMMEDIATELY when user completes onboarding. Clears <code class="text-yellow-400">needs_matchmaking</code> flag after completion.</p>
+                    <div class="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3 mb-4">
+                        <p class="text-amber-400 text-xs font-semibold mb-1">Scheduled Cron (Safety Net Only)</p>
+                        <p class="text-gray-400 text-xs">Daily at 3:00 AM UTC — catches admin imports, embedding changes, and edge cases where inline matching didn't fire. Should process ~0 users normally since inline matching clears the flag. Celery runs in EAGER mode (synchronous in uvicorn thread).</p>
+                    </div>
 
                     <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
                         <p class="text-gray-500 mb-2">// Additive weighted formula (March 2026):</p>
@@ -1270,7 +1274,7 @@
             'frontend': 'React frontend deployed on Vercel. Provides the user interface for onboarding, matching, and chat.',
             'supabase_database': 'Supabase PostgreSQL database storing user accounts, matches, messages, and application data.',
             'render_database': 'Render PostgreSQL database with pgvector extension. Stores embeddings for vector similarity search.',
-            'cronjobs_redis': 'Redis for Celery task queue. Powers background jobs like scheduled matching and embedding generation.',
+            'cronjobs_redis': 'Redis for Celery task queue (runs in EAGER mode — tasks execute synchronously). Scheduled matching cron runs daily at 3 AM UTC as safety net only. Primary matching is inline (event-based).',
 
             // Onboarding
             'slot_extractor': 'LLM-powered slot extraction that parses user responses during onboarding into structured data (industry, goals, requirements, offerings). Uses AI to understand natural language.',
