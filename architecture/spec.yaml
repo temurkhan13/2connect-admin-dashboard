@@ -179,11 +179,18 @@ matching:
     - focus_slot_geography # weight: 1.0
     - focus_slot_engagement_style  # weight: 1.0
 
-  # Scoring formula (4 phases)
+  # Scoring formula (5 phases)
   # Code location: app/services/inline_matching_service.py, enhanced_matching_service.py
+  # Updated: March 29, 2026 — Added mentorship seniority bonus + softened ceiling
   FORMULA: |
     Phase 1 — Base Score:
       base_total = core_score × 0.40 + dimension_score × 0.35 + signal_score × 0.10
+
+    Phase 1b — Mentorship Seniority Bonus (mentee_mentor / mentor_mentee only):
+      If match has VP/Director/C-level designation → base_total × 1.30
+      If match has Senior/Lead/Manager/Founder designation → base_total × 1.15
+      Otherwise → no bonus (1.0)
+      Purpose: Senior professionals rank higher as mentor candidates
 
     Phase 2 — Intent Multiplier:
       if intent_quality < 0.50:
@@ -195,12 +202,25 @@ matching:
 
     Phase 3 — Ceiling + Spread:
       final = final ^ 0.85                    # Power scaling for score spread
-      final = min(final, intent_quality)       # Score can NEVER exceed intent quality
+      For mentorship intents (softened ceiling):
+        hard_ceiling = min(final, intent_quality)
+        soft_ceiling = intent_quality × 0.60 + base_total × 0.40
+        final = max(hard_ceiling, min(final, soft_ceiling))
+      For all other intents (hard ceiling):
+        final = min(final, intent_quality)       # Score can NEVER exceed intent quality
 
     Phase 4 — Tiered Ranking (transactional intents only):
       For founder_investor, investor_founder, talent_seeking, opportunity_seeking:
         Perfect matches (IQ >= 0.95) ALWAYS rank above non-perfect matches
         Within each tier, ranked by score
+
+  # Mentorship-specific blocked pairs (March 29, 2026)
+  # Mentees should NOT be matched with co-founder seekers or partnership seekers
+  MENTORSHIP_BLOCKED_PAIRS:
+    - mentee_mentor ↔ cofounder      # Mentee doesn't need a co-founder
+    - mentor_mentee ↔ cofounder      # Same
+    - mentee_mentor ↔ partnership    # B2B partnerships are not mentorship
+    - mentor_mentee ↔ partnership    # Same
 
   # Intent complementarity scores (40+ pairs)
   # Code location: enhanced_matching_service.py:778-867, inline_matching_service.py:1001-1091
