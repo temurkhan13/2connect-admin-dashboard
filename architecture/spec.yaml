@@ -116,8 +116,33 @@ onboarding:
     trigger: user_type is "Recruiter"
 
 matching:
-  # Updated: March 28, 2026 — Additive weighted formula with tiered sorting
+  # Updated: March 29, 2026 — Additive weighted formula with tiered sorting + scheduling fix
   # Code location: app/services/inline_matching_service.py, enhanced_matching_service.py
+
+  # Matching Trigger Architecture (March 29, 2026 fix)
+  # -------------------------------------------------
+  # Primary: Inline matching runs IMMEDIATELY after onboarding completion
+  #   - Triggered by ThreadPoolExecutor in persona generation
+  #   - Clears needs_matchmaking flag after completion (prevents cron pileup)
+  #   - Code: inline_matching_service.py — clears needs_matchmaking = "false" after match run
+  #
+  # Secondary: Scheduled cron (safety net only)
+  #   - Runs daily at 3:00 AM UTC (changed from every 4 hours on March 29, 2026)
+  #   - Cron expression: '0 0 3 * * *'
+  #   - Only processes users with needs_matchmaking=true (should be near-zero after inline fix)
+  #   - Purpose: catch admin imports, embedding changes, edge cases where inline didn't fire
+  #   - Code: scheduler.service.ts (NestJS backend)
+  #   - Calls: AI service /user/run-scheduled-matchmaking endpoint
+  #
+  # WARNING: Celery runs in EAGER mode (CELERY_TASK_ALWAYS_EAGER=true)
+  #   - All "async" tasks actually run synchronously in the uvicorn thread
+  #   - If cron picks up 100+ users, it blocks the AI service for minutes
+  #   - This is WHY inline matching must clear the flag — to prevent accumulation
+  #
+  # needs_matchmaking flag lifecycle:
+  #   SET to "true"  → during onboarding when profile is created
+  #   SET to "false" → by inline_matching_service after successful match run
+  #   READ           → by scheduled cron to find users needing matching
 
   SIMILARITY_THRESHOLD: 0.5  # Minimum score to create match
   STRONG_THRESHOLD: 0.75  # High-quality match tier

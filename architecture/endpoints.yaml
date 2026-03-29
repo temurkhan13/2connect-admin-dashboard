@@ -478,9 +478,15 @@ admin:
       method: GET
       service: ai_service
       connects_to:
-        - celery (async task)
+        - celery (async task, BUT runs synchronously due to CELERY_TASK_ALWAYS_EAGER=true)
         - supabase.user_profiles (needs_matchmaking=true)
-      notes: "Triggers Celery task for users with needs_matchmaking flag"
+      notes: |
+        Safety-net cron — runs daily at 3:00 AM UTC (scheduler.service.ts).
+        Changed from every 4 hours on 2026-03-29 to prevent AI service blocking.
+        Inline matching now clears needs_matchmaking after completion, so this
+        endpoint should typically process 0 users. Only catches edge cases
+        (admin imports, embedding regeneration, inline matching failures).
+        WARNING: Celery EAGER mode means this runs synchronously in uvicorn thread.
 
     # --- Feedback AI Endpoints ---
     - id: feedback_dimensions

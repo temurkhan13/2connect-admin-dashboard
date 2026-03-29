@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Last Updated: 2026-03-24 | Reflects: BUG-027-133, push notifications (Redis events + Service Worker), slot restoration from Supabase (BUG-098/100), Sonnet 4.5 upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, 10 ObjectiveTypes, DynamoDB→Supabase migration -->
+<!-- Last Updated: 2026-03-29 | Reflects: BUG-027-133, push notifications (Redis events + Service Worker), slot restoration from Supabase (BUG-098/100), Sonnet 4.5 upgrade, separated extraction/question services, progressive disclosure MAX 3 slots/turn, 10 ObjectiveTypes, DynamoDB→Supabase migration, inline matching clears needs_matchmaking flag, scheduled cron reduced to daily 3AM UTC safety net -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -814,6 +814,7 @@
                                             <span class="text-cyan-400">⟳</span> Generate 6-vector embeddings<br>
                                             <span class="text-cyan-400">⟳</span> Generate 2 basic embeddings<br>
                                             <span class="text-cyan-400">⟳</span> Run inline matching<br>
+                                            <span class="text-cyan-400">⟳</span> Clear needs_matchmaking flag<br>
                                             <span class="text-cyan-400">⟳</span> Generate persona summary
                                         </div>
                                     </div>
