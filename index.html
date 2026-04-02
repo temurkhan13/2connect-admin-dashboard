@@ -1137,70 +1137,184 @@
         <!-- Match Analytics Tab -->
         <div id="page-analytics" class="tab-content hidden">
             <div class="bg-gray-800 rounded-xl p-6">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold">Match Analytics</h2>
                     <button onclick="loadMatchAnalytics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
                 </div>
 
-                <!-- Funnel Cards -->
-                <div id="analytics-funnel" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-white" id="funnel-total">-</div>
-                        <div class="text-xs text-gray-400">Total Matches</div>
+                <!-- Sub-tabs -->
+                <div class="flex gap-1 mb-6 border-b border-gray-700 pb-0">
+                    <button onclick="switchAnalyticsSubTab('funnel')" id="atab-funnel" class="px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-400">Funnel</button>
+                    <button onclick="switchAnalyticsSubTab('engagement')" id="atab-engagement" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200">Engagement</button>
+                    <button onclick="switchAnalyticsSubTab('conversations')" id="atab-conversations" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200">Conversations</button>
+                    <button onclick="switchAnalyticsSubTab('retention')" id="atab-retention" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200">Retention</button>
+                </div>
+
+                <!-- SUB-TAB: Funnel -->
+                <div id="analytics-sub-funnel" class="analytics-subtab">
+                    <!-- Funnel Cards -->
+                    <div id="analytics-funnel" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-white" id="funnel-total">-</div>
+                            <div class="text-xs text-gray-400">Total Matches</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-400" id="funnel-pending">-</div>
+                            <div class="text-xs text-gray-400">Pending</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-400" id="funnel-approved">-</div>
+                            <div class="text-xs text-gray-400">Approved</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-red-400" id="funnel-declined">-</div>
+                            <div class="text-xs text-gray-400">Declined</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-400" id="funnel-messaged">-</div>
+                            <div class="text-xs text-gray-400">Messaged</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-yellow-400" id="funnel-stale">-</div>
+                            <div class="text-xs text-gray-400">Stale (14d+)</div>
+                        </div>
                     </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-blue-400" id="funnel-pending">-</div>
-                        <div class="text-xs text-gray-400">Pending</div>
+
+                    <!-- Score vs Reality -->
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Score vs Reality</h3>
+                        <div id="score-reality" class="grid grid-cols-4 gap-3"></div>
                     </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-green-400" id="funnel-approved">-</div>
-                        <div class="text-xs text-gray-400">Approved</div>
-                    </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-red-400" id="funnel-declined">-</div>
-                        <div class="text-xs text-gray-400">Declined</div>
-                    </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-purple-400" id="funnel-messaged">-</div>
-                        <div class="text-xs text-gray-400">Messaged</div>
-                    </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-yellow-400" id="funnel-stale">-</div>
-                        <div class="text-xs text-gray-400">Stale (14d+)</div>
+
+                    <!-- Per-User Table -->
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Per-User Match Behavior</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-gray-700 text-left text-gray-400">
+                                        <th class="py-3 px-2">User</th>
+                                        <th class="py-3 px-2 text-center">Matches</th>
+                                        <th class="py-3 px-2 text-center">Approved</th>
+                                        <th class="py-3 px-2 text-center">Passed</th>
+                                        <th class="py-3 px-2 text-center">Pending</th>
+                                        <th class="py-3 px-2 text-center">Messaged</th>
+                                        <th class="py-3 px-2 text-center">Approval %</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analytics-user-table">
+                                    <tr><td colspan="7" class="py-8 text-center text-gray-500">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Score vs Reality -->
-                <div class="mb-6">
-                    <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Score vs Reality</h3>
-                    <div id="score-reality" class="grid grid-cols-4 gap-3"></div>
-                </div>
+                <!-- SUB-TAB: Engagement -->
+                <div id="analytics-sub-engagement" class="analytics-subtab hidden">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-cyan-400" id="eng-card-views">-</div>
+                            <div class="text-xs text-gray-400">Card Views</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-indigo-400" id="eng-explanations">-</div>
+                            <div class="text-xs text-gray-400">Explanations Opened</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-teal-400" id="eng-icebreakers">-</div>
+                            <div class="text-xs text-gray-400">Ice-Breakers Used</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-amber-400" id="eng-avg-dwell">-</div>
+                            <div class="text-xs text-gray-400">Avg Dwell Time</div>
+                        </div>
+                    </div>
 
-                <!-- Per-User Table -->
-                <div class="mb-6">
-                    <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Per-User Match Behavior</h3>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead>
-                                <tr class="border-b border-gray-700 text-left text-gray-400">
-                                    <th class="py-3 px-2">User</th>
-                                    <th class="py-3 px-2 text-center">Matches</th>
-                                    <th class="py-3 px-2 text-center">Approved</th>
-                                    <th class="py-3 px-2 text-center">Passed</th>
-                                    <th class="py-3 px-2 text-center">Pending</th>
-                                    <th class="py-3 px-2 text-center">Messaged</th>
-                                    <th class="py-3 px-2 text-center">Approval %</th>
-                                </tr>
-                            </thead>
-                            <tbody id="analytics-user-table">
-                                <tr><td colspan="7" class="py-8 text-center text-gray-500">Loading...</td></tr>
-                            </tbody>
-                        </table>
+                    <div class="mb-6">
+                        <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Decline Reasons</h3>
+                        <div id="eng-decline-reasons" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="col-span-4 text-gray-500 text-sm py-4 text-center">Data collecting — will populate as users interact</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-750/50 rounded-lg p-4 border border-gray-700/30">
+                        <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Events Being Tracked</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="text-xs bg-cyan-900/30 text-cyan-400 px-2 py-1 rounded">match_card_viewed</span>
+                            <span class="text-xs bg-indigo-900/30 text-indigo-400 px-2 py-1 rounded">match_card_expanded</span>
+                            <span class="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded">match_approve</span>
+                            <span class="text-xs bg-red-900/30 text-red-400 px-2 py-1 rounded">match_decline</span>
+                            <span class="text-xs bg-teal-900/30 text-teal-400 px-2 py-1 rounded">ice_breaker_clicked</span>
+                            <span class="text-xs bg-amber-900/30 text-amber-400 px-2 py-1 rounded">match_view (dwell)</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Phase Status -->
-                <div>
+                <!-- SUB-TAB: Conversations -->
+                <div id="analytics-sub-conversations" class="analytics-subtab hidden">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-400" id="conv-chats-opened">-</div>
+                            <div class="text-xs text-gray-400">Chats Opened</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-400" id="conv-messages-sent">-</div>
+                            <div class="text-xs text-gray-400">Messages Sent</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-orange-400" id="conv-ghosted">-</div>
+                            <div class="text-xs text-gray-400">Ghosted (7d+)</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-400" id="conv-avg-length">-</div>
+                            <div class="text-xs text-gray-400">Avg Msg Length</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-750/50 rounded-lg p-4 border border-gray-700/30">
+                        <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Events Being Tracked</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="text-xs bg-blue-900/30 text-blue-400 px-2 py-1 rounded">ai_chat_start (chat opened)</span>
+                            <span class="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded">message_sent</span>
+                            <span class="text-xs bg-orange-900/30 text-orange-400 px-2 py-1 rounded">ghosted detection (cron)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB: Retention -->
+                <div id="analytics-sub-retention" class="analytics-subtab hidden">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-400" id="ret-sessions">-</div>
+                            <div class="text-xs text-gray-400">Sessions (30d)</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-blue-400" id="ret-onboarded">-</div>
+                            <div class="text-xs text-gray-400">Onboarded</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-cyan-400" id="ret-web-sessions">-</div>
+                            <div class="text-xs text-gray-400">Web Sessions</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-purple-400" id="ret-mobile-sessions">-</div>
+                            <div class="text-xs text-gray-400">Mobile Sessions</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-750/50 rounded-lg p-4 border border-gray-700/30">
+                        <h4 class="text-xs font-semibold text-gray-400 uppercase mb-2">Events Being Tracked</h4>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="text-xs bg-green-900/30 text-green-400 px-2 py-1 rounded">session_start (web + mobile)</span>
+                            <span class="text-xs bg-blue-900/30 text-blue-400 px-2 py-1 rounded">onboarding_complete</span>
+                            <span class="text-xs bg-yellow-900/30 text-yellow-400 px-2 py-1 rounded">ignored detection (cron)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Phase Status (shown on all sub-tabs) -->
+                <div class="mt-6">
                     <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Matching Intelligence Phases</h3>
                     <div id="phase-status" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
                 </div>
@@ -2654,8 +2768,82 @@
                     </div>`;
                 }).join('');
 
+                // Load engagement sub-tab data from analytics events
+                loadEngagementData();
+                loadConversationData();
+                loadRetentionData();
+
             } catch (error) {
                 console.error('Failed to load match analytics:', error);
+            }
+        }
+
+        // Analytics sub-tab switcher
+        function switchAnalyticsSubTab(tab) {
+            document.querySelectorAll('.analytics-subtab').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`analytics-sub-${tab}`).classList.remove('hidden');
+            // Update tab buttons
+            ['funnel', 'engagement', 'conversations', 'retention'].forEach(t => {
+                const btn = document.getElementById(`atab-${t}`);
+                if (t === tab) {
+                    btn.className = 'px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-400';
+                } else {
+                    btn.className = 'px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200';
+                }
+            });
+        }
+
+        async function loadEngagementData() {
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-analytics`);
+                const data = await response.json();
+                const f = (data.result || data).funnel || {};
+                document.getElementById('eng-card-views').textContent = f.viewed || 0;
+                document.getElementById('eng-explanations').textContent = f.expanded || 0;
+                document.getElementById('eng-icebreakers').textContent = '-';
+                document.getElementById('eng-avg-dwell').textContent = '-';
+
+                // Decline reasons from feedback
+                const declineDiv = document.getElementById('eng-decline-reasons');
+                if (f.declined > 0) {
+                    declineDiv.innerHTML = `
+                        <div class="bg-gray-750 rounded-lg p-3 text-center">
+                            <div class="text-lg font-bold text-red-400">${f.declined}</div>
+                            <div class="text-xs text-gray-400">Total Declines</div>
+                        </div>
+                        <div class="col-span-3 text-gray-500 text-sm flex items-center px-3">Reason breakdown will appear as more users provide feedback</div>
+                    `;
+                }
+            } catch (e) {
+                console.error('Failed to load engagement data:', e);
+            }
+        }
+
+        async function loadConversationData() {
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-analytics`);
+                const data = await response.json();
+                const f = (data.result || data).funnel || {};
+                document.getElementById('conv-chats-opened').textContent = '-';
+                document.getElementById('conv-messages-sent').textContent = f.messaged || 0;
+                document.getElementById('conv-ghosted').textContent = f.ghosted || 0;
+                document.getElementById('conv-avg-length').textContent = '-';
+            } catch (e) {
+                console.error('Failed to load conversation data:', e);
+            }
+        }
+
+        async function loadRetentionData() {
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-analytics`);
+                const data = await response.json();
+                const f = (data.result || data).funnel || {};
+                document.getElementById('ret-sessions').textContent = '-';
+                document.getElementById('ret-onboarded').textContent = '-';
+                document.getElementById('ret-web-sessions').textContent = '-';
+                document.getElementById('ret-mobile-sessions').textContent = '-';
+            } catch (e) {
+                console.error('Failed to load retention data:', e);
             }
         }
     </script>
