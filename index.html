@@ -51,6 +51,9 @@
             <button onclick="switchTab('pipeline')" id="tab-pipeline" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 AI Pipeline
             </button>
+            <button onclick="switchTab('sessions')" id="tab-sessions" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                User Sessions
+            </button>
             <a href="architecture.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
                 <span>🌐</span> Web Architecture
             </a>
@@ -1062,8 +1065,75 @@
         </div>
     </div>
 
+        <!-- User Sessions Tab -->
+        <div id="page-sessions" class="tab-content hidden">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">User Sessions</h2>
+                    <div class="flex gap-3">
+                        <select id="sessions-platform-filter" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                            <option value="">All Platforms</option>
+                            <option value="web">Web</option>
+                            <option value="mobile-app">Mobile App</option>
+                            <option value="mobile-browser">Mobile Browser</option>
+                        </select>
+                        <select id="sessions-days-filter" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                        </select>
+                        <button onclick="loadSessions(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary Cards -->
+                <div id="sessions-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-white" id="stat-total-users">-</div>
+                        <div class="text-xs text-gray-400">Total Users</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-400" id="stat-web-users">-</div>
+                        <div class="text-xs text-gray-400">Web</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-green-400" id="stat-mobile-users">-</div>
+                        <div class="text-xs text-gray-400">Mobile App</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-400" id="stat-active-today">-</div>
+                        <div class="text-xs text-gray-400">Active Today</div>
+                    </div>
+                </div>
+
+                <!-- Sessions Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700 text-left text-gray-400">
+                                <th class="py-3 px-2">User</th>
+                                <th class="py-3 px-2">Platform</th>
+                                <th class="py-3 px-2">Device / OS</th>
+                                <th class="py-3 px-2">Location</th>
+                                <th class="py-3 px-2">Timezone</th>
+                                <th class="py-3 px-2">Last Active</th>
+                                <th class="py-3 px-2">Sessions</th>
+                                <th class="py-3 px-2">Events</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sessions-table-body">
+                            <tr><td colspan="8" class="py-8 text-center text-gray-500">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     <script>
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
+        const BACKEND_BASE = 'https://twoconnectv1-backend.onrender.com/api/v1';
         const ADMIN_BASE = 'https://twoconnectv1-ai.onrender.com'; // Admin endpoints at root
         const ADMIN_KEY = 'migrate-2connect-2026';
         const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
@@ -1157,6 +1227,8 @@
                 // Pipeline tab is static content, no data loading needed
                 // Show the default view
                 togglePipelineView('flow');
+            } else if (tab === 'sessions') {
+                loadSessions();
             }
         }
 
@@ -2348,6 +2420,88 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') closeModal();
         });
+
+        // ==========================================
+        // USER SESSIONS TAB
+        // ==========================================
+
+        async function loadSessions(forceRefresh = false) {
+            const platform = document.getElementById('sessions-platform-filter')?.value || '';
+            const days = document.getElementById('sessions-days-filter')?.value || '30';
+            const tbody = document.getElementById('sessions-table-body');
+            tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-500">Loading sessions...</td></tr>';
+
+            try {
+                const params = new URLSearchParams({ days });
+                if (platform) params.append('platform', platform);
+
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/user-sessions?${params}`);
+                const data = await response.json();
+                const result = data.result || data;
+
+                // Update summary cards
+                const summary = result.summary || {};
+                document.getElementById('stat-total-users').textContent = summary.total_users || 0;
+                document.getElementById('stat-web-users').textContent = summary.web_users || 0;
+                document.getElementById('stat-mobile-users').textContent = (summary.mobile_app_users || 0) + (summary.mobile_browser_users || 0);
+                document.getElementById('stat-active-today').textContent = summary.active_today || 0;
+
+                // Render table
+                const sessions = result.sessions || [];
+                if (sessions.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-500">No session data yet. Sessions are recorded when users log in after the tracking update.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = sessions.map(s => {
+                    const platformBadge = getPlatformBadge(s.platform);
+                    const deviceStr = [s.device, s.os].filter(Boolean).join(' / ') || '-';
+                    const lastActive = s.last_active ? formatRelativeTime(new Date(s.last_active)) : '-';
+                    const locationStr = s.ip || '-';
+                    const timezoneStr = s.timezone || '-';
+                    const testBadge = s.is_test ? '<span class="ml-1 text-[10px] bg-yellow-600 px-1 rounded">TEST</span>' : '';
+
+                    return `<tr class="border-b border-gray-700/50 hover:bg-gray-750">
+                        <td class="py-3 px-2">
+                            <div class="font-medium text-white">${s.name || 'Unknown'}${testBadge}</div>
+                            <div class="text-xs text-gray-500">${s.email || ''}</div>
+                        </td>
+                        <td class="py-3 px-2">${platformBadge}</td>
+                        <td class="py-3 px-2 text-gray-300">${deviceStr}</td>
+                        <td class="py-3 px-2 text-gray-300">${locationStr}</td>
+                        <td class="py-3 px-2 text-gray-300 text-xs">${timezoneStr}</td>
+                        <td class="py-3 px-2 text-gray-300">${lastActive}</td>
+                        <td class="py-3 px-2 text-center">${s.session_count || 0}</td>
+                        <td class="py-3 px-2 text-center">${s.total_events || 0}</td>
+                    </tr>`;
+                }).join('');
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        function getPlatformBadge(platform) {
+            switch (platform) {
+                case 'web': return '<span class="px-2 py-1 bg-blue-600/30 text-blue-300 rounded text-xs">Web</span>';
+                case 'mobile-app': return '<span class="px-2 py-1 bg-green-600/30 text-green-300 rounded text-xs">Mobile App</span>';
+                case 'mobile-browser': return '<span class="px-2 py-1 bg-purple-600/30 text-purple-300 rounded text-xs">Mobile Browser</span>';
+                default: return '<span class="px-2 py-1 bg-gray-600/30 text-gray-400 rounded text-xs">Unknown</span>';
+            }
+        }
+
+        function formatRelativeTime(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString();
+        }
     </script>
 </body>
 </html>
