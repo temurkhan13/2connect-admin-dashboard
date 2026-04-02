@@ -54,6 +54,9 @@
             <button onclick="switchTab('sessions')" id="tab-sessions" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 User Sessions
             </button>
+            <button onclick="switchTab('analytics')" id="tab-analytics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Match Analytics
+            </button>
             <a href="architecture.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
                 <span>🌐</span> Web Architecture
             </a>
@@ -1131,6 +1134,79 @@
             </div>
         </div>
 
+        <!-- Match Analytics Tab -->
+        <div id="page-analytics" class="tab-content hidden">
+            <div class="bg-gray-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">Match Analytics</h2>
+                    <button onclick="loadMatchAnalytics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
+                </div>
+
+                <!-- Funnel Cards -->
+                <div id="analytics-funnel" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-white" id="funnel-total">-</div>
+                        <div class="text-xs text-gray-400">Total Matches</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-blue-400" id="funnel-pending">-</div>
+                        <div class="text-xs text-gray-400">Pending</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-green-400" id="funnel-approved">-</div>
+                        <div class="text-xs text-gray-400">Approved</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-red-400" id="funnel-declined">-</div>
+                        <div class="text-xs text-gray-400">Declined</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-purple-400" id="funnel-messaged">-</div>
+                        <div class="text-xs text-gray-400">Messaged</div>
+                    </div>
+                    <div class="bg-gray-750 rounded-lg p-4 text-center">
+                        <div class="text-2xl font-bold text-yellow-400" id="funnel-stale">-</div>
+                        <div class="text-xs text-gray-400">Stale (14d+)</div>
+                    </div>
+                </div>
+
+                <!-- Score vs Reality -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Score vs Reality</h3>
+                    <div id="score-reality" class="grid grid-cols-4 gap-3"></div>
+                </div>
+
+                <!-- Per-User Table -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Per-User Match Behavior</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-700 text-left text-gray-400">
+                                    <th class="py-3 px-2">User</th>
+                                    <th class="py-3 px-2 text-center">Matches</th>
+                                    <th class="py-3 px-2 text-center">Approved</th>
+                                    <th class="py-3 px-2 text-center">Passed</th>
+                                    <th class="py-3 px-2 text-center">Pending</th>
+                                    <th class="py-3 px-2 text-center">Messaged</th>
+                                    <th class="py-3 px-2 text-center">Approval %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analytics-user-table">
+                                <tr><td colspan="7" class="py-8 text-center text-gray-500">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Phase Status -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Matching Intelligence Phases</h3>
+                    <div id="phase-status" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                </div>
+            </div>
+        </div>
+
     <script>
         const API_BASE = 'https://twoconnectv1-ai.onrender.com/api/v1';
         const BACKEND_BASE = 'https://twoconnectv1-backend.onrender.com/api/v1';
@@ -1229,6 +1305,8 @@
                 togglePipelineView('flow');
             } else if (tab === 'sessions') {
                 loadSessions();
+            } else if (tab === 'analytics') {
+                loadMatchAnalytics();
             }
         }
 
@@ -2501,6 +2579,84 @@
             if (diffDays === 1) return 'Yesterday';
             if (diffDays < 7) return `${diffDays}d ago`;
             return date.toLocaleDateString();
+        }
+
+        // ==========================================
+        // MATCH ANALYTICS TAB
+        // ==========================================
+
+        async function loadMatchAnalytics() {
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-analytics`);
+                const data = await response.json();
+                const result = data.result || data;
+
+                // Funnel cards
+                const f = result.funnel || {};
+                document.getElementById('funnel-total').textContent = f.total_matches || 0;
+                document.getElementById('funnel-pending').textContent = f.pending || 0;
+                document.getElementById('funnel-approved').textContent = f.approved || 0;
+                document.getElementById('funnel-declined').textContent = f.declined || 0;
+                document.getElementById('funnel-messaged').textContent = f.messaged || 0;
+                document.getElementById('funnel-stale').textContent = f.stale_matches || 0;
+
+                // Score vs Reality
+                const scoreDiv = document.getElementById('score-reality');
+                const scores = result.score_vs_reality || [];
+                scoreDiv.innerHTML = scores.map(s => `
+                    <div class="bg-gray-750 rounded-lg p-4">
+                        <div class="text-lg font-bold text-white">${s.approval_rate}%</div>
+                        <div class="text-xs text-gray-400">Score ${s.range}</div>
+                        <div class="text-xs text-gray-500 mt-1">${s.approved}/${s.total} approved</div>
+                    </div>
+                `).join('') || '<div class="col-span-4 text-gray-500 text-sm">No score data yet</div>';
+
+                // Per-user table
+                const tbody = document.getElementById('analytics-user-table');
+                const users = (result.users || []).filter(u => u.total_matches > 0);
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-500">No match data yet</td></tr>';
+                } else {
+                    tbody.innerHTML = users.map(u => {
+                        const approvalRate = u.total_matches > 0 ? Math.round(((u.approved || 0) / u.total_matches) * 100) : 0;
+                        const testBadge = u.is_test ? '<span class="ml-1 text-[10px] bg-yellow-600 px-1 rounded">TEST</span>' : '';
+                        return `<tr class="border-b border-gray-700/50 hover:bg-gray-750">
+                            <td class="py-3 px-2">
+                                <span class="text-white">${u.name || 'Unknown'}${testBadge}</span>
+                                <span class="text-xs text-gray-500 block">${u.email || ''}</span>
+                            </td>
+                            <td class="py-3 px-2 text-center text-gray-300">${u.total_matches}</td>
+                            <td class="py-3 px-2 text-center text-green-400">${u.approved || 0}</td>
+                            <td class="py-3 px-2 text-center text-red-400">${u.passed || 0}</td>
+                            <td class="py-3 px-2 text-center text-yellow-400">${u.pending || 0}</td>
+                            <td class="py-3 px-2 text-center text-purple-400">${u.messaged || 0}</td>
+                            <td class="py-3 px-2 text-center">
+                                <span class="${approvalRate >= 50 ? 'text-green-400' : approvalRate >= 20 ? 'text-yellow-400' : 'text-red-400'}">${approvalRate}%</span>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                // Phase status
+                const phaseDiv = document.getElementById('phase-status');
+                const phases = result.phases || {};
+                phaseDiv.innerHTML = Object.entries(phases).map(([key, p]) => {
+                    const isActive = p.status === 'active';
+                    const progress = p.activates_at > 0 ? Math.min(100, Math.round((p.current / p.activates_at) * 100)) : 100;
+                    return `<div class="bg-gray-750 rounded-lg p-4 ${isActive ? 'border border-green-600/30' : 'border border-gray-700/30 opacity-60'}">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium text-white">${isActive ? '✅' : '🔒'} ${p.label}</span>
+                            <span class="text-xs ${isActive ? 'text-green-400' : 'text-gray-500'}">${isActive ? 'Active' : `${p.current}/${p.activates_at} users`}</span>
+                        </div>
+                        ${!isActive ? `<div class="w-full bg-gray-700 rounded-full h-1.5">
+                            <div class="bg-blue-500 h-1.5 rounded-full" style="width: ${progress}%"></div>
+                        </div>` : ''}
+                    </div>`;
+                }).join('');
+
+            } catch (error) {
+                console.error('Failed to load match analytics:', error);
+            }
         }
     </script>
 </body>
