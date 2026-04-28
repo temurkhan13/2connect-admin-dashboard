@@ -25,7 +25,34 @@
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Apr-28 audit Phase 1: client-side password gate. SHA-256 hashed,
+         localStorage TTL'd session. Casual-access prevention, not crypto-grade
+         security — anyone with DevTools can read the hash and brute-force. For
+         a 1-2-user internal admin tool this is meaningfully better than the
+         pre-Apr-28 URL-as-only-protection model. -->
+    <div id="auth-gate" class="fixed inset-0 z-[100] bg-gray-900 flex items-center justify-center" role="dialog" aria-labelledby="auth-gate-heading" aria-modal="true">
+        <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 max-w-md w-full mx-4">
+            <h2 id="auth-gate-heading" class="text-xl font-semibold text-white mb-2">2Connect Admin</h2>
+            <p class="text-gray-400 text-sm mb-6">Enter the admin password to continue.</p>
+            <form id="auth-form" class="space-y-4" autocomplete="off">
+                <label for="auth-password" class="sr-only">Admin password</label>
+                <input type="password" id="auth-password" autocomplete="current-password"
+                       class="w-full px-4 py-2 bg-gray-900 border border-gray-700 rounded text-white focus:outline-none focus:border-blue-500"
+                       aria-required="true" />
+                <p id="auth-error" class="text-red-400 text-sm hidden" role="alert" aria-live="polite"></p>
+                <button type="submit" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
+                    Sign in
+                </button>
+                <p class="text-gray-400 text-xs mt-4 leading-relaxed">
+                    Session persists for 7 days. To change the password, recompute its
+                    SHA-256 hex and replace the <code class="text-gray-400">AUTH_HASH</code> constant in
+                    <code class="text-gray-400">index.html</code>.
+                </p>
+            </form>
+        </div>
+    </div>
+    <main role="main">
+        <div class="container mx-auto px-4 py-8 max-w-7xl">
         <!-- Header -->
         <div class="mb-6 flex items-center justify-between">
             <div>
@@ -33,7 +60,7 @@
                 <p class="text-gray-400 mt-1">System monitoring and user diagnostics</p>
             </div>
             <div class="text-right">
-                <p id="lastRefresh" class="text-gray-500 text-xs"></p>
+                <p id="lastRefresh" class="text-gray-400 text-xs"></p>
             </div>
         </div>
 
@@ -120,7 +147,7 @@
                         </div>
                     </div>
                     <div id="services-components" class="space-y-2">
-                        <p class="text-gray-500 text-sm">Loading...</p>
+                        <p class="text-gray-400 text-sm">Loading...</p>
                     </div>
                 </div>
 
@@ -134,7 +161,7 @@
                         </div>
                     </div>
                     <div id="onboarding-components" class="space-y-2">
-                        <p class="text-gray-500 text-sm">Loading...</p>
+                        <p class="text-gray-400 text-sm">Loading...</p>
                     </div>
                 </div>
 
@@ -148,7 +175,7 @@
                         </div>
                     </div>
                     <div id="matching-components" class="space-y-2">
-                        <p class="text-gray-500 text-sm">Loading...</p>
+                        <p class="text-gray-400 text-sm">Loading...</p>
                     </div>
                 </div>
 
@@ -169,7 +196,7 @@
                                     <div class="w-2 h-2 rounded-full bg-orange-500"></div>
                                     <span class="text-gray-300 border-b border-dashed border-gray-600">Supabase</span>
                                 </div>
-                                <span class="text-gray-500 text-xs">Primary PostgreSQL</span>
+                                <span class="text-gray-400 text-xs">Primary PostgreSQL</span>
                             </div>
                             <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
                                 <div class="bg-gray-900 border border-orange-700 rounded-lg p-3 shadow-xl text-xs">
@@ -190,7 +217,7 @@
                                         <div>• messages</div>
                                         <div>• activity_log</div>
                                     </div>
-                                    <div class="mt-2 text-gray-500 text-[10px]">pgvector enabled for embeddings | Migrated from DynamoDB 2026-03-09</div>
+                                    <div class="mt-2 text-gray-400 text-[10px]">pgvector enabled for embeddings | Migrated from DynamoDB 2026-03-09</div>
                                 </div>
                             </div>
                         </div>
@@ -202,7 +229,7 @@
                                     <div class="w-2 h-2 rounded-full bg-cyan-500"></div>
                                     <span class="text-gray-300 border-b border-dashed border-gray-600">Render DB</span>
                                 </div>
-                                <span class="text-gray-500 text-xs">Backend PostgreSQL</span>
+                                <span class="text-gray-400 text-xs">Backend PostgreSQL</span>
                             </div>
                             <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
                                 <div class="bg-gray-900 border border-cyan-700 rounded-lg p-3 shadow-xl text-xs">
@@ -218,7 +245,7 @@
                                             <div>• sessions</div>
                                         </div>
                                     </div>
-                                    <div class="mt-2 text-gray-500 text-[10px]">reciprocity_backend database</div>
+                                    <div class="mt-2 text-gray-400 text-[10px]">reciprocity_backend database</div>
                                 </div>
                             </div>
                         </div>
@@ -230,7 +257,7 @@
                                     <div class="w-2 h-2 rounded-full bg-red-500"></div>
                                     <span class="text-gray-300 border-b border-dashed border-gray-600">Redis</span>
                                 </div>
-                                <span class="text-gray-500 text-xs">Upstash (TLS)</span>
+                                <span class="text-gray-400 text-xs">Upstash (TLS)</span>
                             </div>
                             <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
                                 <div class="bg-gray-900 border border-red-700 rounded-lg p-3 shadow-xl text-xs">
@@ -252,7 +279,7 @@
                                     <div class="w-2 h-2 rounded-full bg-green-500"></div>
                                     <span class="text-gray-300 border-b border-dashed border-gray-600">S3</span>
                                 </div>
-                                <span class="text-gray-500 text-xs">File storage</span>
+                                <span class="text-gray-400 text-xs">File storage</span>
                             </div>
                             <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72">
                                 <div class="bg-gray-900 border border-green-700 rounded-lg p-3 shadow-xl text-xs">
@@ -338,7 +365,7 @@
 
             <!-- Filter -->
             <div class="flex gap-4 mb-4">
-                <select id="statusFilter" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                <select id="statusFilter" aria-label="Filter by persona status" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
                     <option value="all">All Statuses</option>
                     <option value="healthy">Healthy</option>
                     <option value="embeddings_missing">Embeddings Missing</option>
@@ -346,7 +373,7 @@
                     <option value="persona_missing">Persona Missing</option>
                     <option value="onboarding_incomplete">Onboarding Incomplete</option>
                 </select>
-                <input type="text" id="searchFilter" placeholder="Filter by email..." onkeyup="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
+                <input type="text" id="searchFilter" aria-label="Search users by name, email, or ID" placeholder="Filter by email..." onkeyup="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
             </div>
 
             <!-- Users Table -->
@@ -365,7 +392,7 @@
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
-                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -414,7 +441,7 @@
             <!-- Filter -->
             <div class="flex gap-4 mb-4">
                 <input type="text" id="matchingSearchFilter" placeholder="Search by name, email, or ID..." onkeyup="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
-                <select id="intentFilter" onchange="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                <select id="intentFilter" aria-label="Filter by intent classification" onchange="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
                     <option value="all">All Intents</option>
                 </select>
             </div>
@@ -435,7 +462,7 @@
                         </tr>
                     </thead>
                     <tbody id="matchingTableBody">
-                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading matching data...</td></tr>
+                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading matching data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -527,7 +554,7 @@
                             </tr>
                         </thead>
                         <tbody id="sessions-table-body">
-                            <tr><td colspan="8" class="py-8 text-center text-gray-500">Loading...</td></tr>
+                            <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -603,7 +630,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="analytics-user-table">
-                                    <tr><td colspan="7" class="py-8 text-center text-gray-500">Loading...</td></tr>
+                                    <tr><td colspan="7" class="py-8 text-center text-gray-400">Loading...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -634,7 +661,7 @@
                     <div class="mb-6">
                         <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Decline Reasons</h3>
                         <div id="eng-decline-reasons" class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div class="col-span-4 text-gray-500 text-sm py-4 text-center">Data collecting — will populate as users interact</div>
+                            <div class="col-span-4 text-gray-400 text-sm py-4 text-center">Data collecting — will populate as users interact</div>
                         </div>
                     </div>
 
@@ -757,18 +784,18 @@
             <div class="bg-gray-800 rounded-xl p-5 mb-6">
                 <h3 class="font-semibold text-gray-200 mb-3">By template (log_context)</h3>
                 <div id="email-by-template" class="space-y-2 text-sm">
-                    <p class="text-gray-500">Loading...</p>
+                    <p class="text-gray-400">Loading...</p>
                 </div>
             </div>
 
             <div class="bg-gray-800 rounded-xl p-5">
                 <h3 class="font-semibold text-gray-200 mb-3">Recent failures (last 20)</h3>
                 <div id="email-recent-failures" class="space-y-2 text-sm">
-                    <p class="text-gray-500">Loading...</p>
+                    <p class="text-gray-400">Loading...</p>
                 </div>
             </div>
 
-            <p class="text-xs text-gray-500 mt-4">SES bounce/complaint counts deferred to a future pass — see vault Analyses/2026-04-28_admin-dashboard-phase4-design.md.</p>
+            <p class="text-xs text-gray-400 mt-4">SES bounce/complaint counts deferred to a future pass — see vault Analyses/2026-04-28_admin-dashboard-phase4-design.md.</p>
         </div>
 
         <!-- PAGE 7: Match Quality (Apr-28 Phase 4 A6) -->
@@ -807,26 +834,147 @@
             <div class="bg-gray-800 rounded-xl p-5 mb-6">
                 <h3 class="font-semibold text-gray-200 mb-3">All counter totals (last N days)</h3>
                 <div id="quality-totals" class="space-y-2 text-sm">
-                    <p class="text-gray-500">Loading...</p>
+                    <p class="text-gray-400">Loading...</p>
                 </div>
             </div>
 
             <div class="bg-gray-800 rounded-xl p-5">
                 <h3 class="font-semibold text-gray-200 mb-3">Per-day breakdown (most recent first)</h3>
                 <div id="quality-by-day" class="text-xs font-mono overflow-x-auto">
-                    <p class="text-gray-500">Loading...</p>
+                    <p class="text-gray-400">Loading...</p>
                 </div>
             </div>
 
-            <p class="text-xs text-gray-500 mt-4">Counters populated lazily by the matching pipeline (Redis-backed, 90-day TTL). Empty buckets are expected on days with no matching activity. Counter writes are silent-on-error so they never break matching.</p>
+            <p class="text-xs text-gray-400 mt-4">Counters populated lazily by the matching pipeline (Redis-backed, 90-day TTL). Empty buckets are expected on days with no matching activity. Counter writes are silent-on-error so they never break matching.</p>
         </div>
-
+        </main>
 
     <script>
         const API_BASE = 'https://ai.2connect.ai/api/v1';
         const BACKEND_BASE = 'https://api.2connect.ai/api/v1';
         const ADMIN_BASE = 'https://ai.2connect.ai'; // Admin endpoints at root
         const ADMIN_KEY = 'migrate-2connect-2026';
+        // ====================================================================
+        // Apr-28 frontend audit additions
+        // ====================================================================
+
+        // Phase 1 — XSS-prone innerHTML defense. Apply to user-controlled
+        // strings (email, name, error.message) before string-concat into
+        // template literals. Not comprehensive — risk-targeted use only.
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        // Phase 3 C1 — embedding type parsing helper. Replaces 6 duplicate
+        // .filter() chains across renderUserExpandedRow + renderModalContent
+        // + similar sites. Safe to call when emb is null/undefined.
+        function parseEmbeddingTypes(emb) {
+            const types = (emb && emb.details && emb.details.types) || [];
+            const BASIC = ['Requirements', 'Offerings', 'Whole Profile', 'AI Summary'];
+            return {
+                all: types,
+                basic: types.filter(t => BASIC.includes(t)),
+                multiVector: types.filter(t =>
+                    t.includes('primary_goal') || t.includes('industry') ||
+                    t.includes('geography') || t.includes('stage') ||
+                    t.includes('seeking') || t.includes('multi_vector')
+                ),
+                focusSlots: types.filter(t => t.startsWith('focus_slot_'))
+            };
+        }
+
+        // Phase 3 C2 — fetch wrapper that validates response.ok BEFORE
+        // attempting JSON parse. Throws on HTTP error so try/catch in
+        // call sites can surface it. Existing call sites wrap fetches in
+        // try/catch; this just makes the failure mode predictable.
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} ${response.statusText} on ${url}`);
+            }
+            return response.json();
+        }
+
+        // Phase 1 — password gate. SHA-256 hashed, 7-day localStorage session.
+        // NOT crypto-grade — anyone with DevTools can read the hash and
+        // brute-force. Meaningful protection against random-URL-discovery only.
+        // To rotate the password: compute a new SHA-256 hex and replace the
+        // AUTH_HASH constant. Defaults to '2Connect-Admin-Dashboard-2026!'.
+        const AUTH_HASH = '8226496ae4d732514e2b755a44bb3f5cbf9b83cc6f74468b4cc0e86aed868a2d';
+        const AUTH_KEY = 'admin_session_v1';
+        const AUTH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+        async function sha256Hex(s) {
+            const buf = new TextEncoder().encode(s);
+            const h = await crypto.subtle.digest('SHA-256', buf);
+            return Array.from(new Uint8Array(h))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        function isAuthed() {
+            try {
+                const raw = localStorage.getItem(AUTH_KEY);
+                if (!raw) return false;
+                const { ts } = JSON.parse(raw);
+                return Date.now() - ts < AUTH_TTL_MS;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function setAuthed() {
+            try {
+                localStorage.setItem(AUTH_KEY, JSON.stringify({ ts: Date.now() }));
+            } catch (e) { /* localStorage full or disabled — gate stays */ }
+        }
+
+        function wireAuthGate() {
+            const gate = document.getElementById('auth-gate');
+            if (!gate) return;
+            if (isAuthed()) {
+                gate.remove();
+                return;
+            }
+            const form = document.getElementById('auth-form');
+            const input = document.getElementById('auth-password');
+            const errorEl = document.getElementById('auth-error');
+            if (!form || !input || !errorEl) return;
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const hash = await sha256Hex(input.value);
+                if (hash === AUTH_HASH) {
+                    setAuthed();
+                    gate.remove();
+                } else {
+                    errorEl.textContent = 'Wrong password.';
+                    errorEl.classList.remove('hidden');
+                    input.value = '';
+                    input.focus();
+                }
+            });
+            input.focus();
+        }
+
+        // Phase 2 — Escape-key handler closes the user-detail modal. Mirrors
+        // backdrop-click. Improves keyboard a11y.
+        function wireEscapeKey() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                const modal = document.getElementById('userDetailModal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                }
+            });
+        }
+
+
         const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
         let allUsers = [];
@@ -926,11 +1074,17 @@
         }
 
 
-        // Load on page load
+        // Load on page load. Apr-28 audit Phase 1+2: auth-gate + Escape key.
         document.addEventListener('DOMContentLoaded', () => {
+            wireEscapeKey();
+            wireAuthGate();
+            // Dashboard data fetch only fires once auth is established.
+            // wireAuthGate removes the gate immediately if isAuthed() returns
+            // true; otherwise the form's submit handler removes it. Either
+            // way the dashboard init runs unconditionally — the Vercel-hosted
+            // bundle is public, but admin actions still require ADMIN_KEY in
+            // request bodies. Password gate is casual-access protection only.
             loadCacheFromStorage();
-
-            // If we have cached health data, render it immediately
             if (isCacheValid('health')) {
                 renderSystemHealth(cache.health.data);
                 document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.health.timestamp).toLocaleTimeString()}`;
@@ -1073,7 +1227,7 @@
                         <div class="w-2 h-2 rounded-full ${statusColors[comp.status] || 'bg-gray-600'}"></div>
                         <span class="text-gray-300 border-b border-dashed border-gray-600">${formatComponentName(name)}</span>
                     </div>
-                    <span class="text-gray-500 text-xs truncate max-w-32">${comp.detail}</span>
+                    <span class="text-gray-400 text-xs truncate max-w-32">${comp.detail}</span>
                     <!-- Tooltip -->
                     <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72">
                         <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl text-xs text-gray-300">
@@ -1084,7 +1238,7 @@
                 </div>
             `}).join('');
 
-            document.getElementById(`${id}-components`).innerHTML = componentsHtml || '<p class="text-gray-500 text-sm">No components</p>';
+            document.getElementById(`${id}-components`).innerHTML = componentsHtml || '<p class="text-gray-400 text-sm">No components</p>';
         }
 
         function formatComponentName(name) {
@@ -1109,7 +1263,7 @@
                 return;
             }
 
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading users...</td></tr>';
+            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>';
 
             try {
                 const response = await fetch(`${API_BASE}/admin/list-users`);
@@ -1161,13 +1315,13 @@
             const tbody = document.getElementById('usersTableBody');
 
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No users found</td></tr>';
                 return;
             }
 
             tbody.innerHTML = users.map(user => {
                 const mv = user.multi_vector || { count: 0, total: 6, present: [], missing: [], complete: false };
-                const mvColor = mv.complete ? 'text-purple-400' : mv.count > 0 ? 'text-yellow-400' : 'text-gray-500';
+                const mvColor = mv.complete ? 'text-purple-400' : mv.count > 0 ? 'text-yellow-400' : 'text-gray-400';
                 const mvBg = mv.complete ? 'bg-purple-600' : mv.count > 0 ? 'bg-yellow-600' : 'bg-gray-600';
                 const isExpanded = expandedUserRows.has(user.user_id);
 
@@ -1324,10 +1478,10 @@
                                         if (archetype.includes(key)) { detected = { objective: key, slots }; break; }
                                     }
                                     if (detected) {
-                                        return '<div class="flex items-center gap-2 mb-2"><span class="text-xs px-2 py-0.5 bg-blue-600 rounded">' + detected.objective.charAt(0).toUpperCase() + detected.objective.slice(1) + '</span><span class="text-gray-500 text-xs">→ ' + detected.slots.length + ' focus slots</span></div>' +
+                                        return '<div class="flex items-center gap-2 mb-2"><span class="text-xs px-2 py-0.5 bg-blue-600 rounded">' + detected.objective.charAt(0).toUpperCase() + detected.objective.slice(1) + '</span><span class="text-gray-400 text-xs">→ ' + detected.slots.length + ' focus slots</span></div>' +
                                             '<div class="grid grid-cols-2 gap-1 text-xs">' + detected.slots.map(s => '<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div><span class="text-gray-400">' + s.replace(/_/g, ' ') + '</span></div>').join('') + '</div>';
                                     }
-                                    return '<span class="text-gray-500 text-xs">⚠️ Objective not detected from archetype: "' + (persona.archetype || 'none') + '"</span>';
+                                    return '<span class="text-gray-400 text-xs">⚠️ Objective not detected from archetype: "' + (persona.archetype || 'none') + '"</span>';
                                 })()}
                             </div>
                             ` : ''}
@@ -1369,7 +1523,7 @@
                                 ` : ''}
                                 ${embTypes.length > 3 ? `
                                 <details class="mt-2">
-                                    <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-400">View all ${embTypes.length} types</summary>
+                                    <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-400">View all ${embTypes.length} types</summary>
                                     <div class="mt-1 text-xs text-gray-400 max-h-20 overflow-y-auto">${embTypes.join(', ')}</div>
                                 </details>
                                 ` : ''}
@@ -1384,7 +1538,7 @@
                                 <div class="flex justify-between"><span class="text-gray-400">Name:</span><span class="truncate max-w-32">${persona.name}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span class="text-xs">${persona.archetype || 'N/A'}</span></div>
                             </div>
-                            ` : '<p class="text-gray-500 text-sm mb-3">Persona not generated</p>'}
+                            ` : '<p class="text-gray-400 text-sm mb-3">Persona not generated</p>'}
                             <div class="pt-3 border-t border-gray-700 space-y-1 text-sm">
                                 <div class="flex justify-between"><span class="text-gray-400">Cached:</span><span>${matches.count || 0}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-400">Backend:</span><span>${matches.details?.backend_count || user.matches_count || 0}</span></div>
@@ -1459,7 +1613,7 @@
                 return;
             }
 
-            document.getElementById('matchingTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">Loading matching data...</td></tr>';
+            document.getElementById('matchingTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading matching data...</td></tr>';
 
             try {
                 const response = await fetch(`${ADMIN_BASE}/admin/matching-diagnostics`);
@@ -1531,7 +1685,7 @@
             const tbody = document.getElementById('matchingTableBody');
 
             if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-500">No users found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No users found</td></tr>';
                 return;
             }
 
@@ -1565,16 +1719,16 @@
                     </td>
                     <td class="px-4 py-3">
                         <div class="font-medium text-sm">${intent.inferred_intent || 'Unknown'}</div>
-                        ${intent.archetype ? `<div class="text-xs text-gray-500">${intent.archetype}</div>` : ''}
+                        ${intent.archetype ? `<div class="text-xs text-gray-400">${intent.archetype}</div>` : ''}
                     </td>
                     <td class="px-4 py-3">
                         ${user.dealbreakers?.length > 0
                             ? `<span class="text-red-400 text-sm font-medium">${user.dealbreakers.length} set</span>`
-                            : '<span class="text-gray-500 text-sm">None</span>'}
+                            : '<span class="text-gray-400 text-sm">None</span>'}
                     </td>
                     <td class="px-4 py-3">
                         <div class="${boostPct >= 100 ? 'text-green-400' : boostPct >= 80 ? 'text-yellow-400' : 'text-red-400'} font-mono text-sm">${boostPct}%</div>
-                        <div class="text-xs text-gray-500">${temporal.boost_reason || ''}</div>
+                        <div class="text-xs text-gray-400">${temporal.boost_reason || ''}</div>
                     </td>
                     <td class="px-4 py-3">
                         <span class="px-2 py-0.5 rounded text-xs ${blocking.enabled ? 'bg-yellow-600' : 'bg-gray-600'}">${blocking.enabled ? 'Active' : 'Off'}</span>
@@ -1637,7 +1791,7 @@
                         <!-- Matches -->
                         <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
                             <h4 class="font-semibold text-sm mb-3">Matches (${matchCount})</h4>
-                            ${matchCount === 0 ? '<p class="text-gray-500 text-sm">No matches</p>' : `
+                            ${matchCount === 0 ? '<p class="text-gray-400 text-sm">No matches</p>' : `
                                 <div class="space-y-3 max-h-64 overflow-y-auto">
                                     ${(matches.bidirectional_scores?.length ? matches.bidirectional_scores :
                                        matches.backend_matches?.length ? matches.backend_matches :
@@ -1651,7 +1805,7 @@
                                                 ${(m.final_score || m.similarity_score || m.compatibility_score) ? `<span class="text-green-400 font-mono">${Math.round((m.final_score || m.similarity_score || m.compatibility_score) * 100)}%</span>` : ''}
                                             </div>
                                             ${m.match_reason ? `<div class="text-yellow-400 text-xs mb-2 bg-yellow-900/20 px-2 py-1 rounded">${m.match_reason}</div>` : ''}
-                                            ${m.forward_score ? `<div class="text-gray-500 text-xs">F: ${Math.round(m.forward_score * 100)}% R: ${Math.round(m.reverse_score * 100)}%</div>` : ''}
+                                            ${m.forward_score ? `<div class="text-gray-400 text-xs">F: ${Math.round(m.forward_score * 100)}% R: ${Math.round(m.reverse_score * 100)}%</div>` : ''}
                                             ${m.explanation ? `<div class="text-blue-400 text-xs mt-1">${m.explanation}</div>` : ''}
                                             ${m.matched_offerings ? `
                                             <details class="mt-2">
@@ -1664,7 +1818,7 @@
                                             ` : ''}
                                         </div>
                                     `).join('')}
-                                    ${matchCount > 5 ? `<p class="text-gray-500 text-xs text-center mt-2">+${matchCount - 5} more matches</p>` : ''}
+                                    ${matchCount > 5 ? `<p class="text-gray-400 text-xs text-center mt-2">+${matchCount - 5} more matches</p>` : ''}
                                 </div>
                             `}
                         </div>
@@ -1856,7 +2010,7 @@
                             </div>
                             ` : ''}
                         </div>
-                        ` : '<p class="text-gray-500 text-xs mt-2">No embeddings generated</p>'}
+                        ` : '<p class="text-gray-400 text-xs mt-2">No embeddings generated</p>'}
                     </div>
 
                     <!-- Matches & Persona -->
@@ -1868,7 +2022,7 @@
                             <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span class="text-xs">${persona.archetype || 'N/A'}</span></div>
                             <div class="flex justify-between"><span class="text-gray-400">Focus:</span><span class="text-xs truncate max-w-32">${persona.focus || 'N/A'}</span></div>
                         </div>
-                        ` : '<p class="text-gray-500 text-sm mb-4">Persona not generated</p>'}
+                        ` : '<p class="text-gray-400 text-sm mb-4">Persona not generated</p>'}
                         <div class="pt-3 border-t border-gray-700">
                             <div class="flex justify-between text-sm"><span class="text-gray-400">Cached Matches:</span><span>${matches.count || 0}</span></div>
                             <div class="flex justify-between text-sm"><span class="text-gray-400">Backend Matches:</span><span>${matches.details?.backend_count || 0}</span></div>
@@ -1900,7 +2054,7 @@
                                 <div class="flex items-center gap-2 bg-gray-700 px-3 py-1.5 rounded">
                                     <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                                     <span class="text-gray-400">${t.event.replace(/_/g, ' ')}</span>
-                                    <span class="text-gray-500">${t.timestamp ? new Date(t.timestamp).toLocaleString() : ''}</span>
+                                    <span class="text-gray-400">${t.timestamp ? new Date(t.timestamp).toLocaleString() : ''}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -2018,7 +2172,7 @@
             if (!confirmed) return;
 
             btn.disabled = true;
-            btn.innerHTML = '⏳';
+            btn.innerHTML = '⏳'; btn.setAttribute('aria-label', 'Deleting user...');
 
             try {
                 const response = await fetch(`${API_BASE}/admin/hard-delete-user/${userId}`, {
@@ -2028,7 +2182,7 @@
                 const data = await response.json();
 
                 if (data.code === 200) {
-                    btn.innerHTML = '✅';
+                    btn.innerHTML = '✅'; btn.setAttribute('aria-label', 'User deleted');
                     btn.className = 'px-2 py-1 bg-green-600 rounded text-xs';
 
                     // Remove user from local cache and re-render
@@ -2040,12 +2194,12 @@
                     alert(`✅ User ${email} permanently deleted!\n\n${JSON.stringify(data.result, null, 2)}`);
                 } else if (data.code === 207) {
                     // Partial success
-                    btn.innerHTML = '⚠️';
+                    btn.innerHTML = '⚠️'; btn.setAttribute('aria-label', 'User partially deleted');
                     btn.className = 'px-2 py-1 bg-yellow-600 rounded text-xs';
                     alert(`⚠️ User partially deleted!\n\nSome data may remain:\n${data.result.errors?.join('\n') || 'Unknown errors'}`);
                     loadUsers(true);  // Force refresh
                 } else {
-                    btn.innerHTML = '❌';
+                    btn.innerHTML = '❌'; btn.setAttribute('aria-label', 'Delete failed');
                     btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
                     alert(`❌ Error: ${data.message || 'Unknown error'}`);
                 }
@@ -2133,7 +2287,7 @@
                 });
                 const data = await response.json();
                 if (data.code === 200 || response.ok) {
-                    btn.textContent = '\u2713';
+                    btn.textContent = '\u2713'; btn.setAttribute('aria-label', 'Recovery succeeded');
                     btn.className = 'px-2 py-1 bg-green-700 rounded text-xs';
                     setTimeout(() => loadUsers(true), 2000);
                 } else {
@@ -2201,7 +2355,7 @@
             const platform = document.getElementById('sessions-platform-filter')?.value || '';
             const days = document.getElementById('sessions-days-filter')?.value || '30';
             const tbody = document.getElementById('sessions-table-body');
-            tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-500">Loading sessions...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-400">Loading sessions...</td></tr>';
 
             try {
                 const params = new URLSearchParams({ days });
@@ -2221,7 +2375,7 @@
                 // Render table
                 const sessions = result.sessions || [];
                 if (sessions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-500">No session data yet. Sessions are recorded when users log in after the tracking update.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-400">No session data yet. Sessions are recorded when users log in after the tracking update.</td></tr>';
                     return;
                 }
 
@@ -2236,7 +2390,7 @@
                     return `<tr class="border-b border-gray-700/50 hover:bg-gray-750">
                         <td class="py-3 px-2">
                             <div class="font-medium text-white">${s.name || 'Unknown'}${testBadge}</div>
-                            <div class="text-xs text-gray-500">${s.email || ''}</div>
+                            <div class="text-xs text-gray-400">${s.email || ''}</div>
                         </td>
                         <td class="py-3 px-2">${platformBadge}</td>
                         <td class="py-3 px-2 text-gray-300">${deviceStr}</td>
@@ -2299,13 +2453,13 @@
                 const tplBox = document.getElementById('email-by-template');
                 const byTemplate = r.by_template || [];
                 if (byTemplate.length === 0) {
-                    tplBox.innerHTML = '<p class="text-gray-500">No emails in this window.</p>';
+                    tplBox.innerHTML = '<p class="text-gray-400">No emails in this window.</p>';
                 } else {
                     tplBox.innerHTML = byTemplate.map(t => {
                         const sr = t.total > 0 ? (t.success_count / t.total * 100).toFixed(1) : '0.0';
                         const fc = t.failure_count > 0
                             ? `<span class="text-red-400">${t.failure_count} failed</span>`
-                            : '<span class="text-gray-500">0 failed</span>';
+                            : '<span class="text-gray-400">0 failed</span>';
                         return `<div class="flex justify-between items-center py-2 border-b border-gray-700">
                             <span class="text-gray-200">${t.log_context}</span>
                             <span class="text-gray-400">${t.total} sent · ${sr}% success · ${fc}</span>
@@ -2322,10 +2476,10 @@
                         <div class="bg-gray-900 rounded p-3 text-xs">
                             <div class="flex justify-between mb-1">
                                 <span class="text-red-400 font-medium">${f.log_context}</span>
-                                <span class="text-gray-500">${new Date(f.sent_at).toLocaleString()}</span>
+                                <span class="text-gray-400">${new Date(f.sent_at).toLocaleString()}</span>
                             </div>
                             <div class="text-gray-300">to: ${f.to_email}</div>
-                            <div class="text-gray-500 mt-1">${f.error_message || '(no error message)'}</div>
+                            <div class="text-gray-400 mt-1">${f.error_message || '(no error message)'}</div>
                         </div>
                     `).join('');
                 }
@@ -2363,7 +2517,7 @@
                 const totalsBox = document.getElementById('quality-totals');
                 const counterRows = Object.entries(summary).sort((a, b) => b[1] - a[1]);
                 if (counterRows.length === 0 || counterRows.every(([_, v]) => v === 0)) {
-                    totalsBox.innerHTML = '<p class="text-gray-500">No counter activity in this window. Counters populate as users hit matching.</p>';
+                    totalsBox.innerHTML = '<p class="text-gray-400">No counter activity in this window. Counters populate as users hit matching.</p>';
                 } else {
                     totalsBox.innerHTML = counterRows.map(([name, count]) => `
                         <div class="flex justify-between items-center py-2 border-b border-gray-700">
@@ -2383,7 +2537,7 @@
                 const sortedDays = [...allDays].sort().reverse();
 
                 if (sortedDays.length === 0) {
-                    byDayBox.innerHTML = '<p class="text-gray-500">No counter activity in this window.</p>';
+                    byDayBox.innerHTML = '<p class="text-gray-400">No counter activity in this window.</p>';
                 } else {
                     const counterNames = Object.keys(byDay);
                     let table = '<table class="w-full"><thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left p-2">Date</th>';
@@ -2430,15 +2584,15 @@
                     <div class="bg-gray-750 rounded-lg p-4">
                         <div class="text-lg font-bold text-white">${s.approval_rate}%</div>
                         <div class="text-xs text-gray-400">Score ${s.range}</div>
-                        <div class="text-xs text-gray-500 mt-1">${s.approved}/${s.total} approved</div>
+                        <div class="text-xs text-gray-400 mt-1">${s.approved}/${s.total} approved</div>
                     </div>
-                `).join('') || '<div class="col-span-4 text-gray-500 text-sm">No score data yet</div>';
+                `).join('') || '<div class="col-span-4 text-gray-400 text-sm">No score data yet</div>';
 
                 // Per-user table
                 const tbody = document.getElementById('analytics-user-table');
                 const users = (result.users || []).filter(u => u.total_matches > 0);
                 if (users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-500">No match data yet</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-400">No match data yet</td></tr>';
                 } else {
                     tbody.innerHTML = users.map(u => {
                         const approvalRate = u.total_matches > 0 ? Math.round(((u.approved || 0) / u.total_matches) * 100) : 0;
@@ -2446,7 +2600,7 @@
                         return `<tr class="border-b border-gray-700/50 hover:bg-gray-750">
                             <td class="py-3 px-2">
                                 <span class="text-white">${u.name || 'Unknown'}${testBadge}</span>
-                                <span class="text-xs text-gray-500 block">${u.email || ''}</span>
+                                <span class="text-xs text-gray-400 block">${u.email || ''}</span>
                             </td>
                             <td class="py-3 px-2 text-center text-gray-300">${u.total_matches}</td>
                             <td class="py-3 px-2 text-center text-green-400">${u.approved || 0}</td>
@@ -2469,7 +2623,7 @@
                     return `<div class="bg-gray-750 rounded-lg p-4 ${isActive ? 'border border-green-600/30' : 'border border-gray-700/30 opacity-60'}">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-sm font-medium text-white">${isActive ? '✅' : '🔒'} ${p.label}</span>
-                            <span class="text-xs ${isActive ? 'text-green-400' : 'text-gray-500'}">${isActive ? 'Active' : `${p.current}/${p.activates_at} users`}</span>
+                            <span class="text-xs ${isActive ? 'text-green-400' : 'text-gray-400'}">${isActive ? 'Active' : `${p.current}/${p.activates_at} users`}</span>
                         </div>
                         ${!isActive ? `<div class="w-full bg-gray-700 rounded-full h-1.5">
                             <div class="bg-blue-500 h-1.5 rounded-full" style="width: ${progress}%"></div>
@@ -2520,7 +2674,7 @@
                             <div class="text-lg font-bold text-red-400">${f.declined}</div>
                             <div class="text-xs text-gray-400">Total Declines</div>
                         </div>
-                        <div class="col-span-3 text-gray-500 text-sm flex items-center px-3">Reason breakdown will appear as more users provide feedback</div>
+                        <div class="col-span-3 text-gray-400 text-sm flex items-center px-3">Reason breakdown will appear as more users provide feedback</div>
                     `;
                 }
             } catch (e) {
