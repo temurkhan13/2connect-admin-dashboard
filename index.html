@@ -501,13 +501,13 @@
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold">User Sessions</h2>
                     <div class="flex gap-3">
-                        <select id="sessions-platform-filter" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                        <select id="sessions-platform-filter" aria-label="Filter sessions by platform" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                             <option value="">All Platforms</option>
                             <option value="web">Web</option>
                             <option value="mobile-app">Mobile App</option>
                             <option value="mobile-browser">Mobile Browser</option>
                         </select>
-                        <select id="sessions-days-filter" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                        <select id="sessions-days-filter" aria-label="Sessions time window in days" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                             <option value="7">Last 7 days</option>
                             <option value="30" selected>Last 30 days</option>
                             <option value="90">Last 90 days</option>
@@ -753,7 +753,7 @@
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">Email Health</h2>
                 <div class="flex gap-2 items-center">
-                    <select id="email-days-filter" onchange="loadEmailHealth()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                    <select id="email-days-filter" aria-label="Email Health time window in days" onchange="loadEmailHealth()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                         <option value="7">Last 7 days</option>
                         <option value="30" selected>Last 30 days</option>
                         <option value="90">Last 90 days</option>
@@ -803,7 +803,7 @@
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">Match Quality Counters</h2>
                 <div class="flex gap-2 items-center">
-                    <select id="quality-days-filter" onchange="loadMatchQuality()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                    <select id="quality-days-filter" aria-label="Match Quality time window in days" onchange="loadMatchQuality()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                         <option value="7">Last 7 days</option>
                         <option value="30" selected>Last 30 days</option>
                         <option value="90">Last 90 days</option>
