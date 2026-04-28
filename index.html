@@ -54,6 +54,12 @@
             <button onclick="switchTab('analytics')" id="tab-analytics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Match Analytics
             </button>
+            <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Email Health
+            </button>
+            <button onclick="switchTab('quality')" id="tab-quality" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Match Quality
+            </button>
             <a href="architecture.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
                 <span>🌐</span> Web Architecture
             </a>
@@ -715,6 +721,107 @@
             </div>
         </div>
 
+        <!-- PAGE 6: Email Health (Apr-28 Phase 4 A5) -->
+        <div id="page-email" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">Email Health</h2>
+                <div class="flex gap-2 items-center">
+                    <select id="email-days-filter" onchange="loadEmailHealth()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                    </select>
+                    <button onclick="loadEmailHealth()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
+                </div>
+            </div>
+
+            <div id="email-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Total sent</p>
+                    <p id="email-total-sent" class="text-2xl font-bold">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Success rate</p>
+                    <p id="email-success-rate" class="text-2xl font-bold text-green-400">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Failures</p>
+                    <p id="email-failures" class="text-2xl font-bold text-red-400">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Last send</p>
+                    <p id="email-last-send" class="text-sm font-mono mt-1">-</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                <h3 class="font-semibold text-gray-200 mb-3">By template (log_context)</h3>
+                <div id="email-by-template" class="space-y-2 text-sm">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="font-semibold text-gray-200 mb-3">Recent failures (last 20)</h3>
+                <div id="email-recent-failures" class="space-y-2 text-sm">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-4">SES bounce/complaint counts deferred to a future pass — see vault Analyses/2026-04-28_admin-dashboard-phase4-design.md.</p>
+        </div>
+
+        <!-- PAGE 7: Match Quality (Apr-28 Phase 4 A6) -->
+        <div id="page-quality" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">Match Quality Counters</h2>
+                <div class="flex gap-2 items-center">
+                    <select id="quality-days-filter" onchange="loadMatchQuality()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                    </select>
+                    <button onclick="loadMatchQuality()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
+                </div>
+            </div>
+
+            <div id="quality-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Scoring calls</p>
+                    <p id="quality-scoring-calls" class="text-2xl font-bold">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm" title="JSONDecodeError on LLM scoring response. Sara's Apr-19 baseline was 89%; post-Fix-7 should be <1%.">Parse failure rate</p>
+                    <p id="quality-parse-rate" class="text-2xl font-bold text-yellow-400">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm" title="Proxy for Rule 6 / Rule 2 hard caps — score < LLM_SCORE_MIN (default 30).">Score below min rate</p>
+                    <p id="quality-below-min-rate" class="text-2xl font-bold text-red-400">-</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm" title="Score Calibration Floor activations — boosts low scores when reciprocal + role_fit ≥ 70.">Calibration floor rate</p>
+                    <p id="quality-floor-rate" class="text-2xl font-bold text-blue-400">-</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                <h3 class="font-semibold text-gray-200 mb-3">All counter totals (last N days)</h3>
+                <div id="quality-totals" class="space-y-2 text-sm">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="font-semibold text-gray-200 mb-3">Per-day breakdown (most recent first)</h3>
+                <div id="quality-by-day" class="text-xs font-mono overflow-x-auto">
+                    <p class="text-gray-500">Loading...</p>
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-500 mt-4">Counters populated lazily by the matching pipeline (Redis-backed, 90-day TTL). Empty buckets are expected on days with no matching activity. Counter writes are silent-on-error so they never break matching.</p>
+        </div>
+
+
     <script>
         const API_BASE = 'https://ai.2connect.ai/api/v1';
         const BACKEND_BASE = 'https://api.2connect.ai/api/v1';
@@ -811,6 +918,10 @@
                 loadSessions();
             } else if (tab === 'analytics') {
                 loadMatchAnalytics();
+            } else if (tab === 'email') {
+                loadEmailHealth();
+            } else if (tab === 'quality') {
+                loadMatchQuality();
             }
         }
 
@@ -2167,6 +2278,135 @@
         // ==========================================
         // MATCH ANALYTICS TAB
         // ==========================================
+
+        async function loadEmailHealth() {
+            const days = document.getElementById('email-days-filter')?.value || '30';
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/email-health?days=${days}`);
+                const data = await response.json();
+                const r = data.result || {};
+                const summary = r.summary || {};
+
+                document.getElementById('email-total-sent').textContent = summary.total_sent ?? '0';
+                document.getElementById('email-success-rate').textContent = summary.success_rate != null
+                    ? (summary.success_rate * 100).toFixed(1) + '%'
+                    : '-';
+                document.getElementById('email-failures').textContent = summary.failure_count ?? '0';
+                document.getElementById('email-last-send').textContent = summary.last_send_at
+                    ? new Date(summary.last_send_at).toLocaleString()
+                    : 'never';
+
+                const tplBox = document.getElementById('email-by-template');
+                const byTemplate = r.by_template || [];
+                if (byTemplate.length === 0) {
+                    tplBox.innerHTML = '<p class="text-gray-500">No emails in this window.</p>';
+                } else {
+                    tplBox.innerHTML = byTemplate.map(t => {
+                        const sr = t.total > 0 ? (t.success_count / t.total * 100).toFixed(1) : '0.0';
+                        const fc = t.failure_count > 0
+                            ? `<span class="text-red-400">${t.failure_count} failed</span>`
+                            : '<span class="text-gray-500">0 failed</span>';
+                        return `<div class="flex justify-between items-center py-2 border-b border-gray-700">
+                            <span class="text-gray-200">${t.log_context}</span>
+                            <span class="text-gray-400">${t.total} sent · ${sr}% success · ${fc}</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                const failBox = document.getElementById('email-recent-failures');
+                const recentFailures = r.recent_failures || [];
+                if (recentFailures.length === 0) {
+                    failBox.innerHTML = '<p class="text-green-400">No failures in this window. ✓</p>';
+                } else {
+                    failBox.innerHTML = recentFailures.map(f => `
+                        <div class="bg-gray-900 rounded p-3 text-xs">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-red-400 font-medium">${f.log_context}</span>
+                                <span class="text-gray-500">${new Date(f.sent_at).toLocaleString()}</span>
+                            </div>
+                            <div class="text-gray-300">to: ${f.to_email}</div>
+                            <div class="text-gray-500 mt-1">${f.error_message || '(no error message)'}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                document.getElementById('email-by-template').innerHTML =
+                    `<p class="text-red-400">Error: ${error.message}</p>`;
+            }
+        }
+
+        async function loadMatchQuality() {
+            const days = document.getElementById('quality-days-filter')?.value || '30';
+            try {
+                const response = await fetch(`${ADMIN_BASE}/admin/match-quality-counters?days=${days}`);
+                const data = await response.json();
+                const r = data.result || {};
+                const summary = r.summary || {};
+                const rates = r.rates || {};
+
+                document.getElementById('quality-scoring-calls').textContent =
+                    (summary.scoring_calls_total ?? 0).toLocaleString();
+                document.getElementById('quality-parse-rate').textContent =
+                    rates.parse_failure_rate != null
+                        ? (rates.parse_failure_rate * 100).toFixed(2) + '%'
+                        : '-';
+                document.getElementById('quality-below-min-rate').textContent =
+                    rates.score_below_min_rate != null
+                        ? (rates.score_below_min_rate * 100).toFixed(1) + '%'
+                        : '-';
+                document.getElementById('quality-floor-rate').textContent =
+                    rates.calibration_floor_rate != null
+                        ? (rates.calibration_floor_rate * 100).toFixed(1) + '%'
+                        : '-';
+
+                // Counter totals
+                const totalsBox = document.getElementById('quality-totals');
+                const counterRows = Object.entries(summary).sort((a, b) => b[1] - a[1]);
+                if (counterRows.length === 0 || counterRows.every(([_, v]) => v === 0)) {
+                    totalsBox.innerHTML = '<p class="text-gray-500">No counter activity in this window. Counters populate as users hit matching.</p>';
+                } else {
+                    totalsBox.innerHTML = counterRows.map(([name, count]) => `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-700">
+                            <span class="text-gray-200 font-mono text-xs">${name}</span>
+                            <span class="text-gray-300">${count.toLocaleString()}</span>
+                        </div>
+                    `).join('');
+                }
+
+                // Per-day breakdown
+                const byDayBox = document.getElementById('quality-by-day');
+                const byDay = r.by_day || {};
+                const allDays = new Set();
+                Object.values(byDay).forEach(perCounter => {
+                    Object.keys(perCounter).forEach(d => allDays.add(d));
+                });
+                const sortedDays = [...allDays].sort().reverse();
+
+                if (sortedDays.length === 0) {
+                    byDayBox.innerHTML = '<p class="text-gray-500">No counter activity in this window.</p>';
+                } else {
+                    const counterNames = Object.keys(byDay);
+                    let table = '<table class="w-full"><thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left p-2">Date</th>';
+                    counterNames.forEach(name => {
+                        table += `<th class="text-right p-2">${name.replace(/_/g, ' ')}</th>`;
+                    });
+                    table += '</tr></thead><tbody>';
+                    sortedDays.forEach(day => {
+                        table += `<tr class="border-b border-gray-800"><td class="p-2 text-gray-300">${day}</td>`;
+                        counterNames.forEach(name => {
+                            const v = (byDay[name] || {})[day] || 0;
+                            table += `<td class="text-right p-2 ${v > 0 ? 'text-gray-200' : 'text-gray-600'}">${v}</td>`;
+                        });
+                        table += '</tr>';
+                    });
+                    table += '</tbody></table>';
+                    byDayBox.innerHTML = table;
+                }
+            } catch (error) {
+                document.getElementById('quality-totals').innerHTML =
+                    `<p class="text-red-400">Error: ${error.message}</p>`;
+            }
+        }
 
         async function loadMatchAnalytics() {
             try {
