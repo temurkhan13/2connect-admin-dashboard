@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-03-12T15:30:00Z - Added Job Seeker/Partnership/Recruiter slots, new intents (OPPORTUNITY_SEEKING, PARTNERSHIP), intent complementarity fixes, BUG-043 to BUG-048 -->
+<!-- Build: 2026-04-28 — Apr-28 audit cleanup (Pipeline tab removed, Stream Chat card retired, label fixes for AWS migration, +4 admin endpoints surfaced). See 2ConnectVault/Analyses/2026-04-28_admin-dashboard-audit.md -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -48,9 +48,6 @@
             <button onclick="switchTab('matching')" id="tab-matching" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Matching Diagnostics
             </button>
-            <button onclick="switchTab('pipeline')" id="tab-pipeline" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                AI Pipeline
-            </button>
             <button onclick="switchTab('sessions')" id="tab-sessions" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 User Sessions
             </button>
@@ -71,9 +68,21 @@
         <div id="page-health" class="tab-content">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">System Health Status</h2>
-                <button onclick="loadSystemHealth(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                    Refresh
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="loadWiringAudit()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg text-sm font-medium" title="Detect mismatched service config (e.g. AI thinks backend is at URL X but it actually replies at Y)">
+                        Wiring Audit
+                    </button>
+                    <button onclick="loadSystemHealth(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <div id="wiringAuditPanel" class="hidden mb-6 bg-gray-800 border border-amber-600 rounded-xl p-4 text-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-semibold text-amber-300">Wiring Audit</h3>
+                    <button onclick="document.getElementById('wiringAuditPanel').classList.add('hidden')" class="text-gray-400 hover:text-white text-xs">close ✕</button>
+                </div>
+                <pre id="wiringAuditOutput" class="text-xs text-gray-300 whitespace-pre-wrap overflow-x-auto"></pre>
             </div>
 
             <!-- Overall Status Banner -->
@@ -249,28 +258,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Stream Chat -->
-                        <div class="group relative cursor-help">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-blue-500"></div>
-                                    <span class="text-gray-300 border-b border-dashed border-gray-600">Stream Chat</span>
-                                </div>
-                                <span class="text-gray-500 text-xs">GetStream</span>
-                            </div>
-                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72">
-                                <div class="bg-gray-900 border border-blue-700 rounded-lg p-3 shadow-xl text-xs">
-                                    <div class="font-semibold text-blue-400 mb-2">Stream Chat (GetStream)</div>
-                                    <div class="space-y-1 text-gray-300">
-                                        <div>• Users (synced from backend)</div>
-                                        <div>• Channels (1:1 match convos)</div>
-                                        <div>• Messages (real-time)</div>
-                                    </div>
-                                    <div class="mt-2 text-gray-500 text-[10px]">App: 2connect (8wp5yzb4kar4)</div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -382,9 +369,14 @@
         <div id="page-matching" class="tab-content hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-semibold">Matching Diagnostics</h2>
-                <button onclick="loadMatchingDiagnostics(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                    Refresh
-                </button>
+                <div class="flex gap-2">
+                    <button onclick="regenerateAllMatchesBulk()" class="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm font-medium" title="DANGEROUS: queues LLM scoring for every user. Confirms twice.">
+                        ⚠ Regenerate ALL Matches
+                    </button>
+                    <button onclick="loadMatchingDiagnostics(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             <!-- Matching Summary -->
@@ -469,604 +461,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- PAGE 4: AI Pipeline -->
-        <div id="page-pipeline" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h2 class="text-xl font-semibold">AI Pipeline Architecture</h2>
-                    <p class="text-gray-400 mt-1">How onboarding → matching → feedback learning works</p>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="togglePipelineView('flow')" id="btn-flow" class="px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium">
-                        Full Flow
-                    </button>
-                    <button onclick="togglePipelineView('matching')" id="btn-matching-algo" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium">
-                        Matching Algorithm
-                    </button>
-                    <button onclick="togglePipelineView('slots')" id="btn-slots" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium">
-                        Slot Extraction
-                    </button>
-                </div>
-            </div>
-
-            <!-- SUB-VIEW 1: Full Pipeline Flow -->
-            <div id="pipeline-flow" class="pipeline-view">
-                <!-- Phase 1: Onboarding -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-4">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-lg font-bold">1</div>
-                        <h3 class="text-lg font-semibold">User Onboarding</h3>
-                        <span class="text-xs bg-blue-600/30 text-blue-400 px-2 py-1 rounded">CONVERSATIONAL CHAT</span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Left: What Happens -->
-                        <div>
-                            <p class="text-gray-400 text-sm mb-3">User answers questions naturally via chat. LLM (Claude Sonnet 4.5) extracts structured data:</p>
-                            <div class="space-y-2">
-                                <div class="flex items-center gap-2 text-sm">
-                                    <span class="w-24 text-gray-500">primary_goal</span>
-                                    <span class="text-green-400">"Seeking Investment", "Looking to Invest", etc.</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-sm">
-                                    <span class="w-24 text-gray-500">requirements</span>
-                                    <span class="text-green-400">What user NEEDS (free text)</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-sm">
-                                    <span class="w-24 text-gray-500">offerings</span>
-                                    <span class="text-green-400">What user CAN GIVE (free text)</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-sm">
-                                    <span class="w-24 text-gray-500">industry</span>
-                                    <span class="text-green-400">Fintech, SaaS, AI/ML, etc.</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-sm">
-                                    <span class="w-24 text-gray-500">stage</span>
-                                    <span class="text-green-400">Pre-seed, Seed, Series A, etc.</span>
-                                </div>
-                                <div class="flex items-center gap-2 text-sm">
-                                    <span class="w-24 text-gray-500">geography</span>
-                                    <span class="text-green-400">UK, US, Europe, Global, etc.</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Right: Adaptive Slots -->
-                        <div class="bg-gray-750 rounded-lg p-4">
-                            <p class="text-yellow-400 text-sm font-medium mb-3">⚡ Slots are ADAPTIVE</p>
-                            <p class="text-gray-400 text-sm mb-3">Different questions based on primary_goal:</p>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Seeking Investment</span>
-                                    <span class="text-gray-400">→ funding_need, company_stage, team_size</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Looking to Invest</span>
-                                    <span class="text-gray-400">→ check_size, investment_thesis, portfolio</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Finding Co-founder</span>
-                                    <span class="text-gray-400">→ skills_have, skills_need, commitment</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Hiring Talent</span>
-                                    <span class="text-gray-400">→ role_type, seniority, compensation</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Seeking Mentor</span>
-                                    <span class="text-gray-400">→ mentorship_areas, time_commitment</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Looking for Job</span>
-                                    <span class="text-gray-400">→ job_title, experience_years, salary_range</span>
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <span class="text-purple-400 w-32">Seeking Partnership</span>
-                                    <span class="text-gray-400">→ partnership_type, collaboration_scope</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Arrow -->
-                <div class="flex justify-center my-2">
-                    <div class="text-3xl text-gray-600">↓</div>
-                </div>
-
-                <!-- Phase 2: Embedding Generation -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-4">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-lg font-bold">2</div>
-                        <h3 class="text-lg font-semibold">Embedding Generation</h3>
-                        <span class="text-xs bg-purple-600/30 text-purple-400 px-2 py-1 rounded">OpenAI text-embedding-3-small</span>
-                    </div>
-
-                    <p class="text-gray-400 text-sm mb-4">Extracted text converted to 1536-dimensional vectors, stored in pgvector:</p>
-
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <!-- Basic Embeddings -->
-                        <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-3">
-                            <p class="text-blue-400 text-sm font-medium">requirements</p>
-                            <p class="text-gray-500 text-xs">What user needs</p>
-                        </div>
-                        <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-3">
-                            <p class="text-blue-400 text-sm font-medium">offerings</p>
-                            <p class="text-gray-500 text-xs">What user gives</p>
-                        </div>
-                        <!-- Multi-Vector -->
-                        <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                            <p class="text-purple-400 text-sm font-medium">industry</p>
-                            <p class="text-gray-500 text-xs">25% weight</p>
-                        </div>
-                        <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                            <p class="text-purple-400 text-sm font-medium">stage</p>
-                            <p class="text-gray-500 text-xs">20% weight</p>
-                        </div>
-                        <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                            <p class="text-purple-400 text-sm font-medium">primary_goal</p>
-                            <p class="text-gray-500 text-xs">20% weight</p>
-                        </div>
-                        <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                            <p class="text-purple-400 text-sm font-medium">geography</p>
-                            <p class="text-gray-500 text-xs">15% weight</p>
-                        </div>
-                        <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                            <p class="text-purple-400 text-sm font-medium">engagement</p>
-                            <p class="text-gray-500 text-xs">10% weight</p>
-                        </div>
-                        <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                            <p class="text-purple-400 text-sm font-medium">dealbreakers</p>
-                            <p class="text-gray-500 text-xs">10% weight</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Arrow -->
-                <div class="flex justify-center my-2">
-                    <div class="text-3xl text-gray-600">↓</div>
-                </div>
-
-                <!-- Phase 3: Hybrid Matching -->
-                <div class="bg-gray-800 rounded-xl border border-green-700 p-6 mb-4">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-lg font-bold">3</div>
-                        <h3 class="text-lg font-semibold">Hybrid Matching</h3>
-                        <span class="text-xs bg-green-600/30 text-green-400 px-2 py-1 rounded">INLINE (Event-Based)</span>
-                    </div>
-
-                    <p class="text-gray-400 text-sm mb-4">Runs IMMEDIATELY when user completes onboarding. Clears <code class="text-yellow-400">needs_matchmaking</code> flag after completion.</p>
-                    <div class="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3 mb-4">
-                        <p class="text-amber-400 text-xs font-semibold mb-1">Scheduled Cron (Safety Net Only)</p>
-                        <p class="text-gray-400 text-xs">Daily at 3:00 AM UTC — catches admin imports, embedding changes, and edge cases where inline matching didn't fire. Should process ~0 users normally since inline matching clears the flag. Celery runs in EAGER mode (synchronous in uvicorn thread).</p>
-                    </div>
-
-                    <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-                        <p class="text-gray-500 mb-2">// Additive weighted formula (March 2026):</p>
-                        <p class="text-green-400">base = core_score × 0.40 + dimension_score × 0.35 + signal_score × 0.10</p>
-                        <p class="text-yellow-400 mt-1">// Intent multiplier: &lt;0.50 crushes, &gt;=0.95 boosts, else additive</p>
-                        <p class="text-green-400">final = base + intent_quality × 0.15</p>
-                        <p class="text-red-400">final = min(final ^ 0.85, intent_quality) <span class="text-gray-600">// Ceiling: score never exceeds IQ</span></p>
-                        <p class="text-cyan-400 mt-1">// Tiered sort: perfect pairs always rank above non-perfect for transactional intents</p>
-                        <p class="text-gray-500 mt-2">// If FINAL ≥ 0.50 → CREATE MATCH</p>
-                    </div>
-                </div>
-
-                <!-- Arrow -->
-                <div class="flex justify-center my-2">
-                    <div class="text-3xl text-gray-600">↓</div>
-                </div>
-
-                <!-- Phase 4: Storage & Notification -->
-                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 mb-4">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-lg font-bold">4</div>
-                        <h3 class="text-lg font-semibold">Match Storage & Notification</h3>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div class="bg-gray-750 rounded-lg p-3">
-                            <p class="text-orange-400 text-sm font-medium">Supabase</p>
-                            <p class="text-gray-400 text-xs">user_match_cache table</p>
-                        </div>
-                        <div class="bg-gray-750 rounded-lg p-3">
-                            <p class="text-orange-400 text-sm font-medium">Bidirectional Update</p>
-                            <p class="text-gray-400 text-xs">Both users' lists updated</p>
-                        </div>
-                        <div class="bg-gray-750 rounded-lg p-3">
-                            <p class="text-orange-400 text-sm font-medium">Webhook</p>
-                            <p class="text-gray-400 text-xs">Backend notified via /webhooks/matches-ready</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Arrow -->
-                <div class="flex justify-center my-2">
-                    <div class="text-3xl text-gray-600">↓</div>
-                </div>
-
-                <!-- Phase 5: Feedback Learning -->
-                <div class="bg-gray-800 rounded-xl border border-cyan-700 p-6">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-lg font-bold">5</div>
-                        <h3 class="text-lg font-semibold">Feedback Learning</h3>
-                        <span class="text-xs bg-cyan-600/30 text-cyan-400 px-2 py-1 rounded">ONGOING</span>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <p class="text-gray-400 text-sm mb-3">User feedback (👍/👎) adjusts embeddings:</p>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-cyan-400">Base rate:</span>
-                                    <span class="text-gray-300">2% adjustment per feedback</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-cyan-400">Max rate:</span>
-                                    <span class="text-gray-300">10% (prevents overfit)</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-cyan-400">Normalization:</span>
-                                    <span class="text-gray-300">Vectors normalized to prevent inflation</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-750 rounded-lg p-4">
-                            <p class="text-sm text-gray-400 mb-2">Example:</p>
-                            <p class="text-xs text-gray-500">User gives 👍 on match</p>
-                            <p class="text-xs text-gray-500">→ User's requirements embedding</p>
-                            <p class="text-xs text-gray-500">→ Slightly adjusted toward match's offerings</p>
-                            <p class="text-xs text-green-400 mt-2">→ Future matches improve</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SUB-VIEW 2: Matching Algorithm Detail -->
-            <div id="pipeline-matching" class="pipeline-view hidden">
-                <div class="bg-gray-800 rounded-xl border border-green-700 p-6">
-                    <h3 class="text-lg font-semibold mb-2">Hybrid Matching Algorithm (8 Steps)</h3>
-                    <p class="text-gray-500 text-xs mb-4">Updated March 28, 2026 — Additive weighted formula with tiered sorting. Validated across 64 users, 1,270 match pairs, zero wrong matches.</p>
-
-                    <!-- Step 1 -->
-                    <div class="mb-6 border-l-4 border-blue-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded">STEP 1</span>
-                            <span class="font-medium">Bidirectional Core Score</span>
-                        </div>
-                        <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm">
-                            <p class="text-cyan-400">forward = cosine(my_requirements_embedding, their_offerings_embedding)</p>
-                            <p class="text-cyan-400">reverse = cosine(my_offerings_embedding, their_requirements_embedding)</p>
-                            <p class="text-blue-400 mt-2">core_score = sqrt(forward × reverse)</p>
-                            <p class="text-gray-500 text-xs mt-1">Geometric mean ensures both parties benefit. Asymmetry penalty if |fwd-rev| > 0.15.</p>
-                        </div>
-                    </div>
-
-                    <!-- Step 2 -->
-                    <div class="mb-6 border-l-4 border-blue-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded">STEP 2</span>
-                            <span class="font-medium">Dimensional Alignment Score</span>
-                        </div>
-                        <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm">
-                            <p class="text-blue-400">industry_combined × 3.0</p>
-                            <p class="text-blue-400">+ stage_combined × 2.0</p>
-                            <p class="text-blue-400">+ skills_combined × 1.0</p>
-                            <p class="text-blue-400">+ culture_combined × 0.5</p>
-                            <p class="text-gray-500 mt-2">= dimension_score (weighted average of cosine similarities)</p>
-                        </div>
-                    </div>
-
-                    <!-- Step 3 -->
-                    <div class="mb-6 border-l-4 border-purple-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded">STEP 3</span>
-                            <span class="font-medium">Intent Classification</span>
-                        </div>
-                        <p class="text-gray-400 text-sm mb-2">Priority 1: primary_goal slot (confidence 0.95). Priority 2: keyword scoring across persona text.</p>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">INVESTOR_FOUNDER</span>
-                                <p class="text-gray-500 text-xs">"invest", "fund", "portfolio"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">FOUNDER_INVESTOR</span>
-                                <p class="text-gray-500 text-xs">"raise funding", "seeking capital"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">TALENT_SEEKING</span>
-                                <p class="text-gray-500 text-xs">"hire talent", "recruit"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">OPPORTUNITY_SEEKING</span>
-                                <p class="text-gray-500 text-xs">"find new job", "career"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">SERVICE_PROVIDER</span>
-                                <p class="text-gray-500 text-xs">"offer services", "consulting"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">PARTNERSHIP</span>
-                                <p class="text-gray-500 text-xs">"explore partnerships", "B2B"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">COFOUNDER</span>
-                                <p class="text-gray-500 text-xs">"find co-founder"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">MENTOR / MENTEE</span>
-                                <p class="text-gray-500 text-xs">"mentor", "seek mentorship"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">RECRUITER</span>
-                                <p class="text-gray-500 text-xs">"recruiter", "talent acquisition"</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-2">
-                                <span class="text-purple-400">GENERAL</span>
-                                <p class="text-gray-500 text-xs">Fallback: "general networking"</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 4 -->
-                    <div class="mb-6 border-l-4 border-green-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-green-600 text-white text-xs px-2 py-1 rounded">STEP 4</span>
-                            <span class="font-medium">Intent Complementarity (40+ pairs)</span>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
-                            <div class="bg-green-900/30 border border-green-700 rounded p-3">
-                                <p class="text-green-400 font-medium">Perfect (1.0)</p>
-                                <p class="text-gray-400 text-xs">INVESTOR ↔ FOUNDER</p>
-                                <p class="text-gray-400 text-xs">MENTOR ↔ MENTEE</p>
-                                <p class="text-gray-400 text-xs">TALENT ↔ OPPORTUNITY</p>
-                                <p class="text-gray-400 text-xs">RECRUITER ↔ TALENT (0.95)</p>
-                            </div>
-                            <div class="bg-blue-900/30 border border-blue-700 rounded p-3">
-                                <p class="text-blue-400 font-medium">Strong (0.80-0.90)</p>
-                                <p class="text-gray-400 text-xs">COFOUNDER ↔ COFOUNDER (0.90)</p>
-                                <p class="text-gray-400 text-xs">SERVICE ↔ FOUNDER (0.85)</p>
-                                <p class="text-gray-400 text-xs">PARTNERSHIP ↔ PARTNERSHIP (0.85)</p>
-                                <p class="text-gray-400 text-xs">PARTNERSHIP ↔ SERVICE (0.80)</p>
-                            </div>
-                            <div class="bg-yellow-900/30 border border-yellow-700 rounded p-3">
-                                <p class="text-yellow-400 font-medium">Moderate (0.50-0.70)</p>
-                                <p class="text-gray-400 text-xs">SERVICE ↔ TALENT (0.70)</p>
-                                <p class="text-gray-400 text-xs">PARTNERSHIP ↔ FOUNDER (0.65)</p>
-                                <p class="text-gray-400 text-xs">PARTNERSHIP ↔ INVESTOR (0.60)</p>
-                                <p class="text-gray-400 text-xs">SERVICE ↔ SERVICE (0.50)</p>
-                            </div>
-                            <div class="bg-red-900/30 border border-red-700 rounded p-3">
-                                <p class="text-red-400 font-medium">Blocked</p>
-                                <p class="text-gray-400 text-xs">INVESTOR ↔ INVESTOR</p>
-                                <p class="text-gray-400 text-xs">FOUNDER ↔ FOUNDER</p>
-                                <p class="text-gray-400 text-xs">INVESTOR ↔ SERVICE_PROVIDER</p>
-                                <p class="text-gray-400 text-xs">INVESTOR ↔ PARTNERSHIP</p>
-                                <p class="text-gray-400 text-xs">INVESTOR ↔ TALENT_SEEKING</p>
-                                <p class="text-gray-400 text-xs">INVESTOR ↔ GENERAL</p>
-                                <p class="text-gray-400 text-xs">MENTEE ↔ OPPORTUNITY</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 5 -->
-                    <div class="mb-6 border-l-4 border-red-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-red-600 text-white text-xs px-2 py-1 rounded">STEP 5</span>
-                            <span class="font-medium">Hard Filters</span>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                            <div class="bg-gray-750 rounded p-3">
-                                <p class="text-red-400 font-medium">BLOCK_SAME_OBJECTIVE</p>
-                                <p class="text-gray-400 text-xs">Two investors, two founders raising, two job seekers, two hiring companies</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-3">
-                                <p class="text-red-400 font-medium">BLOCK_INVESTOR_NON_FOUNDER</p>
-                                <p class="text-gray-400 text-xs">Investors only see founders. Service providers, partnerships, general blocked from investor lists.</p>
-                            </div>
-                            <div class="bg-gray-750 rounded p-3">
-                                <p class="text-red-400 font-medium">ENFORCE_DEALBREAKERS</p>
-                                <p class="text-gray-400 text-xs">Skip if user's hard dealbreakers triggered by candidate profile</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 6 -->
-                    <div class="mb-6 border-l-4 border-orange-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-orange-600 text-white text-xs px-2 py-1 rounded">STEP 6</span>
-                            <span class="font-medium">Final Score Formula (Additive Weighted)</span>
-                        </div>
-                        <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm space-y-2">
-                            <p class="text-gray-500">// Phase 1: Base total</p>
-                            <p class="text-orange-400">base = core_score × 0.40 + dimension_score × 0.35 + signal_score × 0.10</p>
-                            <p class="text-gray-500 mt-3">// Phase 2: Intent as hard multiplier</p>
-                            <p class="text-red-400">if intent_quality &lt; 0.50: final = base × (IQ/0.50) + IQ × 0.15 <span class="text-gray-600">// Crush bad pairs</span></p>
-                            <p class="text-green-400">if intent_quality &gt;= 0.95: final = base × 1.15 + IQ × 0.15 <span class="text-gray-600">// Boost perfect pairs</span></p>
-                            <p class="text-yellow-400">else: final = base + IQ × 0.15 <span class="text-gray-600">// Standard additive</span></p>
-                            <p class="text-gray-500 mt-3">// Phase 3: Spread + ceiling</p>
-                            <p class="text-cyan-400">final = final ^ 0.85 <span class="text-gray-600">// Power scaling for spread</span></p>
-                            <p class="text-red-400 font-bold">final = min(final, intent_quality) <span class="text-gray-600">// Score NEVER exceeds intent quality</span></p>
-                        </div>
-                    </div>
-
-                    <!-- Step 7 -->
-                    <div class="mb-6 border-l-4 border-cyan-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-cyan-600 text-white text-xs px-2 py-1 rounded">STEP 7</span>
-                            <span class="font-medium">Tiered Ranking</span>
-                        </div>
-                        <div class="bg-cyan-900/30 border border-cyan-700 rounded-lg p-4 text-sm">
-                            <p class="text-cyan-400 font-medium mb-2">For transactional intents (founder, investor, talent, opportunity):</p>
-                            <p class="text-gray-400">1. Perfect complementary matches (IQ &gt;= 0.95) <span class="text-green-400 font-bold">ALWAYS rank first</span></p>
-                            <p class="text-gray-400">2. Within each tier, ranked by score descending</p>
-                            <p class="text-gray-400 mt-2">Result: Investors always appear above service providers/partners for founders, regardless of embedding similarity.</p>
-                            <p class="text-gray-500 text-xs mt-2">For non-transactional intents (partnership, service_provider, cofounder): ranked purely by score.</p>
-                        </div>
-                    </div>
-
-                    <!-- Step 8 -->
-                    <div class="border-l-4 border-green-500 pl-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="bg-green-600 text-white text-xs px-2 py-1 rounded">STEP 8</span>
-                            <span class="font-medium">Threshold & Storage</span>
-                        </div>
-                        <div class="bg-green-900/30 border border-green-700 rounded-lg p-4">
-                            <p class="text-gray-400 text-sm">If score &gt;= <span class="text-green-400 font-bold">0.50</span> (threshold) → Store match</p>
-                            <p class="text-gray-400 text-sm mt-1">Score tiers: <span class="text-green-400">&gt;= 75% STRONG</span> | <span class="text-blue-400">&gt;= 60% WORTH_EXPLORING</span> | <span class="text-gray-500">&lt; 60% LOW</span></p>
-                            <p class="text-gray-400 text-sm mt-1">Max 50 matches per user. Synced to backend + match cache in Supabase.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SUB-VIEW 3: Slot Extraction & Confidence -->
-            <div id="pipeline-slots" class="pipeline-view hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Left: Slot Groups -->
-                    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                        <h3 class="text-lg font-semibold mb-4">Adaptive Slot Groups</h3>
-                        <p class="text-gray-400 text-sm mb-4">Slots change based on user's primary_goal:</p>
-
-                        <div class="space-y-3">
-                            <div class="bg-blue-900/30 border border-blue-700 rounded-lg p-3">
-                                <p class="text-blue-400 font-medium">CORE_SLOTS (Always)</p>
-                                <p class="text-gray-400 text-xs">primary_goal, requirements, offerings, user_type, industry_focus, stage_preference, geography</p>
-                            </div>
-                            <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-3">
-                                <p class="text-purple-400 font-medium">INVESTOR_SLOTS</p>
-                                <p class="text-gray-400 text-xs">check_size, portfolio_size, investment_thesis</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Looking to Invest"</p>
-                            </div>
-                            <div class="bg-green-900/30 border border-green-700 rounded-lg p-3">
-                                <p class="text-green-400 font-medium">FOUNDER_SLOTS</p>
-                                <p class="text-gray-400 text-xs">company_stage, funding_need, team_size</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Seeking Investment"</p>
-                            </div>
-                            <div class="bg-orange-900/30 border border-orange-700 rounded-lg p-3">
-                                <p class="text-orange-400 font-medium">COFOUNDER_SLOTS</p>
-                                <p class="text-gray-400 text-xs">skills_have, skills_need, commitment_level, equity_expectations</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Finding Co-founder"</p>
-                            </div>
-                            <div class="bg-cyan-900/30 border border-cyan-700 rounded-lg p-3">
-                                <p class="text-cyan-400 font-medium">HIRING_SLOTS</p>
-                                <p class="text-gray-400 text-xs">role_type, seniority_level, remote_preference, compensation_range</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Hiring Talent"</p>
-                            </div>
-                            <div class="bg-pink-900/30 border border-pink-700 rounded-lg p-3">
-                                <p class="text-pink-400 font-medium">MENTORSHIP_SLOTS</p>
-                                <p class="text-gray-400 text-xs">mentorship_areas, experience_level, time_commitment</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Seeking Mentor" or "Offering Advisory"</p>
-                            </div>
-                            <div class="bg-emerald-900/30 border border-emerald-700 rounded-lg p-3">
-                                <p class="text-emerald-400 font-medium">JOB_SEEKER_SLOTS</p>
-                                <p class="text-gray-400 text-xs">job_title_seeking, experience_years, salary_range, work_preference</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Looking for Job" or "Career Change"</p>
-                            </div>
-                            <div class="bg-amber-900/30 border border-amber-700 rounded-lg p-3">
-                                <p class="text-amber-400 font-medium">PARTNERSHIP_SLOTS</p>
-                                <p class="text-gray-400 text-xs">partnership_type, company_size, collaboration_scope</p>
-                                <p class="text-gray-500 text-xs mt-1">When: "Seeking Partnership" or "B2B Collaboration"</p>
-                            </div>
-                            <div class="bg-rose-900/30 border border-rose-700 rounded-lg p-3">
-                                <p class="text-rose-400 font-medium">RECRUITER_SLOTS</p>
-                                <p class="text-gray-400 text-xs">roles_hiring, company_represented, hiring_timeline</p>
-                                <p class="text-gray-500 text-xs mt-1">When: user_type is "Recruiter"</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Right: Confidence Scoring -->
-                    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
-                        <h3 class="text-lg font-semibold mb-4">Confidence Scoring</h3>
-                        <p class="text-gray-400 text-sm mb-4">Each extracted value gets a confidence score (0.0-1.0):</p>
-
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between bg-gray-750 rounded p-3">
-                                <div>
-                                    <p class="text-green-400 font-medium">Exact text match</p>
-                                    <p class="text-gray-500 text-xs">User says "Seed" for stage</p>
-                                </div>
-                                <span class="text-green-400 font-bold text-lg">0.95</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-750 rounded p-3">
-                                <div>
-                                    <p class="text-blue-400 font-medium">Multi-word match</p>
-                                    <p class="text-gray-500 text-xs">"early stage startup" → "Seed"</p>
-                                </div>
-                                <span class="text-blue-400 font-bold text-lg">0.75</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-750 rounded p-3">
-                                <div>
-                                    <p class="text-yellow-400 font-medium">Single keyword match</p>
-                                    <p class="text-gray-500 text-xs">"early" → "Pre-seed or Seed"</p>
-                                </div>
-                                <span class="text-yellow-400 font-bold text-lg">0.70</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-750 rounded p-3">
-                                <div>
-                                    <p class="text-orange-400 font-medium">Dual-role detected</p>
-                                    <p class="text-gray-500 text-xs">"I'm a founder who also invests"</p>
-                                </div>
-                                <span class="text-orange-400 font-bold text-lg">0.45</span>
-                            </div>
-                            <div class="flex items-center justify-between bg-gray-750 rounded p-3">
-                                <div>
-                                    <p class="text-red-400 font-medium">Number without units</p>
-                                    <p class="text-gray-500 text-xs">"I need 500" (500 what?)</p>
-                                </div>
-                                <span class="text-red-400 font-bold text-lg">0.35</span>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
-                            <p class="text-yellow-400 text-sm font-medium">⚡ Low confidence triggers clarification</p>
-                            <p class="text-gray-400 text-xs mt-1">If confidence < 0.7, system asks follow-up question to clarify</p>
-                        </div>
-
-                        <div class="mt-4 p-3 bg-blue-900/30 border border-blue-700 rounded-lg">
-                            <p class="text-blue-400 text-sm font-medium">🤖 LLM Used: Claude Sonnet 4.5</p>
-                            <p class="text-gray-400 text-xs mt-1">claude-sonnet-4-5-20250929 (upgraded from Haiku in BUG-055)</p>
-                            <p class="text-gray-400 text-xs">OpenAI only used for embeddings (text-embedding-3-small)</p>
-                        </div>
-
-                        <div class="mt-4 p-3 bg-green-900/30 border border-green-700 rounded-lg">
-                            <p class="text-green-400 text-sm font-medium mb-2">🆕 Recent Improvements (Mar 2026)</p>
-                            <div class="space-y-1 text-xs text-gray-400">
-                                <p>• <span class="text-green-300">Push Notifications</span> - Redis event publisher + Service Worker for real-time match alerts</p>
-                                <p>• <span class="text-green-300">Slot Restoration</span> - Slots restored from Supabase on new session (BUG-098/100)</p>
-                                <p>• <span class="text-green-300">Backend Progress</span> - Frontend uses backend completion_percent as source of truth (BUG-121)</p>
-                                <p>• <span class="text-green-300">Sonnet Upgrade</span> - Switched from Haiku to Sonnet 4.5 for accuracy (BUG-055)</p>
-                                <p>• <span class="text-green-300">Separated Services</span> - Extraction + Question Gen are now 2 LLM calls (BUG-071)</p>
-                                <p>• <span class="text-green-300">Progressive Disclosure</span> - MAX 3 slots per turn enforced in code (BUG-088)</p>
-                                <p>• <span class="text-green-300">JOB_SEARCH + SERVICES</span> - Full support for job seekers and service providers (BUG-074/075)</p>
-                                <p>• <span class="text-green-300">Trust LLM</span> - Removed code-level keyword matching, word boundaries (BUG-092-101)</p>
-                                <p>• <span class="text-green-300">Google OAuth Tracking</span> - Sentry + user toast for OAuth failures (BUG-123)</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- User Detail Modal -->
-        <div id="userModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50" onclick="closeModal(event)">
-            <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-                <div class="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 id="modalUserName" class="text-xl font-semibold"></h2>
-                        <p id="modalUserEmail" class="text-gray-400"></p>
-                        <p id="modalUserId" class="text-gray-500 text-sm mt-1 font-mono"></p>
-                    </div>
-                    <button onclick="closeModal()" class="text-gray-400 hover:text-white text-2xl">&times;</button>
-                </div>
-                <div id="modalContent">
-                    <p class="text-gray-400">Loading...</p>
-                </div>
-            </div>
-        </div>
-    </div>
 
         <!-- User Sessions Tab -->
         <div id="page-sessions" class="tab-content hidden">
@@ -1413,10 +807,6 @@
                 } else {
                     loadMatchingDiagnostics();
                 }
-            } else if (tab === 'pipeline') {
-                // Pipeline tab is static content, no data loading needed
-                // Show the default view
-                togglePipelineView('flow');
             } else if (tab === 'sessions') {
                 loadSessions();
             } else if (tab === 'analytics') {
@@ -1424,27 +814,6 @@
             }
         }
 
-        // Pipeline view switcher
-        function togglePipelineView(view) {
-            // Hide all pipeline views
-            document.querySelectorAll('.pipeline-view').forEach(el => el.classList.add('hidden'));
-            // Reset all buttons
-            document.getElementById('btn-flow').className = 'px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium';
-            document.getElementById('btn-matching-algo').className = 'px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium';
-            document.getElementById('btn-slots').className = 'px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium';
-
-            // Show selected view
-            document.getElementById(`pipeline-${view}`).classList.remove('hidden');
-
-            // Highlight active button
-            if (view === 'flow') {
-                document.getElementById('btn-flow').className = 'px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium';
-            } else if (view === 'matching') {
-                document.getElementById('btn-matching-algo').className = 'px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium';
-            } else if (view === 'slots') {
-                document.getElementById('btn-slots').className = 'px-4 py-2 bg-blue-600 rounded-lg text-sm font-medium';
-            }
-        }
 
         // Load on page load
         document.addEventListener('DOMContentLoaded', () => {
@@ -1608,6 +977,14 @@
         }
 
         function formatComponentName(name) {
+            // Apr-28 audit: post-AWS-migration label overrides. JSON keys
+            // retained for API stability (other consumers may key off them);
+            // display labels updated to reflect actual production infra.
+            const overrides = {
+                'supabase_database': 'AWS RDS (Backend)',
+                'render_database': 'AWS RDS (AI / pgvector)',
+            };
+            if (overrides[name]) return overrides[name];
             return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
 
@@ -1718,9 +1095,11 @@
                     </td>
                     <td class="px-4 py-3">
                         <div class="flex gap-2 flex-wrap" onclick="event.stopPropagation()">
-                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs">Gen Embed</button>` : ''}
+                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs" title="Async regenerate (queued via Celery)">Gen Embed</button>` : ''}
+                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddingsSync('${user.user_id}', this)" class="px-2 py-1 bg-purple-800 hover:bg-purple-900 rounded text-xs" title="Sync regenerate (blocking) — for the Apr-24 silent-partial-failure backfill pattern">Gen Embed (sync)</button>` : ''}
                             ${mv.count < 6 && user.persona_status === 'completed' ? `<button onclick="generateMultiVector('${user.user_id}', this)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">Gen MV</button>` : ''}
                             ${user.embeddings_count > 0 && user.matches_count === 0 ? `<button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">Gen Match</button>` : ''}
+                            <button onclick="recoverUser('${user.user_id}', this)" class="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-xs" title="Recover user stuck in onboarding (ai-side cleanup)">🔧 Recover</button>
                             <button onclick="hardDeleteUser('${user.user_id}', '${user.email}', this)" class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs" title="Permanently delete user from ALL systems">🗑️ Delete</button>
                         </div>
                     </td>
@@ -2563,6 +1942,96 @@
                 btn.innerHTML = '❌';
                 btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
                 alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function loadWiringAudit() {
+            const panel = document.getElementById('wiringAuditPanel');
+            const out = document.getElementById('wiringAuditOutput');
+            panel.classList.remove('hidden');
+            out.textContent = 'Running wiring audit...';
+            try {
+                const response = await fetch(`${ADMIN_BASE}/admin/wiring-audit`);
+                const data = await response.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                out.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function regenerateAllMatchesBulk() {
+            const c1 = confirm(
+                '\u26a0 DANGEROUS: REGENERATE ALL MATCHES\n\n' +
+                'This queues LLM scoring for EVERY user in production.\n' +
+                'Cost: ~$0.02 per user \u00d7 ~270 users \u2248 $5+\n' +
+                'Time: ~30-60 minutes for the full sweep.\n\n' +
+                'Continue?'
+            );
+            if (!c1) return;
+            const c2 = prompt('Type exactly: REGENERATE ALL MATCHES');
+            if (c2 !== 'REGENERATE ALL MATCHES') {
+                alert('Mismatch \u2014 aborted.');
+                return;
+            }
+            try {
+                const response = await fetch(`${API_BASE}/admin/regenerate-all-matches`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+                alert('Bulk regeneration triggered:\n\n' + JSON.stringify(data, null, 2));
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function regenerateEmbeddingsSync(userId, btn) {
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings-sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
+                });
+                const data = await response.json();
+                if (data.code === 200) {
+                    btn.textContent = 'Done!';
+                    btn.className = 'px-2 py-1 bg-green-700 rounded text-xs';
+                    setTimeout(() => loadUsers(true), 2000);
+                } else {
+                    btn.textContent = 'Error';
+                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
+                }
+            } catch (error) {
+                btn.textContent = 'Error';
+                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
+            }
+        }
+
+        async function recoverUser(userId, btn) {
+            const ok = confirm('Recover user (ai-side cleanup for stuck onboarding)?\n\nClears stale slot/persona state. Safe to retry.');
+            if (!ok) return;
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const response = await fetch(`${ADMIN_BASE}/admin/recover-user/${userId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                if (data.code === 200 || response.ok) {
+                    btn.textContent = '\u2713';
+                    btn.className = 'px-2 py-1 bg-green-700 rounded text-xs';
+                    setTimeout(() => loadUsers(true), 2000);
+                } else {
+                    btn.textContent = 'Error';
+                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
+                }
+            } catch (error) {
+                btn.textContent = 'Error';
+                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
             }
         }
 
