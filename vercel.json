@@ -1,32 +1,13 @@
 {
   "version": 2,
   "name": "2connect-admin-dashboard",
-  "builds": [
-    {
-      "src": "*.html",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "architecture/**",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     {
-      "src": "/architecture.html",
-      "dest": "/architecture.html"
-    },
-    {
-      "src": "/architecture-mobile.html",
-      "dest": "/architecture-mobile.html"
-    },
-    {
-      "src": "/architecture/(.*)",
-      "dest": "/architecture/$1"
-    },
-    {
       "src": "/(.*)",
-      "dest": "/index.html"
+      "status": 301,
+      "headers": {
+        "Location": "https://d1iw7av9zul2wo.cloudfront.net/$1"
+      }
     }
   ]
 }
