@@ -1319,6 +1319,21 @@
             }
         }
 
+        // eventOrganiserLabel — who owns / submitted an event. Prefers
+        // the linked organizer account (organizer_id, populated by the
+        // V1 admin event queries) so the admin sees which partner an
+        // approval request comes from; falls back to the free-text
+        // organiser fields, then a dash.
+        function eventOrganiserLabel(ev) {
+            const o = ev && ev.organizer;
+            if (o) {
+                const name = [o.first_name, o.last_name].filter(Boolean).join(' ').trim();
+                if (name && o.email) return `${name} (${o.email})`;
+                return name || o.email || '--';
+            }
+            return (ev && (ev.organiser_name || ev.organiser_email)) || '--';
+        }
+
         function renderEventsList() {
             const tableEl = document.getElementById('events-table');
             const q = (document.getElementById('events-search').value || '').toLowerCase();
@@ -1326,7 +1341,7 @@
             const rows = allEvents.filter(ev => {
                 if (statusFilter !== 'all' && ev.status !== statusFilter) return false;
                 if (q) {
-                    const hay = `${ev.name || ''} ${ev.venue || ''} ${ev.city || ''} ${ev.organiser_name || ''} ${ev.organiser_email || ''}`.toLowerCase();
+                    const hay = `${ev.name || ''} ${ev.venue || ''} ${ev.city || ''} ${ev.organiser_name || ''} ${ev.organiser_email || ''} ${eventOrganiserLabel(ev)}`.toLowerCase();
                     if (!hay.includes(q)) return false;
                 }
                 return true;
@@ -1354,7 +1369,7 @@
                                 <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs ${STATUS_BADGE[ev.status] || 'bg-gray-700'}">${escapeHtml(ev.status)}</span></td>
                                 <td class="px-4 py-2 text-gray-300">${ev.event_date ? new Date(ev.event_date).toLocaleDateString() : '--'}</td>
                                 <td class="px-4 py-2 text-gray-300">${escapeHtml(ev.venue || '--')}</td>
-                                <td class="px-4 py-2 text-gray-300">${escapeHtml(ev.organiser_name || ev.organiser_email || '--')}</td>
+                                <td class="px-4 py-2 text-gray-300">${escapeHtml(eventOrganiserLabel(ev))}</td>
                                 <td class="px-4 py-2 text-right text-gray-300">${(ev.participants && ev.participants.length) || 0}</td>
                             </tr>
                         `).join('')}
@@ -1460,12 +1475,13 @@
                     <h3 class="text-lg font-semibold">${escapeHtml(ev.name)}</h3>
                     <span class="px-2 py-0.5 rounded text-xs ${STATUS_BADGE[ev.status] || 'bg-gray-700'}">${escapeHtml(ev.status)}</span>
                 </div>
-                <p class="text-xs text-gray-400 mb-6">Access code: ${escapeHtml(ev.access_code || '--')} · ID: ${escapeHtml(ev.id)} · ${ev.participant_count || participants.length} attendees · ${ev.connections_made || 0} connections</p>
+                <p class="text-xs text-gray-400 mb-6">Access code: ${escapeHtml(ev.access_code || '--')} · ID: ${escapeHtml(ev.id)} · Organiser: ${escapeHtml(eventOrganiserLabel(ev))} · ${ev.participant_count || participants.length} attendees · ${ev.connections_made || 0} connections</p>
 
                 ${ev.status === 'pending' ? `
                 <div class="bg-yellow-900 border border-yellow-700 rounded-xl p-4 mb-6">
                     <p class="text-sm font-medium text-yellow-300 mb-1">Awaiting approval</p>
-                    <p class="text-xs text-gray-400 mb-3">This event was submitted by the organiser and is not live yet. Approving sets it to Upcoming and makes it joinable; rejecting sets it to Rejected.</p>
+                    <p class="text-xs text-gray-300 mb-2">Submitted by <span class="font-semibold">${escapeHtml(eventOrganiserLabel(ev))}</span></p>
+                    <p class="text-xs text-gray-400 mb-3">It is not live yet. Approving sets it to Upcoming and makes it joinable; rejecting sets it to Rejected.</p>
                     <div class="flex gap-2">
                         <button onclick="reviewEvent('${ev.id}','approve')" class="text-xs px-4 py-2 bg-green-700 hover:bg-green-800 rounded-lg font-medium">Approve event</button>
                         <button onclick="reviewEvent('${ev.id}','reject')" class="text-xs px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg font-medium">Reject</button>
