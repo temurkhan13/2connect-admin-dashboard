@@ -862,34 +862,19 @@
 
         <!-- PAGE 8: Events (operator control: ported 2026-05-21 from the
              reciprocity-frontend-admin build per May-21). Calls the
-             V1 backend admin event endpoints, which are JWT + Role.ADMIN
-             gated, so this tab needs an admin login (see operator-auth
-             block in the script). -->
+             V1 backend admin event endpoints, which accept the dashboard's
+             shared ADMIN_KEY (sent via adminFetch). No login. -->
         <div id="page-events" class="tab-content hidden">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">Events</h2>
-                <div class="flex gap-2 items-center">
-                    <span id="events-admin-status" class="text-xs text-gray-400"></span>
-                    <button onclick="loadEventsList()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
-                </div>
+                <button onclick="loadEventsList()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
             </div>
 
-            <!-- Admin-login panel: shown until an admin JWT is held. The
-                 operator endpoints reject the dashboard's casual password
-                 gate; they need a real Role.ADMIN JWT. -->
-            <div id="events-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
-                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
-                <p class="text-sm text-gray-400 mb-4">Event operator actions call role-gated backend endpoints. Sign in with an admin account to continue.</p>
-                <div class="flex gap-2 flex-wrap items-center">
-                    <input id="events-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <input id="events-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <button onclick="adminLogin('events')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
-                    <span id="events-login-error" class="text-xs text-red-400"></span>
-                </div>
-            </div>
-
-            <!-- The operator surface: visible only once authed -->
-            <div id="events-surface" class="hidden">
+            <!-- Operator surface. No login: the operator endpoints accept
+                 the dashboard's shared ADMIN_KEY (sent via adminFetch), so
+                 this works behind the casual password gate like every
+                 other tab. -->
+            <div id="events-surface">
                 <!-- List view -->
                 <div id="events-list-view">
                     <div class="flex gap-2 items-center mb-4 flex-wrap">
@@ -933,26 +918,14 @@
         </div>
 
         <!-- PAGE 9: Announcements (operator control: ported 2026-05-21 per
-             May-21). Broadcast + weekly-digest trigger. Shares the
-             admin JWT obtained on the Events tab. -->
+             May-21). Broadcast + weekly-digest trigger. No login;
+             operator endpoints accept the dashboard's shared ADMIN_KEY. -->
         <div id="page-announcements" class="tab-content hidden">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">Announcements</h2>
-                <span id="ann-admin-status" class="text-xs text-gray-400"></span>
             </div>
 
-            <div id="ann-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
-                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
-                <p class="text-sm text-gray-400 mb-4">Broadcast + digest actions call role-gated backend endpoints. Sign in with an admin account.</p>
-                <div class="flex gap-2 flex-wrap items-center">
-                    <input id="ann-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <input id="ann-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <button onclick="adminLogin('ann')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
-                    <span id="ann-login-error" class="text-xs text-red-400"></span>
-                </div>
-            </div>
-
-            <div id="ann-surface" class="hidden">
+            <div id="ann-surface">
                 <!-- Broadcast composer -->
                 <div class="bg-gray-800 rounded-xl p-5 mb-6">
                     <h3 class="font-semibold text-gray-200 mb-3">Broadcast</h3>
@@ -992,24 +965,10 @@
         <div id="page-metrics" class="tab-content hidden">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">30-day funnel</h2>
-                <div class="flex gap-2 items-center">
-                    <span id="metrics-admin-status" class="text-xs text-gray-400"></span>
-                    <button onclick="loadMetrics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
-                </div>
+                <button onclick="loadMetrics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
             </div>
 
-            <div id="metrics-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
-                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
-                <p class="text-sm text-gray-400 mb-4">Metrics call role-gated backend endpoints. Sign in with an admin account.</p>
-                <div class="flex gap-2 flex-wrap items-center">
-                    <input id="metrics-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <input id="metrics-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <button onclick="adminLogin('metrics')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
-                    <span id="metrics-login-error" class="text-xs text-red-400"></span>
-                </div>
-            </div>
-
-            <div id="metrics-surface" class="hidden">
+            <div id="metrics-surface">
                 <div id="metrics-cards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"></div>
                 <div class="bg-gray-800 rounded-xl p-5 mb-6">
                     <div class="flex items-center justify-between mb-3">
@@ -1029,21 +988,9 @@
         <div id="page-levers" class="tab-content hidden">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-semibold">User Levers</h2>
-                <span id="levers-admin-status" class="text-xs text-gray-400"></span>
             </div>
 
-            <div id="levers-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
-                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
-                <p class="text-sm text-gray-400 mb-4">User levers call role-gated backend endpoints. Sign in with an admin account.</p>
-                <div class="flex gap-2 flex-wrap items-center">
-                    <input id="levers-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <input id="levers-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <button onclick="adminLogin('levers')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
-                    <span id="levers-login-error" class="text-xs text-red-400"></span>
-                </div>
-            </div>
-
-            <div id="levers-surface" class="hidden">
+            <div id="levers-surface">
                 <div class="bg-gray-800 rounded-xl p-5 mb-6">
                     <p class="text-xs text-gray-400 mb-3">Paste a user UUID (copy one from the User Journey tab) and load to view + toggle their levers. Boost = +20% matching weight. Freeze = excluded from matching + messaging. Verified = trust badge.</p>
                     <div class="flex gap-2 items-center flex-wrap">
@@ -2929,13 +2876,12 @@
         // ====================================================================
         // EVENTS TAB — operator control panel (ported 2026-05-21 per May-21)
         // ====================================================================
-        // The event operator endpoints on the V1 backend are JWT + Role.ADMIN
-        // gated. This dashboard's casual password gate does not satisfy them,
-        // so the Events tab carries its own admin sign-in that obtains a real
-        // admin JWT (POST /admin/auth/login) and sends it as a Bearer token
-        // on every operator call via adminFetch().
+        // The V1 backend operator endpoints accept the dashboard's shared
+        // ADMIN_KEY (the same key already used against the AI service).
+        // adminFetch() sends it as the X-Admin-Key header. No login: the
+        // operator tabs work behind the casual password gate like every
+        // other tab.
 
-        let adminJWT = null;           // in-memory admin JWT (not persisted)
         let allEvents = [];            // last events/admin/list payload
         let currentEventDetail = null; // event currently open in detail view
 
@@ -2962,14 +2908,18 @@
             cancelled: 'bg-red-900 text-red-300',
         };
 
-        // adminFetch — fetch wrapper that attaches the admin Bearer token and
-        // surfaces HTTP errors (with the backend's JSON message when present).
+        // adminFetch — fetch wrapper for the operator endpoints. Sends the
+        // dashboard's shared ADMIN_KEY as the X-Admin-Key header (the V1
+        // backend AdminKeyGuard checks it). No login: the operator
+        // endpoints accept this key, same model as the dashboard's AI-
+        // service write endpoints. Surfaces HTTP errors with the
+        // backend's JSON message when present.
         async function adminFetch(url, options = {}) {
             const opts = { ...options };
             opts.headers = {
                 'Content-Type': 'application/json',
+                'X-Admin-Key': ADMIN_KEY,
                 ...(opts.headers || {}),
-                ...(adminJWT ? { Authorization: `Bearer ${adminJWT}` } : {}),
             };
             const res = await fetch(url, opts);
             let body = null;
@@ -2981,55 +2931,11 @@
             return body;
         }
 
-        // initEventsTab — entry point from switchTab. Shows the login panel
-        // if no JWT is held, otherwise the operator surface + events list.
+        // initEventsTab — entry point from switchTab. No auth gate; the
+        // surface is always shown and the events list loads on first open.
         function initEventsTab() {
-            const authed = !!adminJWT;
-            document.getElementById('events-login-panel').classList.toggle('hidden', authed);
-            document.getElementById('events-surface').classList.toggle('hidden', !authed);
-            document.getElementById('events-admin-status').textContent =
-                authed ? 'admin session active' : 'not signed in';
-            if (authed && allEvents.length === 0) {
+            if (allEvents.length === 0) {
                 loadEventsList();
-            }
-        }
-
-        // adminLogin — shared by every operator tab. `prefix` selects which
-        // tab's login fields to read ('events' or 'ann'). On success the
-        // JWT is global, so all operator tabs unlock at once.
-        async function adminLogin(prefix) {
-            const email = document.getElementById(`${prefix}-admin-email`).value.trim();
-            const password = document.getElementById(`${prefix}-admin-password`).value;
-            const errEl = document.getElementById(`${prefix}-login-error`);
-            errEl.textContent = '';
-            if (!email || !password) {
-                errEl.textContent = 'Email + password required';
-                return;
-            }
-            try {
-                const res = await fetch(`${BACKEND_BASE}/admin/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error((data && (data.message || data.error)) || `HTTP ${res.status}`);
-                }
-                // login returns { result: { user, access_token } } via the
-                // global ResponseInterceptor envelope.
-                const token = (data.result && data.result.access_token)
-                    || data.access_token;
-                if (!token) throw new Error('No access_token in login response');
-                adminJWT = token;
-                document.getElementById(`${prefix}-admin-password`).value = '';
-                // Refresh every operator tab's auth-gated state.
-                initEventsTab();
-                initAnnouncementsTab();
-                initMetricsTab();
-                initLeversTab();
-            } catch (e) {
-                errEl.textContent = e.message || 'Login failed';
             }
         }
 
@@ -3297,12 +3203,8 @@
         // ====================================================================
 
         function initAnnouncementsTab() {
-            const authed = !!adminJWT;
-            document.getElementById('ann-login-panel').classList.toggle('hidden', authed);
-            document.getElementById('ann-surface').classList.toggle('hidden', !authed);
-            document.getElementById('ann-admin-status').textContent =
-                authed ? 'admin session active' : 'not signed in';
-            if (authed) renderAnnAudienceExtra();
+            // No auth gate; the surface is always shown.
+            renderAnnAudienceExtra();
         }
 
         // The audience-kind dropdown drives one extra input (event UUID for
@@ -3392,12 +3294,8 @@
         ];
 
         function initMetricsTab() {
-            const authed = !!adminJWT;
-            document.getElementById('metrics-login-panel').classList.toggle('hidden', authed);
-            document.getElementById('metrics-surface').classList.toggle('hidden', !authed);
-            document.getElementById('metrics-admin-status').textContent =
-                authed ? 'admin session active' : 'not signed in';
-            if (authed) loadMetrics();
+            // No auth gate; load the funnel on open.
+            loadMetrics();
         }
 
         function sumSeries(rows) {
@@ -3405,7 +3303,6 @@
         }
 
         async function loadMetrics() {
-            if (!adminJWT) return;
             const byDayEl = document.getElementById('metrics-by-day');
             byDayEl.innerHTML = '<p class="text-gray-400">Loading...</p>';
             try {
@@ -3486,11 +3383,8 @@
         let currentLevers = null; // last-loaded { user_id, is_boosted, is_frozen, is_manual_verified }
 
         function initLeversTab() {
-            const authed = !!adminJWT;
-            document.getElementById('levers-login-panel').classList.toggle('hidden', authed);
-            document.getElementById('levers-surface').classList.toggle('hidden', !authed);
-            document.getElementById('levers-admin-status').textContent =
-                authed ? 'admin session active' : 'not signed in';
+            // No auth gate; the surface is always shown. Nothing to load
+            // until the operator pastes a UUID.
         }
 
         async function loadUserLevers() {
