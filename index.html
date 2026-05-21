@@ -90,6 +90,9 @@
             <button onclick="switchTab('events')" id="tab-events" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Events
             </button>
+            <button onclick="switchTab('announcements')" id="tab-announcements" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Announcements
+            </button>
             <a href="architecture.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
                 <span>🌐</span> Web Architecture
             </a>
@@ -874,7 +877,7 @@
                 <div class="flex gap-2 flex-wrap items-center">
                     <input id="events-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
                     <input id="events-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
-                    <button onclick="adminLogin()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
+                    <button onclick="adminLogin('events')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
                     <span id="events-login-error" class="text-xs text-red-400"></span>
                 </div>
             </div>
@@ -918,6 +921,61 @@
                     <button onclick="closeEventDetail()" class="text-sm text-gray-400 hover:text-white mb-4">&larr; Back to events</button>
                     <div id="event-detail-body">
                         <p class="text-gray-400">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 9: Announcements (operator control: ported 2026-05-21 per
+             May-21). Broadcast + weekly-digest trigger. Shares the
+             admin JWT obtained on the Events tab. -->
+        <div id="page-announcements" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">Announcements</h2>
+                <span id="ann-admin-status" class="text-xs text-gray-400"></span>
+            </div>
+
+            <div id="ann-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
+                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
+                <p class="text-sm text-gray-400 mb-4">Broadcast + digest actions call role-gated backend endpoints. Sign in with an admin account.</p>
+                <div class="flex gap-2 flex-wrap items-center">
+                    <input id="ann-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
+                    <input id="ann-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
+                    <button onclick="adminLogin('ann')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
+                    <span id="ann-login-error" class="text-xs text-red-400"></span>
+                </div>
+            </div>
+
+            <div id="ann-surface" class="hidden">
+                <!-- Broadcast composer -->
+                <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                    <h3 class="font-semibold text-gray-200 mb-3">Broadcast</h3>
+                    <p class="text-xs text-gray-400 mb-3">Send a one-off message. Frozen users are excluded automatically. There is no "all users" option by design; "all onboarded" is the broadest audience.</p>
+                    <input id="ann-subject" type="text" placeholder="Subject" class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm mb-2" />
+                    <textarea id="ann-body" rows="5" placeholder="Body (HTML)" class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-mono mb-3"></textarea>
+                    <div class="flex gap-3 flex-wrap items-center mb-3">
+                        <select id="ann-audience" onchange="renderAnnAudienceExtra()" aria-label="Broadcast audience" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                            <option value="all_onboarded">All onboarded users</option>
+                            <option value="event_attendees">Event attendees</option>
+                            <option value="user_list">Specific user list</option>
+                        </select>
+                        <label class="text-sm flex items-center gap-1"><input id="ann-ch-email" type="checkbox" checked /> Email</label>
+                        <label class="text-sm flex items-center gap-1"><input id="ann-ch-push" type="checkbox" /> Push</label>
+                    </div>
+                    <div id="ann-audience-extra" class="mb-3"></div>
+                    <button onclick="submitAnnBroadcast()" class="text-xs px-4 py-2 bg-amber-700 hover:bg-amber-600 rounded-lg font-medium">Send broadcast</button>
+                    <p id="ann-broadcast-result" class="text-xs mt-2"></p>
+                </div>
+
+                <!-- Weekly digest trigger -->
+                <div class="bg-gray-800 rounded-xl p-5">
+                    <h3 class="font-semibold text-gray-200 mb-3">Weekly digest trigger</h3>
+                    <p class="text-xs text-gray-400 mb-3">Enqueue the weekly match-summary digest now instead of waiting for the cron.</p>
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <label class="text-sm text-gray-400">Window (days)</label>
+                        <input id="ann-digest-days" type="number" min="1" max="30" value="7" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm w-24" />
+                        <button onclick="submitAnnDigest()" class="text-xs px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">Trigger digest now</button>
+                        <span id="ann-digest-result" class="text-xs"></span>
                     </div>
                 </div>
             </div>
@@ -1147,6 +1205,8 @@
                 loadMatchQuality();
             } else if (tab === 'events') {
                 initEventsTab();
+            } else if (tab === 'announcements') {
+                initAnnouncementsTab();
             }
         }
 
@@ -2855,10 +2915,13 @@
             }
         }
 
-        async function adminLogin() {
-            const email = document.getElementById('events-admin-email').value.trim();
-            const password = document.getElementById('events-admin-password').value;
-            const errEl = document.getElementById('events-login-error');
+        // adminLogin — shared by every operator tab. `prefix` selects which
+        // tab's login fields to read ('events' or 'ann'). On success the
+        // JWT is global, so all operator tabs unlock at once.
+        async function adminLogin(prefix) {
+            const email = document.getElementById(`${prefix}-admin-email`).value.trim();
+            const password = document.getElementById(`${prefix}-admin-password`).value;
+            const errEl = document.getElementById(`${prefix}-login-error`);
             errEl.textContent = '';
             if (!email || !password) {
                 errEl.textContent = 'Email + password required';
@@ -2880,8 +2943,10 @@
                     || data.access_token;
                 if (!token) throw new Error('No access_token in login response');
                 adminJWT = token;
-                document.getElementById('events-admin-password').value = '';
+                document.getElementById(`${prefix}-admin-password`).value = '';
+                // Refresh every operator tab's auth-gated state.
                 initEventsTab();
+                initAnnouncementsTab();
             } catch (e) {
                 errEl.textContent = e.message || 'Login failed';
             }
@@ -3139,6 +3204,93 @@
                 });
                 const r = (data && data.result) || data || {};
                 resEl.textContent = `Sent ${r.success || 0} of ${r.total || 0}${r.failure ? `; ${r.failure} failed` : ''}.`;
+                resEl.classList.add('text-green-400');
+            } catch (e) {
+                resEl.textContent = e.message;
+                resEl.classList.add('text-red-400');
+            }
+        }
+
+        // ====================================================================
+        // ANNOUNCEMENTS TAB — broadcast + weekly-digest trigger
+        // ====================================================================
+
+        function initAnnouncementsTab() {
+            const authed = !!adminJWT;
+            document.getElementById('ann-login-panel').classList.toggle('hidden', authed);
+            document.getElementById('ann-surface').classList.toggle('hidden', !authed);
+            document.getElementById('ann-admin-status').textContent =
+                authed ? 'admin session active' : 'not signed in';
+            if (authed) renderAnnAudienceExtra();
+        }
+
+        // The audience-kind dropdown drives one extra input (event UUID for
+        // event_attendees, a textarea of UUIDs for user_list).
+        function renderAnnAudienceExtra() {
+            const kind = document.getElementById('ann-audience').value;
+            const el = document.getElementById('ann-audience-extra');
+            if (kind === 'event_attendees') {
+                el.innerHTML = '<input id="ann-event-id" type="text" placeholder="Event UUID" class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />';
+            } else if (kind === 'user_list') {
+                el.innerHTML = '<textarea id="ann-user-ids" rows="3" placeholder="User UUIDs (comma / space / newline separated, max 1000)" class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm"></textarea>';
+            } else {
+                el.innerHTML = '';
+            }
+        }
+
+        async function submitAnnBroadcast() {
+            const subject = document.getElementById('ann-subject').value.trim();
+            const bodyText = document.getElementById('ann-body').value;
+            const kind = document.getElementById('ann-audience').value;
+            const email = document.getElementById('ann-ch-email').checked;
+            const push = document.getElementById('ann-ch-push').checked;
+            const resEl = document.getElementById('ann-broadcast-result');
+            resEl.className = 'text-xs mt-2';
+            if (!subject || !bodyText.trim()) { resEl.textContent = 'Subject + body required'; resEl.classList.add('text-red-400'); return; }
+            if (!email && !push) { resEl.textContent = 'Pick at least one channel'; resEl.classList.add('text-red-400'); return; }
+
+            const audience = { kind };
+            if (kind === 'event_attendees') {
+                const evId = (document.getElementById('ann-event-id') || {}).value;
+                if (!evId || !evId.trim()) { resEl.textContent = 'Event UUID required'; resEl.classList.add('text-red-400'); return; }
+                audience.event_id = evId.trim();
+            } else if (kind === 'user_list') {
+                const raw = (document.getElementById('ann-user-ids') || {}).value || '';
+                const ids = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+                if (ids.length === 0) { resEl.textContent = 'At least one user UUID required'; resEl.classList.add('text-red-400'); return; }
+                audience.user_ids = ids;
+            }
+            if (!confirm(`Send broadcast to "${kind}" via${email ? ' email' : ''}${email && push ? ' +' : ''}${push ? ' push' : ''}? This cannot be undone.`)) return;
+
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/admin/broadcast`, {
+                    method: 'POST',
+                    body: JSON.stringify({ subject, body: bodyText, audience, channels: { email, push } }),
+                });
+                const r = (data && data.result) || data || {};
+                const parts = [`Audience ${r.audience_size != null ? r.audience_size : '?'}`];
+                if (r.email) parts.push(`email ${r.email.success}/${r.email.success + r.email.failure}`);
+                if (r.push) parts.push(`push ${r.push.success}/${r.push.success + r.push.failure}`);
+                resEl.textContent = parts.join(' · ');
+                resEl.classList.add('text-green-400');
+            } catch (e) {
+                resEl.textContent = e.message;
+                resEl.classList.add('text-red-400');
+            }
+        }
+
+        async function submitAnnDigest() {
+            const days = Number(document.getElementById('ann-digest-days').value) || 7;
+            const resEl = document.getElementById('ann-digest-result');
+            resEl.className = 'text-xs';
+            if (!confirm(`Enqueue the weekly digest for the last ${days} days now?`)) return;
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/admin/weekly-digest/trigger`, {
+                    method: 'POST',
+                    body: JSON.stringify({ days }),
+                });
+                const r = (data && data.result) || data || {};
+                resEl.textContent = `Digest enqueued (last ${r.days || days} days).`;
                 resEl.classList.add('text-green-400');
             } catch (e) {
                 resEl.textContent = e.message;
