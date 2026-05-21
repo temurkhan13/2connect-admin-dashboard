@@ -460,10 +460,12 @@
                         <input id="events-search" oninput="renderEventsList()" type="text" placeholder="Search name / venue / organiser" class="bg-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm flex-1 min-w-[16rem]" />
                         <select id="events-status-filter" onchange="renderEventsList()" aria-label="Filter events by status" class="bg-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm">
                             <option value="all">All statuses</option>
+                            <option value="pending">Pending approval</option>
                             <option value="upcoming">Upcoming</option>
                             <option value="active">Active</option>
                             <option value="ended">Ended</option>
                             <option value="cancelled">Cancelled</option>
+                            <option value="rejected">Rejected</option>
                         </select>
                         <button onclick="showEventCreateForm()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">New event</button>
                     </div>
@@ -1265,10 +1267,12 @@
         ];
 
         const STATUS_BADGE = {
+            pending: 'bg-yellow-900 text-yellow-300',
             upcoming: 'bg-blue-900 text-blue-300',
             active: 'bg-green-900 text-green-300',
             ended: 'bg-gray-700 text-gray-300',
             cancelled: 'bg-red-900 text-red-300',
+            rejected: 'bg-red-900 text-red-300',
         };
 
         // adminFetch — fetch wrapper for the operator endpoints. Sends the
@@ -1424,6 +1428,25 @@
             currentEventDetail = null;
         }
 
+        // reviewEvent — admin approves or rejects a pending,
+        // organiser-submitted event. PATCH /events/:id/review (V1
+        // backend). Approve -> status 'upcoming' (live); reject ->
+        // status 'rejected'.
+        async function reviewEvent(eventId, decision) {
+            const verb = decision === 'approve' ? 'Approve' : 'Reject';
+            if (!confirm(`${verb} this event?`)) return;
+            try {
+                await adminFetch(`${BACKEND_BASE}/events/${eventId}/review`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ decision }),
+                });
+                await loadEventsList();
+                await openEventDetail(eventId);
+            } catch (e) {
+                alert(`${verb} failed: ${e.message}`);
+            }
+        }
+
         function renderEventDetail(ev) {
             const body = document.getElementById('event-detail-body');
             const participants = ev.participants || [];
@@ -1438,6 +1461,17 @@
                     <span class="px-2 py-0.5 rounded text-xs ${STATUS_BADGE[ev.status] || 'bg-gray-700'}">${escapeHtml(ev.status)}</span>
                 </div>
                 <p class="text-xs text-gray-400 mb-6">Access code: ${escapeHtml(ev.access_code || '--')} · ID: ${escapeHtml(ev.id)} · ${ev.participant_count || participants.length} attendees · ${ev.connections_made || 0} connections</p>
+
+                ${ev.status === 'pending' ? `
+                <div class="bg-yellow-900 border border-yellow-700 rounded-xl p-4 mb-6">
+                    <p class="text-sm font-medium text-yellow-300 mb-1">Awaiting approval</p>
+                    <p class="text-xs text-gray-400 mb-3">This event was submitted by the organiser and is not live yet. Approving sets it to Upcoming and makes it joinable; rejecting sets it to Rejected.</p>
+                    <div class="flex gap-2">
+                        <button onclick="reviewEvent('${ev.id}','approve')" class="text-xs px-4 py-2 bg-green-700 hover:bg-green-800 rounded-lg font-medium">Approve event</button>
+                        <button onclick="reviewEvent('${ev.id}','reject')" class="text-xs px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg font-medium">Reject</button>
+                    </div>
+                </div>
+                ` : ''}
 
                 <div class="bg-gray-800 rounded-xl p-5 mb-6">
                     <div class="flex items-center justify-between mb-3">
