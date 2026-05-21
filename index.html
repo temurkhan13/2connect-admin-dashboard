@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- Build: 2026-04-28 — Apr-28 audit cleanup (Pipeline tab removed, Stream Chat card retired, label fixes for AWS migration, +4 admin endpoints surfaced). See 2ConnectVault/Analyses/2026-04-28_admin-dashboard-audit.md -->
+<!-- Build: 2026-05-21. Client-only admin console rebuild: engineering surfaces removed (System Health, Matching Diagnostics, User Sessions, Match Quality). 7 client tabs: Overview, Users, Matches, Events, Announcements, Email, Moderation. -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -57,35 +57,31 @@
         <div class="mb-6 flex items-center justify-between">
             <div>
                 <h1 class="text-3xl font-bold text-white">2Connect Admin Dashboard</h1>
-                <p class="text-gray-400 mt-1">System monitoring and user diagnostics</p>
+                <p class="text-gray-400 mt-1">Platform administration</p>
             </div>
             <div class="text-right">
+                <!-- Platform-status pill: the client-appropriate replacement
+                     for the engineering System Health tab. One call to
+                     /admin/system-health, one indicator. -->
+                <div id="platformStatus" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800 text-sm mb-1">
+                    <span id="platformStatusDot" class="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
+                    <span id="platformStatusText" class="text-gray-400">Checking platform...</span>
+                </div>
                 <p id="lastRefresh" class="text-gray-400 text-xs"></p>
             </div>
         </div>
 
-        <!-- Navigation Tabs -->
+        <!-- Navigation Tabs — client admin console (rebuilt 2026-05-21 per
+             May-21: engineering tabs removed, client-only surface). -->
         <div class="flex border-b border-gray-700 mb-6">
-            <button onclick="switchTab('health')" id="tab-health" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-active">
-                System Health
+            <button onclick="switchTab('metrics')" id="tab-metrics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-active">
+                Overview
             </button>
             <button onclick="switchTab('users')" id="tab-users" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                User Journey
-            </button>
-            <button onclick="switchTab('matching')" id="tab-matching" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                Matching Diagnostics
-            </button>
-            <button onclick="switchTab('sessions')" id="tab-sessions" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                User Sessions
+                Users
             </button>
             <button onclick="switchTab('analytics')" id="tab-analytics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                Match Analytics
-            </button>
-            <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                Email Health
-            </button>
-            <button onclick="switchTab('quality')" id="tab-quality" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                Match Quality
+                Matches
             </button>
             <button onclick="switchTab('events')" id="tab-events" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Events
@@ -93,483 +89,88 @@
             <button onclick="switchTab('announcements')" id="tab-announcements" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Announcements
             </button>
-            <button onclick="switchTab('metrics')" id="tab-metrics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                Metrics
+            <button onclick="switchTab('email')" id="tab-email" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Email
             </button>
-            <button onclick="switchTab('levers')" id="tab-levers" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
-                User Levers
+            <button onclick="switchTab('moderation')" id="tab-moderation" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Moderation
             </button>
-            <a href="architecture.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
-                <span>🌐</span> Web Architecture
-            </a>
-            <a href="architecture-mobile.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
-                <span>📱</span> Mobile Architecture
-            </a>
         </div>
 
         <!-- Tab Content -->
 
-        <!-- PAGE 1: System Health -->
-        <div id="page-health" class="tab-content">
+        <!-- Moderation: abuse-report review (added 2026-05-21 per
+             May-21). Lists reported-user cases from the V1 backend
+             and lets the operator review / action / dismiss each, and
+             freeze the reported user. -->
+        <div id="page-moderation" class="tab-content hidden">
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-semibold">System Health Status</h2>
-                <div class="flex gap-2">
-                    <button onclick="loadWiringAudit()" class="px-4 py-2 bg-amber-700 hover:bg-amber-800 rounded-lg text-sm font-medium" title="Detect mismatched service config (e.g. AI thinks backend is at URL X but it actually replies at Y)">
-                        Wiring Audit
-                    </button>
-                    <button onclick="loadSystemHealth(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                        Refresh
-                    </button>
+                <h2 class="text-xl font-semibold">Moderation</h2>
+                <div class="flex gap-2 items-center">
+                    <select id="moderation-status-filter" onchange="loadModeration()" aria-label="Filter reports by status" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
+                        <option value="pending">Pending</option>
+                        <option value="reviewed">Reviewed</option>
+                        <option value="actioned">Actioned</option>
+                        <option value="dismissed">Dismissed</option>
+                        <option value="all">All</option>
+                    </select>
+                    <button onclick="loadModeration()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
                 </div>
             </div>
-            <div id="wiringAuditPanel" class="hidden mb-6 bg-gray-800 border border-amber-600 rounded-xl p-4 text-sm">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-semibold text-amber-300">Wiring Audit</h3>
-                    <button onclick="document.getElementById('wiringAuditPanel').classList.add('hidden')" class="text-gray-400 hover:text-white text-xs">close ✕</button>
-                </div>
-                <pre id="wiringAuditOutput" class="text-xs text-gray-300 whitespace-pre-wrap overflow-x-auto"></pre>
-            </div>
-
-            <!-- Overall Status Banner -->
-            <div id="overallStatusBanner" class="p-6 rounded-xl border mb-6 bg-gray-800 border-gray-700">
-                <div class="flex items-center gap-4">
-                    <div id="overallStatusIcon" class="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center">
-                        <span class="text-xl">...</span>
-                    </div>
-                    <div>
-                        <h3 id="overallStatusText" class="font-semibold text-lg">Loading...</h3>
-                        <p id="overallStatusTime" class="text-sm text-gray-400"></p>
-                    </div>
-                </div>
-                <div id="issuesList" class="mt-4 hidden">
-                    <p class="text-sm font-medium text-gray-300 mb-2">Issues:</p>
-                    <ul id="issuesContent" class="list-disc list-inside text-sm text-gray-400"></ul>
-                </div>
-            </div>
-
-            <!-- Health Categories Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-                <!-- Services Card -->
-                <div id="card-services" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-white">Services</h3>
-                        <div id="services-badge" class="flex items-center gap-2">
-                            <span class="text-sm text-gray-400">-/-</span>
-                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
-                        </div>
-                    </div>
-                    <div id="services-components" class="space-y-2">
-                        <p class="text-gray-400 text-sm">Loading...</p>
-                    </div>
-                </div>
-
-                <!-- Onboarding Card -->
-                <div id="card-onboarding" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-white">Onboarding</h3>
-                        <div id="onboarding-badge" class="flex items-center gap-2">
-                            <span class="text-sm text-gray-400">-/-</span>
-                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
-                        </div>
-                    </div>
-                    <div id="onboarding-components" class="space-y-2">
-                        <p class="text-gray-400 text-sm">Loading...</p>
-                    </div>
-                </div>
-
-                <!-- Matching Card -->
-                <div id="card-matching" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-white">Matching</h3>
-                        <div id="matching-badge" class="flex items-center gap-2">
-                            <span class="text-sm text-gray-400">-/-</span>
-                            <div class="w-3 h-3 rounded-full bg-gray-600"></div>
-                        </div>
-                    </div>
-                    <div id="matching-components" class="space-y-2">
-                        <p class="text-gray-400 text-sm">Loading...</p>
-                    </div>
-                </div>
-
-                <!-- Databases Card -->
-                <div id="card-databases" class="health-card bg-gray-800 rounded-xl border border-gray-700 p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="font-semibold text-white">Databases</h3>
-                        <div class="flex items-center gap-2">
-                            <span class="text-sm text-gray-400">4 stores</span>
-                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        </div>
-                    </div>
-                    <div class="space-y-3 text-sm">
-                        <!-- Supabase -->
-                        <div class="group relative cursor-help">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-orange-500"></div>
-                                    <span class="text-gray-300 border-b border-dashed border-gray-600">Supabase</span>
-                                </div>
-                                <span class="text-gray-400 text-xs">Primary PostgreSQL</span>
-                            </div>
-                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
-                                <div class="bg-gray-900 border border-orange-700 rounded-lg p-3 shadow-xl text-xs">
-                                    <div class="font-semibold text-orange-400 mb-2">Supabase PostgreSQL Tables</div>
-                                    <div class="grid grid-cols-2 gap-1 text-gray-300">
-                                        <div>• users</div>
-                                        <div>• user_summaries</div>
-                                        <div>• user_embeddings</div>
-                                        <div>• user_profiles</div>
-                                        <div>• user_match_cache</div>
-                                        <div>• matches</div>
-                                        <div>• match_feedback</div>
-                                        <div>• notified_match_pairs</div>
-                                        <div>• onboarding_answers</div>
-                                        <div>• onboarding_slots</div>
-                                        <div>• connection_interests</div>
-                                        <div>• ai_conversations</div>
-                                        <div>• messages</div>
-                                        <div>• activity_log</div>
-                                    </div>
-                                    <div class="mt-2 text-gray-400 text-[10px]">pgvector enabled for embeddings | Migrated from DynamoDB 2026-03-09</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Render PostgreSQL -->
-                        <div class="group relative cursor-help">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-cyan-500"></div>
-                                    <span class="text-gray-300 border-b border-dashed border-gray-600">Render DB</span>
-                                </div>
-                                <span class="text-gray-400 text-xs">Backend PostgreSQL</span>
-                            </div>
-                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
-                                <div class="bg-gray-900 border border-cyan-700 rounded-lg p-3 shadow-xl text-xs">
-                                    <div class="font-semibold text-cyan-400 mb-2">Render PostgreSQL</div>
-                                    <div class="space-y-1 text-gray-300">
-                                        <div>Backend-specific data (mirrors some Supabase tables)</div>
-                                        <div class="mt-2 grid grid-cols-2 gap-1">
-                                            <div>• users</div>
-                                            <div>• user_documents</div>
-                                            <div>• roles</div>
-                                            <div>• message_templates</div>
-                                            <div>• notifications</div>
-                                            <div>• sessions</div>
-                                        </div>
-                                    </div>
-                                    <div class="mt-2 text-gray-400 text-[10px]">reciprocity_backend database</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Redis -->
-                        <div class="group relative cursor-help">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                                    <span class="text-gray-300 border-b border-dashed border-gray-600">Redis</span>
-                                </div>
-                                <span class="text-gray-400 text-xs">Upstash (TLS)</span>
-                            </div>
-                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-80">
-                                <div class="bg-gray-900 border border-red-700 rounded-lg p-3 shadow-xl text-xs">
-                                    <div class="font-semibold text-red-400 mb-2">Redis Cache Keys</div>
-                                    <div class="space-y-2 text-gray-300">
-                                        <div><span class="text-red-300">session:{id}</span> - Onboarding sessions (24h TTL)</div>
-                                        <div><span class="text-red-300">embedding:{user}:{type}</span> - Cached embeddings (7d TTL)</div>
-                                        <div><span class="text-red-300">matches:{user_id}</span> - Match cache</div>
-                                        <div class="text-gray-400 mt-1">Also: Bull queue for email jobs</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- S3 -->
-                        <div class="group relative cursor-help">
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                                    <span class="text-gray-300 border-b border-dashed border-gray-600">S3</span>
-                                </div>
-                                <span class="text-gray-400 text-xs">File storage</span>
-                            </div>
-                            <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72">
-                                <div class="bg-gray-900 border border-green-700 rounded-lg p-3 shadow-xl text-xs">
-                                    <div class="font-semibold text-green-400 mb-2">S3 Bucket: 2connect-uploads-prod</div>
-                                    <div class="space-y-1 text-gray-300">
-                                        <div><span class="text-green-300">/resumes/</span> - User resume uploads</div>
-                                        <div><span class="text-green-300">/profile_images/</span> - User avatars</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Legend -->
-            <div class="p-4 bg-gray-800 rounded-lg text-sm text-gray-400">
-                <p class="font-medium mb-2">Status indicators:</p>
-                <div class="flex flex-wrap gap-6">
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        Healthy - Operational
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        Warning - Non-critical issue
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                        Error - Component has issues
-                    </div>
-                </div>
+            <p class="text-xs text-gray-400 mb-4">Abuse reports filed by users. Review a case, action it (and optionally freeze the reported user), or dismiss it.</p>
+            <div id="moderation-list" class="space-y-3">
+                <p class="text-gray-400">Loading reports...</p>
             </div>
         </div>
 
-        <!-- PAGE 2: User Journey -->
+        <!-- Users: client user management (rebuilt 2026-05-21 per
+             May-21 from the engineering User Journey tab). Clean
+             columns; expand a row for support detail + boost / freeze /
+             verify levers + hard-delete. -->
         <div id="page-users" class="tab-content hidden">
             <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-xl font-semibold">User Journey Diagnostics</h2>
-                    <p class="text-yellow-500 text-sm mt-1">Test Users Password: <code class="bg-gray-700 px-2 py-1 rounded">Test123!@#</code></p>
-                </div>
-                <button onclick="loadUsers(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                    Refresh
-                </button>
+                <h2 class="text-xl font-semibold">Users</h2>
+                <button onclick="loadUsers(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
             </div>
 
-            <!-- Summary Cards -->
-            <div id="summaryCards" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div class="grid grid-cols-3 gap-4 mb-4">
                 <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">Total Users</p>
-                    <p id="totalUsers" class="text-2xl font-bold">-</p>
+                    <p class="text-gray-400 text-sm">Total users</p>
+                    <p id="usersTotal" class="text-2xl font-bold">-</p>
                 </div>
                 <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">Healthy</p>
-                    <p id="healthyUsers" class="text-2xl font-bold text-green-500">-</p>
+                    <p class="text-gray-400 text-sm">Onboarded</p>
+                    <p id="usersOnboarded" class="text-2xl font-bold text-green-400">-</p>
                 </div>
                 <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">Embeddings Missing</p>
-                    <p id="embeddingsMissing" class="text-2xl font-bold text-red-500">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">Matches Missing</p>
-                    <p id="matchesMissing" class="text-2xl font-bold text-yellow-500">-</p>
+                    <p class="text-gray-400 text-sm">Onboarding in progress</p>
+                    <p id="usersInProgress" class="text-2xl font-bold text-yellow-400">-</p>
                 </div>
             </div>
 
-            <!-- Multi-Vector Summary -->
-            <div class="grid grid-cols-3 gap-4 mb-6">
-                <div class="bg-purple-900/30 border border-purple-700 rounded-lg p-4">
-                    <p class="text-purple-400 text-sm">Embeddings Complete (6+)</p>
-                    <p id="mvComplete" class="text-2xl font-bold text-purple-300">-</p>
-                </div>
-                <div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-4">
-                    <p class="text-yellow-400 text-sm">Multi-Vector Partial</p>
-                    <p id="mvPartial" class="text-2xl font-bold text-yellow-300">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">No Multi-Vector</p>
-                    <p id="mvNone" class="text-2xl font-bold text-gray-400">-</p>
-                </div>
-            </div>
-
-            <!-- Filter -->
             <div class="flex gap-4 mb-4">
-                <select id="statusFilter" aria-label="Filter by persona status" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
-                    <option value="all">All Statuses</option>
-                    <option value="healthy">Healthy</option>
-                    <option value="embeddings_missing">Embeddings Missing</option>
-                    <option value="matches_missing">Matches Missing</option>
-                    <option value="persona_missing">Persona Missing</option>
-                    <option value="onboarding_incomplete">Onboarding Incomplete</option>
+                <select id="usersStatusFilter" aria-label="Filter users by onboarding state" onchange="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
+                    <option value="all">All users</option>
+                    <option value="onboarded">Onboarded</option>
+                    <option value="in_progress">Onboarding in progress</option>
                 </select>
-                <input type="text" id="searchFilter" aria-label="Search users by name, email, or ID" placeholder="Filter by email..." onkeyup="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
+                <input type="text" id="usersSearchFilter" aria-label="Search users by name or email" placeholder="Search by name or email..." onkeyup="filterUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
             </div>
 
-            <!-- Users Table -->
             <div class="bg-gray-800 rounded-lg overflow-hidden">
                 <table class="w-full">
                     <thead class="bg-gray-750">
                         <tr class="text-left text-gray-400 text-sm">
                             <th class="px-4 py-3">User</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Slots</th>
-                            <th class="px-4 py-3">Persona</th>
-                            <th class="px-4 py-3">Embeddings</th>
-                            <th class="px-4 py-3">Multi-Vector</th>
+                            <th class="px-4 py-3">Onboarding</th>
                             <th class="px-4 py-3">Matches</th>
-                            <th class="px-4 py-3">Actions</th>
+                            <th class="px-4 py-3"></th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
-                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>
+                        <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-
-        <!-- PAGE 3: Matching Diagnostics -->
-        <div id="page-matching" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-semibold">Matching Diagnostics</h2>
-                <div class="flex gap-2">
-                    <button onclick="regenerateAllMatchesBulk()" class="px-4 py-2 bg-red-700 hover:bg-red-800 rounded-lg text-sm font-medium" title="DANGEROUS: queues LLM scoring for every user. Confirms twice.">
-                        ⚠ Regenerate ALL Matches
-                    </button>
-                    <button onclick="loadMatchingDiagnostics(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                        Refresh
-                    </button>
-                </div>
-            </div>
-
-            <!-- Matching Summary -->
-            <div class="grid grid-cols-4 gap-4 mb-4">
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">Total Users</p>
-                    <p id="matchingTotalUsers" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">With Multi-Vector</p>
-                    <p id="matchingWithMV" class="text-2xl font-bold text-purple-400">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">With Basic Embeddings</p>
-                    <p id="matchingWithBasic" class="text-2xl font-bold text-blue-400">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">With Matches</p>
-                    <p id="matchingWithMatches" class="text-2xl font-bold text-green-400">-</p>
-                </div>
-            </div>
-
-            <!-- Intent Breakdown -->
-            <div id="intentBreakdown" class="bg-gray-800 rounded-lg p-4 mb-4 hidden">
-                <h3 class="font-semibold mb-3">Intent Distribution</h3>
-                <div id="intentTags" class="flex flex-wrap gap-3"></div>
-            </div>
-
-            <!-- Filter -->
-            <div class="flex gap-4 mb-4">
-                <input type="text" id="matchingSearchFilter" placeholder="Search by name, email, or ID..." onkeyup="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm flex-1">
-                <select id="intentFilter" aria-label="Filter by intent classification" onchange="filterMatchingUsers()" class="px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-sm">
-                    <option value="all">All Intents</option>
-                </select>
-            </div>
-
-            <!-- Matching Table -->
-            <div class="bg-gray-800 rounded-lg overflow-hidden">
-                <table class="w-full">
-                    <thead class="bg-gray-750">
-                        <tr class="text-left text-gray-400 text-sm">
-                            <th class="px-4 py-3 w-8"></th>
-                            <th class="px-4 py-3">User</th>
-                            <th class="px-4 py-3">Embeddings</th>
-                            <th class="px-4 py-3">Intent</th>
-                            <th class="px-4 py-3">Dealbreakers</th>
-                            <th class="px-4 py-3">Activity Boost</th>
-                            <th class="px-4 py-3">Blocking</th>
-                            <th class="px-4 py-3">Matches</th>
-                        </tr>
-                    </thead>
-                    <tbody id="matchingTableBody">
-                        <tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading matching data...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Legend -->
-            <div class="mt-4 p-4 bg-gray-800 rounded-lg text-sm text-gray-400">
-                <p class="font-medium mb-2">Legend:</p>
-                <div class="flex flex-wrap gap-x-6 gap-y-2">
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                        Healthy / Has Data
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        Warning / Blocking Active
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                        Error / Missing Data
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs bg-gray-700 px-1 rounded">MV</span>
-                        Multi-Vector Embeddings
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs bg-gray-700 px-1 rounded">F/R</span>
-                        Forward/Reverse Score
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- User Sessions Tab -->
-        <div id="page-sessions" class="tab-content hidden">
-            <div class="bg-gray-800 rounded-xl p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold">User Sessions</h2>
-                    <div class="flex gap-3">
-                        <select id="sessions-platform-filter" aria-label="Filter sessions by platform" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
-                            <option value="">All Platforms</option>
-                            <option value="web">Web</option>
-                            <option value="mobile-app">Mobile App</option>
-                            <option value="mobile-browser">Mobile Browser</option>
-                        </select>
-                        <select id="sessions-days-filter" aria-label="Sessions time window in days" onchange="loadSessions()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
-                            <option value="7">Last 7 days</option>
-                            <option value="30" selected>Last 30 days</option>
-                            <option value="90">Last 90 days</option>
-                        </select>
-                        <button onclick="loadSessions(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">
-                            Refresh
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Summary Cards -->
-                <div id="sessions-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-white" id="stat-total-users">-</div>
-                        <div class="text-xs text-gray-400">Total Users</div>
-                    </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-blue-400" id="stat-web-users">-</div>
-                        <div class="text-xs text-gray-400">Web</div>
-                    </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-green-400" id="stat-mobile-users">-</div>
-                        <div class="text-xs text-gray-400">Mobile App</div>
-                    </div>
-                    <div class="bg-gray-750 rounded-lg p-4 text-center">
-                        <div class="text-2xl font-bold text-yellow-400" id="stat-active-today">-</div>
-                        <div class="text-xs text-gray-400">Active Today</div>
-                    </div>
-                </div>
-
-                <!-- Sessions Table -->
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-gray-700 text-left text-gray-400">
-                                <th class="py-3 px-2">User</th>
-                                <th class="py-3 px-2">Platform</th>
-                                <th class="py-3 px-2">Device / OS</th>
-                                <th class="py-3 px-2">Location</th>
-                                <th class="py-3 px-2">Timezone</th>
-                                <th class="py-3 px-2">Last Active</th>
-                                <th class="py-3 px-2">Sessions</th>
-                                <th class="py-3 px-2">Events</th>
-                            </tr>
-                        </thead>
-                        <tbody id="sessions-table-body">
-                            <tr><td colspan="8" class="py-8 text-center text-gray-400">Loading...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
 
@@ -616,35 +217,6 @@
                         <div class="bg-gray-750 rounded-lg p-4 text-center">
                             <div class="text-2xl font-bold text-yellow-400" id="funnel-stale">-</div>
                             <div class="text-xs text-gray-400">Stale (14d+)</div>
-                        </div>
-                    </div>
-
-                    <!-- Score vs Reality -->
-                    <div class="mb-6">
-                        <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Score vs Reality</h3>
-                        <div id="score-reality" class="grid grid-cols-4 gap-3"></div>
-                    </div>
-
-                    <!-- Per-User Table -->
-                    <div class="mb-6">
-                        <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wide">Per-User Match Behavior</h3>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
-                                <thead>
-                                    <tr class="border-b border-gray-700 text-left text-gray-400">
-                                        <th class="py-3 px-2">User</th>
-                                        <th class="py-3 px-2 text-center">Matches</th>
-                                        <th class="py-3 px-2 text-center">Approved</th>
-                                        <th class="py-3 px-2 text-center">Passed</th>
-                                        <th class="py-3 px-2 text-center">Pending</th>
-                                        <th class="py-3 px-2 text-center">Messaged</th>
-                                        <th class="py-3 px-2 text-center">Approval %</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="analytics-user-table">
-                                    <tr><td colspan="7" class="py-8 text-center text-gray-400">Loading...</td></tr>
-                                </tbody>
-                            </table>
                         </div>
                     </div>
                 </div>
@@ -763,7 +335,7 @@
         <!-- PAGE 6: Email Health (Apr-28 Phase 4 A5) -->
         <div id="page-email" class="tab-content hidden">
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-semibold">Email Health</h2>
+                <h2 class="text-xl font-semibold">Email</h2>
                 <div class="flex gap-2 items-center">
                     <select id="email-days-filter" aria-label="Email Health time window in days" onchange="loadEmailHealth()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
                         <option value="7">Last 7 days</option>
@@ -807,57 +379,6 @@
                 </div>
             </div>
 
-            <p class="text-xs text-gray-400 mt-4">SES bounce/complaint counts deferred to a future pass — see vault Analyses/2026-04-28_admin-dashboard-phase4-design.md.</p>
-        </div>
-
-        <!-- PAGE 7: Match Quality (Apr-28 Phase 4 A6) -->
-        <div id="page-quality" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-semibold">Match Quality Counters</h2>
-                <div class="flex gap-2 items-center">
-                    <select id="quality-days-filter" aria-label="Match Quality time window in days" onchange="loadMatchQuality()" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm">
-                        <option value="7">Last 7 days</option>
-                        <option value="30" selected>Last 30 days</option>
-                        <option value="90">Last 90 days</option>
-                    </select>
-                    <button onclick="loadMatchQuality()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
-                </div>
-            </div>
-
-            <div id="quality-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm">Scoring calls</p>
-                    <p id="quality-scoring-calls" class="text-2xl font-bold">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm" title="JSONDecodeError on LLM scoring response. Sara's Apr-19 baseline was 89%; post-Fix-7 should be <1%.">Parse failure rate</p>
-                    <p id="quality-parse-rate" class="text-2xl font-bold text-yellow-400">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm" title="Proxy for Rule 6 / Rule 2 hard caps — score < LLM_SCORE_MIN (default 30).">Score below min rate</p>
-                    <p id="quality-below-min-rate" class="text-2xl font-bold text-red-400">-</p>
-                </div>
-                <div class="bg-gray-800 rounded-lg p-4">
-                    <p class="text-gray-400 text-sm" title="Score Calibration Floor activations — boosts low scores when reciprocal + role_fit ≥ 70.">Calibration floor rate</p>
-                    <p id="quality-floor-rate" class="text-2xl font-bold text-blue-400">-</p>
-                </div>
-            </div>
-
-            <div class="bg-gray-800 rounded-xl p-5 mb-6">
-                <h3 class="font-semibold text-gray-200 mb-3">All counter totals (last N days)</h3>
-                <div id="quality-totals" class="space-y-2 text-sm">
-                    <p class="text-gray-400">Loading...</p>
-                </div>
-            </div>
-
-            <div class="bg-gray-800 rounded-xl p-5">
-                <h3 class="font-semibold text-gray-200 mb-3">Per-day breakdown (most recent first)</h3>
-                <div id="quality-by-day" class="text-xs font-mono overflow-x-auto">
-                    <p class="text-gray-400">Loading...</p>
-                </div>
-            </div>
-
-            <p class="text-xs text-gray-400 mt-4">Counters populated lazily by the matching pipeline (Redis-backed, 90-day TTL). Empty buckets are expected on days with no matching activity. Counter writes are silent-on-error so they never break matching.</p>
         </div>
 
         <!-- PAGE 8: Events (operator control: ported 2026-05-21 from the
@@ -983,25 +504,6 @@
             </div>
         </div>
 
-        <!-- PAGE 11: User Levers (operator: ported 2026-05-21 per May-21).
-             Paste a user UUID, view + toggle boost / freeze / verify. -->
-        <div id="page-levers" class="tab-content hidden">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-xl font-semibold">User Levers</h2>
-            </div>
-
-            <div id="levers-surface">
-                <div class="bg-gray-800 rounded-xl p-5 mb-6">
-                    <p class="text-xs text-gray-400 mb-3">Paste a user UUID (copy one from the User Journey tab) and load to view + toggle their levers. Boost = +20% matching weight. Freeze = excluded from matching + messaging. Verified = trust badge.</p>
-                    <div class="flex gap-2 items-center flex-wrap">
-                        <input id="levers-user-id" type="text" placeholder="User UUID" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm flex-1 min-w-[20rem]" />
-                        <button onclick="loadUserLevers()" class="text-xs px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">Load</button>
-                    </div>
-                    <p id="levers-error" class="text-xs text-red-400 mt-2"></p>
-                </div>
-                <div id="levers-result" class="hidden bg-gray-800 rounded-xl p-5"></div>
-            </div>
-        </div>
         </main>
 
     <script>
@@ -1181,359 +683,181 @@
             return cache[key]?.data && (Date.now() - cache[key].timestamp) < CACHE_DURATION;
         }
 
-        // Tab switching - USE CACHE, don't always reload
+        // Tab switching. Client console: 7 tabs.
         function switchTab(tab) {
-            // Hide all pages
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            // Deactivate all tabs
             document.querySelectorAll('[id^="tab-"]').forEach(el => {
                 el.classList.remove('tab-active');
                 el.classList.add('tab-inactive');
             });
 
-            // Show selected page
             document.getElementById(`page-${tab}`).classList.remove('hidden');
             document.getElementById(`tab-${tab}`).classList.remove('tab-inactive');
             document.getElementById(`tab-${tab}`).classList.add('tab-active');
 
-            // Load data for tab - USE CACHE if available
-            if (tab === 'health') {
-                if (isCacheValid('health')) {
-                    renderSystemHealth(cache.health.data);
-                } else {
-                    loadSystemHealth();
-                }
+            if (tab === 'metrics') {
+                initMetricsTab();
             } else if (tab === 'users') {
                 if (isCacheValid('users') && allUsers.length > 0) {
-                    renderUsers(allUsers);
                     updateUserStats(allUsers);
+                    renderUsers(allUsers);
                 } else {
                     loadUsers();
                 }
-            } else if (tab === 'matching') {
-                if (isCacheValid('matching') && allMatchingUsers.length > 0) {
-                    renderMatchingUsers(allMatchingUsers);
-                    updateMatchingStats(allMatchingUsers);
-                } else {
-                    loadMatchingDiagnostics();
-                }
-            } else if (tab === 'sessions') {
-                loadSessions();
             } else if (tab === 'analytics') {
                 loadMatchAnalytics();
-            } else if (tab === 'email') {
-                loadEmailHealth();
-            } else if (tab === 'quality') {
-                loadMatchQuality();
             } else if (tab === 'events') {
                 initEventsTab();
             } else if (tab === 'announcements') {
                 initAnnouncementsTab();
-            } else if (tab === 'metrics') {
-                initMetricsTab();
-            } else if (tab === 'levers') {
-                initLeversTab();
+            } else if (tab === 'email') {
+                loadEmailHealth();
+            } else if (tab === 'moderation') {
+                loadModeration();
             }
         }
 
 
-        // Load on page load. Apr-28 audit Phase 1+2: auth-gate + Escape key.
+        // Load on page load. Apr-28 audit: auth-gate + Escape key.
+        // The casual password gate is the only access control; admin
+        // actions still send ADMIN_KEY. Overview is the landing tab.
         document.addEventListener('DOMContentLoaded', () => {
             wireEscapeKey();
             wireAuthGate();
-            // Dashboard data fetch only fires once auth is established.
-            // wireAuthGate removes the gate immediately if isAuthed() returns
-            // true; otherwise the form's submit handler removes it. Either
-            // way the dashboard init runs unconditionally — the Vercel-hosted
-            // bundle is public, but admin actions still require ADMIN_KEY in
-            // request bodies. Password gate is casual-access protection only.
             loadCacheFromStorage();
-            if (isCacheValid('health')) {
-                renderSystemHealth(cache.health.data);
-                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.health.timestamp).toLocaleTimeString()}`;
-            } else {
-                loadSystemHealth();
-            }
+            loadPlatformStatus();
+            switchTab('metrics');
         });
 
-        // ==================== PAGE 1: SYSTEM HEALTH ====================
-        async function loadSystemHealth(forceRefresh = false) {
-            // Use cache if valid and not forcing refresh
-            if (!forceRefresh && isCacheValid('health')) {
-                renderSystemHealth(cache.health.data);
-                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.health.timestamp).toLocaleTimeString()}`;
-                return;
-            }
-
+        // ==================== HEADER: PLATFORM STATUS PILL ====================
+        // Client-appropriate replacement for the engineering System Health
+        // tab. One call to /admin/system-health, one indicator.
+        async function loadPlatformStatus() {
+            const dot = document.getElementById('platformStatusDot');
+            const text = document.getElementById('platformStatusText');
             try {
                 const response = await fetch(`${ADMIN_BASE}/admin/system-health`);
                 const data = await response.json();
-
-                // API returns health object directly (not wrapped)
-                let healthData = null;
-                if (data.timestamp || data.overall_status) {
-                    healthData = data;
-                } else if (data.code === 200) {
-                    healthData = data.result;
-                }
-
-                if (healthData) {
-                    // Save to cache
-                    cache.health = { data: healthData, timestamp: Date.now() };
-                    saveCacheToStorage();
-
-                    renderSystemHealth(healthData);
-                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
-                } else {
-                    showHealthError(data.message || 'Failed to load health data');
-                }
-            } catch (error) {
-                showHealthError(error.message);
+                const health = (data.timestamp || data.overall_status) ? data : (data.result || {});
+                const map = {
+                    healthy: { color: 'bg-green-500', label: 'All systems operational' },
+                    warning: { color: 'bg-yellow-500', label: 'Minor issues' },
+                    error:   { color: 'bg-red-500',   label: 'Service disruption' },
+                };
+                const s = map[health.overall_status] || { color: 'bg-gray-500', label: 'Status unknown' };
+                dot.className = `w-2.5 h-2.5 rounded-full ${s.color}`;
+                text.className = 'text-gray-300';
+                text.textContent = s.label;
+            } catch (e) {
+                dot.className = 'w-2.5 h-2.5 rounded-full bg-gray-500';
+                text.className = 'text-gray-400';
+                text.textContent = 'Status unavailable';
             }
         }
 
-        function showHealthError(message) {
-            document.getElementById('overallStatusText').textContent = 'Error Loading Health Data';
-            document.getElementById('overallStatusIcon').innerHTML = '<span class="text-red-500">!</span>';
-            document.getElementById('overallStatusBanner').className = 'p-6 rounded-xl border mb-6 bg-red-900/20 border-red-700';
-        }
+        // ==================== USERS ====================
+        // Client user-management tab. Data source: AI-service
+        // /admin/list-users. Expand a row for support detail (from
+        // /admin/user-diagnostics) plus boost / freeze / verify levers
+        // (V1 backend /admin/users/levers) and hard-delete.
 
-        function renderSystemHealth(health) {
-            // Overall status
-            const statusConfig = {
-                healthy: { icon: '✓', text: 'All Systems Operational', bg: 'bg-green-900/20', border: 'border-green-700', iconBg: 'bg-green-500' },
-                warning: { icon: '!', text: 'Some Issues Detected', bg: 'bg-yellow-900/20', border: 'border-yellow-700', iconBg: 'bg-yellow-500' },
-                error: { icon: '✗', text: 'System Issues', bg: 'bg-red-900/20', border: 'border-red-700', iconBg: 'bg-red-500' }
-            };
-            const config = statusConfig[health.overall_status] || statusConfig.error;
+        const USER_LEVERS = [
+            { key: 'is_boosted', label: 'Boost', hint: '+20% matching weight' },
+            { key: 'is_frozen', label: 'Freeze', hint: 'excluded from matching and messaging' },
+            { key: 'is_manual_verified', label: 'Verified', hint: 'trust badge' },
+        ];
 
-            document.getElementById('overallStatusBanner').className = `p-6 rounded-xl border mb-6 ${config.bg} ${config.border}`;
-            document.getElementById('overallStatusIcon').className = `w-10 h-10 rounded-full ${config.iconBg} flex items-center justify-center`;
-            document.getElementById('overallStatusIcon').innerHTML = `<span class="text-xl text-white">${config.icon}</span>`;
-            document.getElementById('overallStatusText').textContent = config.text;
-            document.getElementById('overallStatusTime').textContent = health.timestamp ? `Last checked: ${new Date(health.timestamp).toLocaleString()}` : '';
+        let userDiagnosticsCache = {};
+        let userLeversCache = {};
 
-            // Issues
-            if (health.issues && health.issues.length > 0) {
-                document.getElementById('issuesList').classList.remove('hidden');
-                document.getElementById('issuesContent').innerHTML = health.issues.map(i => `<li>${i}</li>`).join('');
-            } else {
-                document.getElementById('issuesList').classList.add('hidden');
-            }
-
-            // Render each category
-            renderHealthCategory('services', 'Services', health.services);
-            renderHealthCategory('onboarding', 'Onboarding', health.onboarding);
-            renderHealthCategory('matching', 'Matching', health.matching);
-        }
-
-        // Component descriptions for tooltips
-        const componentDescriptions = {
-            // Services
-            'ai_service': 'The main AI service that powers matching, persona generation, and LLM interactions. This is the FastAPI backend on Render.',
-            'backend_service': 'Node.js backend handling authentication, user management, chat, and database operations. Connects to Supabase.',
-            'frontend': 'React frontend deployed on Vercel. Provides the user interface for onboarding, matching, and chat.',
-            'supabase_database': 'Supabase PostgreSQL database storing user accounts, matches, messages, and application data.',
-            'render_database': 'Render PostgreSQL database with pgvector extension. Stores embeddings for vector similarity search.',
-            'cronjobs_redis': 'Redis for Celery task queue (runs in EAGER mode — tasks execute synchronously). Scheduled matching cron runs daily at 3 AM UTC as safety net only. Primary matching is inline (event-based).',
-
-            // Onboarding
-            'slot_extractor': 'LLM-powered slot extraction that parses user responses during onboarding into structured data (industry, goals, requirements, offerings). Uses AI to understand natural language.',
-            'persona_generation': 'AI service that generates user personas from onboarding data. Creates requirements, offerings, archetype, and user profile summary.',
-            'conversational_onboarding': 'Chat-based onboarding flow that adapts questions based on user responses. Provides a natural conversational experience instead of rigid forms.',
-            'progressive_disclosure': 'Adaptive questioning system that only asks relevant follow-up questions based on previous answers. Reduces onboarding friction.',
-            'resume_processing': 'Extracts professional information from uploaded PDF/DOCX resumes. Auto-fills onboarding fields with work history, skills, and experience.',
-
-            // Matching
-            'embedding_service': 'Core service that generates vector embeddings from user text using OpenAI. Powers all similarity-based matching.',
-            'multi_vector_matcher': '6-dimensional matching across: primary_goal, industry, stage, geography, engagement_style, and dealbreakers. More nuanced than single-vector matching.',
-            'intent_classification': 'Classifies users into intent types: INVESTOR_FOUNDER, FOUNDER_INVESTOR, MENTOR_MENTEE, COFOUNDER, NETWORKING. Ensures complementary matches.',
-            'bidirectional_scoring': 'Calculates both forward score (how well A matches B\'s needs) and reverse score (how well B matches A\'s needs). Ensures mutually beneficial connections.',
-            'dealbreaker_filtering': 'Filters out matches that violate user-specified dealbreakers like geography restrictions, industry exclusions, or minimum investment amounts.',
-            'same_objective_blocking': 'Prevents matching users with identical intents (e.g., two investors looking for founders won\'t match). Ensures complementary connections.',
-            'activity_boost': 'Gives a 10% score boost to active users (logged in within 7 days). Promotes engagement and timely connections.',
-            'temporal_boost': 'Applies a 15% score decay for inactive users (>30 days). Prevents matching with users who may not respond.'
-        };
-
-        function renderHealthCategory(id, title, category) {
-            if (!category) return;
-
-            const components = Object.entries(category.components || {});
-            const healthyCount = components.filter(([_, c]) => c.status === 'healthy').length;
-
-            const statusColors = {
-                healthy: 'bg-green-500',
-                warning: 'bg-yellow-500',
-                error: 'bg-red-500'
-            };
-            const borderColors = {
-                healthy: 'border-green-700',
-                warning: 'border-yellow-700',
-                error: 'border-red-700'
-            };
-
-            // Update card border
-            document.getElementById(`card-${id}`).className = `health-card bg-gray-800 rounded-xl border ${borderColors[category.status] || 'border-gray-700'} p-5`;
-
-            // Update badge
-            document.getElementById(`${id}-badge`).innerHTML = `
-                <span class="text-sm text-gray-400">${healthyCount}/${components.length}</span>
-                <div class="w-3 h-3 rounded-full ${statusColors[category.status] || 'bg-gray-600'}"></div>
-            `;
-
-            // Render components with tooltips
-            const componentsHtml = components.map(([name, comp]) => {
-                const description = componentDescriptions[name] || comp.detail;
-                return `
-                <div class="flex items-center justify-between text-sm group relative cursor-help" title="${description}">
-                    <div class="flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full ${statusColors[comp.status] || 'bg-gray-600'}"></div>
-                        <span class="text-gray-300 border-b border-dashed border-gray-600">${formatComponentName(name)}</span>
-                    </div>
-                    <span class="text-gray-400 text-xs truncate max-w-32">${comp.detail}</span>
-                    <!-- Tooltip -->
-                    <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block z-50 w-72">
-                        <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 shadow-xl text-xs text-gray-300">
-                            <div class="font-semibold text-white mb-1">${formatComponentName(name)}</div>
-                            <p>${description}</p>
-                        </div>
-                    </div>
-                </div>
-            `}).join('');
-
-            document.getElementById(`${id}-components`).innerHTML = componentsHtml || '<p class="text-gray-400 text-sm">No components</p>';
-        }
-
-        function formatComponentName(name) {
-            // Apr-28 audit: post-AWS-migration label overrides. JSON keys
-            // retained for API stability (other consumers may key off them);
-            // display labels updated to reflect actual production infra.
-            const overrides = {
-                'supabase_database': 'AWS RDS (Backend)',
-                'render_database': 'AWS RDS (AI / pgvector)',
-            };
-            if (overrides[name]) return overrides[name];
-            return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        }
-
-        // ==================== PAGE 2: USER JOURNEY ====================
         async function loadUsers(forceRefresh = false) {
-            // Use cache if valid and not forcing refresh
             if (!forceRefresh && isCacheValid('users') && allUsers.length > 0) {
-                renderUsers(allUsers);
                 updateUserStats(allUsers);
+                renderUsers(allUsers);
                 document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.users.timestamp).toLocaleTimeString()}`;
                 return;
             }
-
-            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>';
-
+            document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Loading users...</td></tr>';
             try {
                 const response = await fetch(`${API_BASE}/admin/list-users`);
                 const data = await response.json();
-
                 if (data.code === 200) {
-                    allUsers = data.result;
-
-                    // Save to cache
-                    cache.users = { data: allUsers, summary: data.summary, timestamp: Date.now() };
+                    allUsers = data.result || [];
+                    cache.users = { data: allUsers, timestamp: Date.now() };
                     saveCacheToStorage();
-
-                    updateSummary(data.summary);
+                    updateUserStats(allUsers);
                     renderUsers(allUsers);
                     document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
                 } else {
-                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
+                    document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error: ${escapeHtml(data.message || 'failed to load')}</td></tr>`;
                 }
             } catch (error) {
-                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
+                document.getElementById('usersTableBody').innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-red-400">Error: ${escapeHtml(error.message)}</td></tr>`;
             }
         }
 
-        function updateUserStats(users) {
-            // Recalculate stats from cached data
-            const summary = {
-                total: users.length,
-                healthy: users.filter(u => u.embeddings_count > 0 && u.match_count > 0).length,
-                embeddings_missing: users.filter(u => !u.embeddings_count).length,
-                matches_missing: users.filter(u => !u.match_count && u.embeddings_count > 0).length,
-                multi_vector_complete: users.filter(u => u.multi_vector?.complete).length,
-                multi_vector_partial: users.filter(u => u.multi_vector?.count > 0 && !u.multi_vector?.complete).length,
-                multi_vector_none: users.filter(u => !u.multi_vector?.count).length
-            };
-            updateSummary(summary);
+        function isOnboarded(user) {
+            return user.persona_status === 'completed';
         }
 
-        function updateSummary(summary) {
-            document.getElementById('totalUsers').textContent = summary.total || 0;
-            document.getElementById('healthyUsers').textContent = summary.healthy || 0;
-            document.getElementById('embeddingsMissing').textContent = summary.embeddings_missing || 0;
-            document.getElementById('matchesMissing').textContent = summary.matches_missing || 0;
-            document.getElementById('mvComplete').textContent = summary.multi_vector_complete || 0;
-            document.getElementById('mvPartial').textContent = summary.multi_vector_partial || 0;
-            document.getElementById('mvNone').textContent = summary.multi_vector_none || 0;
+        function updateUserStats(users) {
+            document.getElementById('usersTotal').textContent = users.length;
+            document.getElementById('usersOnboarded').textContent = users.filter(isOnboarded).length;
+            document.getElementById('usersInProgress').textContent = users.filter(u => !isOnboarded(u)).length;
         }
 
         function renderUsers(users) {
             const tbody = document.getElementById('usersTableBody');
-
-            if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No users found</td></tr>';
+            if (!users || users.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No users found</td></tr>';
                 return;
             }
-
             tbody.innerHTML = users.map(user => {
-                const mv = user.multi_vector || { count: 0, total: 6, present: [], missing: [], complete: false };
-                const mvColor = mv.complete ? 'text-purple-400' : mv.count > 0 ? 'text-yellow-400' : 'text-gray-400';
-                const mvBg = mv.complete ? 'bg-purple-600' : mv.count > 0 ? 'bg-yellow-600' : 'bg-gray-600';
-                const isExpanded = expandedUserRows.has(user.user_id);
-
+                const expanded = expandedUserRows.has(user.user_id);
+                const onboarded = isOnboarded(user);
+                const matches = user.matches_count ?? user.match_count ?? 0;
                 return `
                 <tr class="user-row border-t border-gray-700 cursor-pointer hover:bg-gray-800" onclick="toggleUserRow('${user.user_id}')">
                     <td class="px-4 py-3">
                         <div class="flex items-center gap-2">
-                            <span class="text-gray-400 ${isExpanded ? 'rotate-90' : ''}" style="transition: transform 0.2s">▶</span>
+                            <span class="text-gray-400 ${expanded ? 'rotate-90' : ''}" style="transition: transform 0.2s">▶</span>
                             <div>
-                                <div class="font-medium">${user.name || 'No name'}</div>
-                                <div class="text-gray-400 text-sm">${user.email}</div>
+                                <div class="font-medium">${escapeHtml(user.name || 'No name')}</div>
+                                <div class="text-gray-400 text-sm">${escapeHtml(user.email || '')}</div>
                             </div>
                         </div>
                     </td>
                     <td class="px-4 py-3">
-                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(user.status)}">
-                            ${formatStatus(user.status)}
+                        <span class="px-2 py-1 rounded text-xs font-medium ${onboarded ? 'bg-green-600' : 'bg-yellow-600'}">
+                            ${onboarded ? 'Onboarded' : 'In progress'}
                         </span>
                     </td>
                     <td class="px-4 py-3">
-                        <div class="${user.slots_filled === user.slots_total ? 'text-green-400' : user.slots_filled > 0 ? 'text-yellow-400' : 'text-gray-400'}">
-                            <span class="font-medium">${user.slots_filled || 0}/${user.slots_total || 11}</span>
-                        </div>
+                        <span class="${matches > 0 ? 'text-green-400' : 'text-gray-400'}">${matches}</span>
                     </td>
-                    <td class="px-4 py-3">
-                        <span class="${user.persona_status === 'completed' ? 'text-green-400' : 'text-gray-400'}">${user.persona_status || 'unknown'}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="${user.embeddings_count > 0 ? 'text-green-400' : 'text-red-400'}">${user.embeddings_count}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="px-2 py-0.5 rounded text-xs ${mvBg} ${mvColor}">${mv.count}/${mv.total}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="${user.matches_count > 0 ? 'text-green-400' : 'text-yellow-400'}">${user.matches_count}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="flex gap-2 flex-wrap" onclick="event.stopPropagation()">
-                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs" title="Async regenerate (queued via Celery)">Gen Embed</button>` : ''}
-                            ${user.embeddings_count === 0 && user.persona_status === 'completed' ? `<button onclick="regenerateEmbeddingsSync('${user.user_id}', this)" class="px-2 py-1 bg-purple-800 hover:bg-purple-900 rounded text-xs" title="Sync regenerate (blocking) — for the Apr-24 silent-partial-failure backfill pattern">Gen Embed (sync)</button>` : ''}
-                            ${mv.count < 6 && user.persona_status === 'completed' ? `<button onclick="generateMultiVector('${user.user_id}', this)" class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 rounded text-xs">Gen MV</button>` : ''}
-                            ${user.embeddings_count > 0 && user.matches_count === 0 ? `<button onclick="regenerateMatches('${user.user_id}', this)" class="px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs">Gen Match</button>` : ''}
-                            <button onclick="recoverUser('${user.user_id}', this)" class="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 rounded text-xs" title="Recover user stuck in onboarding (ai-side cleanup)">🔧 Recover</button>
-                            <button onclick="hardDeleteUser('${user.user_id}', '${user.email}', this)" class="px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-xs" title="Permanently delete user from ALL systems">🗑️ Delete</button>
-                        </div>
-                    </td>
+                    <td class="px-4 py-3 text-right text-gray-400 text-sm">${expanded ? 'Close' : 'Manage'}</td>
                 </tr>
-                ${isExpanded ? renderUserExpandedRow(user) : ''}
+                ${expanded ? renderUserDetailRow(user) : ''}
             `}).join('');
+        }
+
+        // The user list currently rendered, respecting active filters.
+        function currentUserList() {
+            const statusFilter = document.getElementById('usersStatusFilter').value;
+            const search = document.getElementById('usersSearchFilter').value.toLowerCase();
+            return allUsers.filter(u => {
+                const st = statusFilter === 'all' ||
+                    (statusFilter === 'onboarded' && isOnboarded(u)) ||
+                    (statusFilter === 'in_progress' && !isOnboarded(u));
+                const sr = !search ||
+                    (u.email || '').toLowerCase().includes(search) ||
+                    (u.name || '').toLowerCase().includes(search);
+                return st && sr;
+            });
+        }
+
+        function filterUsers() {
+            renderUsers(currentUserList());
         }
 
         function toggleUserRow(userId) {
@@ -1541,1059 +865,150 @@
                 expandedUserRows.delete(userId);
             } else {
                 expandedUserRows.add(userId);
-                // Fetch detailed diagnostics for this user
-                loadUserDiagnostics(userId);
+                loadUserDetail(userId);
             }
-            renderUsers(allUsers);
+            renderUsers(currentUserList());
         }
 
-        // Cache for user diagnostics
-        let userDiagnosticsCache = {};
-
-        async function loadUserDiagnostics(userId) {
+        async function loadUserDetail(userId) {
             const user = allUsers.find(u => u.user_id === userId);
-            if (!user || userDiagnosticsCache[userId]) return;
-
-            try {
-                const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(user.email)}`);
-                const data = await response.json();
-                if (data.code === 200) {
-                    userDiagnosticsCache[userId] = data.result;
-                    renderUsers(allUsers);  // Re-render to show loaded data
-                }
-            } catch (e) {
-                console.error('Failed to load user diagnostics:', e);
+            if (!user) return;
+            // Support detail from the AI service.
+            if (!userDiagnosticsCache[userId]) {
+                try {
+                    const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(user.email)}`);
+                    const data = await response.json();
+                    if (data.code === 200) {
+                        userDiagnosticsCache[userId] = data.result;
+                        renderUsers(currentUserList());
+                    }
+                } catch (e) { console.error('user-diagnostics failed:', e); }
+            }
+            // Lever state from the V1 backend (no-flags PATCH reads current state).
+            if (!userLeversCache[userId]) {
+                try {
+                    const data = await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ user_id: userId }),
+                    });
+                    userLeversCache[userId] = (data && data.result) || data || {};
+                    renderUsers(currentUserList());
+                } catch (e) { console.error('levers load failed:', e); }
             }
         }
 
-        function renderUserExpandedRow(user) {
+        function renderUserDetailRow(user) {
             const diag = userDiagnosticsCache[user.user_id];
-            const mv = user.multi_vector || { count: 0, total: 6, present: [], missing: [] };
+            const levers = userLeversCache[user.user_id];
 
-            // If diagnostics not loaded yet, show loading
+            let detailHtml;
             if (!diag) {
-                return `
-                <tr class="bg-gray-850 border-t border-gray-600">
-                    <td colspan="8" class="px-4 py-6 text-center text-gray-400">
-                        <span class="animate-pulse">Loading detailed diagnostics...</span>
-                    </td>
-                </tr>`;
+                detailHtml = '<p class="text-gray-400 text-sm animate-pulse">Loading support detail...</p>';
+            } else {
+                const onb = diag.onboarding?.details || {};
+                const persona = diag.persona?.details || {};
+                const emb = diag.embeddings || {};
+                const matches = diag.matches || {};
+                const issues = diag.issues || [];
+                const row = (label, value) => `<div class="flex justify-between"><span class="text-gray-400">${label}</span><span>${value}</span></div>`;
+                detailHtml = `
+                    <div class="space-y-2 text-sm">
+                        ${row('Account', diag.account?.status === 'found' ? 'Active' : 'Not found')}
+                        ${row('Onboarding', `${onb.slots_filled ?? user.slots_filled ?? 0}/${onb.slots_total ?? user.slots_total ?? 11} slots`)}
+                        ${row('Profile generated', persona.name ? 'Yes' : 'No')}
+                        ${row('Ready for matching', (emb.count || user.embeddings_count) > 0 ? 'Yes' : 'No')}
+                        ${row('Matches', matches.details?.backend_count ?? matches.count ?? user.matches_count ?? 0)}
+                    </div>
+                    ${issues.length > 0
+                        ? `<div class="mt-3 bg-red-900/30 border border-red-700 rounded-lg p-2 text-xs text-red-300">${issues.map(escapeHtml).join('<br>')}</div>`
+                        : '<div class="mt-3 text-xs text-green-400">No issues detected.</div>'}
+                `;
             }
 
-            const onb = diag.onboarding?.details || {};
-            const persona = diag.persona?.details || {};
-            const emb = diag.embeddings || {};
-            const matches = diag.matches || {};
-            const embTypes = emb.details?.types || [];
-            const focusSlotTypes = embTypes.filter(t => t.startsWith('focus_slot_'));
+            let controlsHtml;
+            if (!levers) {
+                controlsHtml = '<p class="text-gray-400 text-sm animate-pulse">Loading controls...</p>';
+            } else {
+                controlsHtml = `
+                    <div class="flex gap-2 flex-wrap mb-4">
+                        ${USER_LEVERS.map(l => {
+                            const on = !!levers[l.key];
+                            return `<button onclick="event.stopPropagation(); toggleUserLever('${user.user_id}','${l.key}')" title="${escapeHtml(l.hint)}"
+                                class="px-3 py-1.5 rounded-lg text-xs font-medium ${on ? 'bg-green-700 text-green-100' : 'bg-gray-700 text-gray-300'}">${l.label}: ${on ? 'on' : 'off'}</button>`;
+                        }).join('')}
+                    </div>
+                    <button onclick="event.stopPropagation(); deleteUser('${user.user_id}')"
+                        class="px-3 py-1.5 bg-red-700 hover:bg-red-800 rounded-lg text-xs font-medium">Delete user permanently</button>
+                `;
+            }
 
             return `
-            <tr class="bg-gray-850 border-t border-gray-600">
-                <td colspan="8" class="px-4 py-4">
-                    <div class="grid grid-cols-3 gap-4">
-                        <!-- Onboarding & Slots -->
+            <tr class="bg-gray-850 border-t border-gray-700">
+                <td colspan="4" class="px-4 py-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h4 class="font-semibold text-sm mb-3 text-blue-400">Onboarding & Slots</h4>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="${onb.backend_status === 'completed' ? 'text-green-400' : 'text-yellow-400'}">${onb.backend_status || user.status || 'unknown'}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Questions:</span><span>${onb.questions_answered || '?'}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Slots:</span><span class="${(onb.slots_filled || user.slots_filled) >= 8 ? 'text-green-400' : 'text-yellow-400'}">${onb.slots_filled || user.slots_filled || 0}/${onb.slots_total || user.slots_total || 11}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Persona:</span><span>${onb.persona_status || user.persona_status || 'N/A'}</span></div>
-                            </div>
-                            ${persona.name ? `
-                            <div class="mt-3 pt-3 border-t border-gray-700">
-                                <h5 class="text-xs text-gray-400 mb-2">Persona Slots (11):</h5>
-                                <div class="grid grid-cols-2 gap-1 text-xs">
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.name ? 'bg-green-500' : 'bg-red-500'}"></div><span>Name</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.archetype ? 'bg-green-500' : 'bg-red-500'}"></div><span>Archetype</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.designation ? 'bg-green-500' : 'bg-red-500'}"></div><span>Designation</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.experience ? 'bg-green-500' : 'bg-red-500'}"></div><span>Experience</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.focus ? 'bg-green-500' : 'bg-red-500'}"></div><span>Focus</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.profile_essence ? 'bg-green-500' : 'bg-red-500'}"></div><span>Profile Essence</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.investment_philosophy ? 'bg-green-500' : 'bg-red-500'}"></div><span>Strategy</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.what_theyre_looking_for ? 'bg-green-500' : 'bg-red-500'}"></div><span>Looking For</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.engagement_style ? 'bg-green-500' : 'bg-red-500'}"></div><span>Engagement Style</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_requirements ? 'bg-green-500' : 'bg-red-500'}"></div><span>Requirements</span></div>
-                                    <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_offerings ? 'bg-green-500' : 'bg-red-500'}"></div><span>Offerings</span></div>
-                                </div>
-                            </div>
-                            <!-- BUG-069: Focus Slot Visibility -->
-                            <div class="mt-3 pt-3 border-t border-gray-700">
-                                <h5 class="text-xs text-gray-400 mb-2">Objective & Focus Slots:</h5>
-                                ${(() => {
-                                    const archetype = (persona.archetype || '').toLowerCase();
-                                    // BUG-079 FIX: Added 'candidate' key for "Experienced Executive Candidate" archetype
-                                    const focusSlotsMap = {
-                                        'investor': ['check_size', 'portfolio_size', 'investment_thesis', 'stage_preference', 'industry_focus'],
-                                        'founder': ['funding_need', 'company_stage', 'industry_focus', 'geography', 'timeline'],
-                                        'entrepreneur': ['funding_need', 'company_stage', 'industry_focus', 'geography', 'timeline'],
-                                        'cofounder': ['skills_have', 'skills_need', 'commitment_level', 'equity_expectations', 'industry_focus'],
-                                        'co-founder': ['skills_have', 'skills_need', 'commitment_level', 'equity_expectations', 'industry_focus'],
-                                        'advisor': ['expertise_areas', 'time_commitment', 'compensation_preference', 'industry_focus'],
-                                        'mentor': ['mentorship_areas', 'experience_level', 'time_commitment', 'industry_focus'],
-                                        'job seeker': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'skills_have'],
-                                        'candidate': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'skills_have'],
-                                        'hiring': ['role_type', 'seniority_level', 'remote_preference', 'compensation_range', 'industry_focus'],
-                                        'service': ['service_type', 'industry_focus', 'stage_preference', 'geography', 'budget_range']
-                                    };
-                                    let detected = null;
-                                    for (const [key, slots] of Object.entries(focusSlotsMap)) {
-                                        if (archetype.includes(key)) { detected = { objective: key, slots }; break; }
-                                    }
-                                    if (detected) {
-                                        return '<div class="flex items-center gap-2 mb-2"><span class="text-xs px-2 py-0.5 bg-blue-600 rounded">' + detected.objective.charAt(0).toUpperCase() + detected.objective.slice(1) + '</span><span class="text-gray-400 text-xs">→ ' + detected.slots.length + ' focus slots</span></div>' +
-                                            '<div class="grid grid-cols-2 gap-1 text-xs">' + detected.slots.map(s => '<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div><span class="text-gray-400">' + s.replace(/_/g, ' ') + '</span></div>').join('') + '</div>';
-                                    }
-                                    return '<span class="text-gray-400 text-xs">⚠️ Objective not detected from archetype: "' + (persona.archetype || 'none') + '"</span>';
-                                })()}
-                            </div>
-                            ` : ''}
+                            <h4 class="font-semibold text-sm mb-3 text-blue-400">Support detail</h4>
+                            ${detailHtml}
                         </div>
-
-                        <!-- Embeddings -->
                         <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h4 class="font-semibold text-sm mb-3 text-purple-400">Embeddings</h4>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between"><span class="text-gray-400">Count:</span><span class="${(emb.count || user.embeddings_count) > 0 ? 'text-green-400' : 'text-red-400'}">${emb.count || user.embeddings_count || 0}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Last Created:</span><span class="text-xs">${emb.details?.last_created ? new Date(emb.details.last_created).toLocaleDateString() : 'N/A'}</span></div>
-                            </div>
-                            <div class="mt-3 pt-3 border-t border-gray-700">
-                                <h5 class="text-xs text-gray-400 mb-2">Basic:</h5>
-                                <div class="flex flex-wrap gap-1 mb-2">
-                                    ${['Requirements', 'Offerings', 'Combined'].map(t => {
-                                        const hasIt = embTypes.some(et => et.toLowerCase() === t.toLowerCase());
-                                        return `<span class="px-2 py-0.5 rounded text-xs ${hasIt ? 'bg-green-600' : 'bg-gray-600'}">${t}</span>`;
-                                    }).join('')}
-                                </div>
-                                <h5 class="text-xs text-gray-400 mb-2">Multi-Vector (6 dimensions):</h5>
-                                <div class="grid grid-cols-2 gap-1 text-xs">
-                                    ${['primary_goal', 'industry', 'stage', 'geography', 'engagement_style', 'dealbreakers'].map(dim => {
-                                        const hasReq = embTypes.some(t => t.toLowerCase().includes(`requirements_${dim}`) || t.toLowerCase().includes(`req_${dim}`));
-                                        const hasOff = embTypes.some(t => t.toLowerCase().includes(`offerings_${dim}`) || t.toLowerCase().includes(`off_${dim}`));
-                                        const status = hasReq && hasOff ? 'bg-green-500' : (hasReq || hasOff) ? 'bg-yellow-500' : 'bg-red-500';
-                                        const label = dim.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                                        return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${status}"></div><span>${label}</span></div>`;
-                                    }).join('')}
-                                </div>
-                                ${focusSlotTypes.length > 0 ? `
-                                <h5 class="text-xs text-gray-400 mt-3 mb-2">Focus Slots (${focusSlotTypes.length}):</h5>
-                                <div class="flex flex-wrap gap-1">
-                                    ${focusSlotTypes.map(t => {
-                                        const slotName = t.replace('focus_slot_', '').replace(/_/g, ' ');
-                                        return `<span class="px-2 py-0.5 rounded text-xs bg-orange-600 text-white">${slotName}</span>`;
-                                    }).join('')}
-                                </div>
-                                ` : ''}
-                                ${embTypes.length > 3 ? `
-                                <details class="mt-2">
-                                    <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-400">View all ${embTypes.length} types</summary>
-                                    <div class="mt-1 text-xs text-gray-400 max-h-20 overflow-y-auto">${embTypes.join(', ')}</div>
-                                </details>
-                                ` : ''}
-                            </div>
-                        </div>
-
-                        <!-- Matches & Persona -->
-                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h4 class="font-semibold text-sm mb-3 text-green-400">Persona & Matches</h4>
-                            ${persona.name ? `
-                            <div class="space-y-2 text-sm mb-3">
-                                <div class="flex justify-between"><span class="text-gray-400">Name:</span><span class="truncate max-w-32">${persona.name}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span class="text-xs">${persona.archetype || 'N/A'}</span></div>
-                            </div>
-                            ` : '<p class="text-gray-400 text-sm mb-3">Persona not generated</p>'}
-                            <div class="pt-3 border-t border-gray-700 space-y-1 text-sm">
-                                <div class="flex justify-between"><span class="text-gray-400">Cached:</span><span>${matches.count || 0}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Backend:</span><span>${matches.details?.backend_count || user.matches_count || 0}</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Issues & Actions -->
-                    <div class="mt-4 flex gap-4">
-                        ${diag.issues && diag.issues.length > 0 ? `
-                            <div class="bg-red-900/30 p-3 rounded-lg border border-red-700 flex-1">
-                                <span class="text-red-400 text-sm font-medium">Issues: </span>
-                                <span class="text-red-300 text-sm">${diag.issues.join(', ')}</span>
-                            </div>
-                        ` : `
-                            <div class="bg-green-900/30 p-3 rounded-lg border border-green-700 flex-1">
-                                <span class="text-green-400 text-sm">✓ No issues - user journey complete</span>
-                            </div>
-                        `}
-                        <div class="flex gap-2" onclick="event.stopPropagation()">
-                            <button onclick="regenerateEmbeddings('${user.user_id}', this)" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded text-xs">Regen Embeddings</button>
-                            <button onclick="regenerateMatches('${user.user_id}', this)" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-xs">Regen Matches</button>
+                            <h4 class="font-semibold text-sm mb-3 text-purple-400">Admin controls</h4>
+                            ${controlsHtml}
                         </div>
                     </div>
                 </td>
             </tr>`;
         }
 
-        function getStatusClass(status) {
-            const classes = {
-                'healthy': 'bg-green-600',
-                'embeddings_missing': 'bg-red-600',
-                'matches_missing': 'bg-yellow-600',
-                'persona_missing': 'bg-orange-600',
-                'onboarding_incomplete': 'bg-gray-600'
-            };
-            return classes[status] || 'bg-gray-600';
-        }
-
-        function formatStatus(status) {
-            const labels = {
-                'healthy': 'Healthy',
-                'embeddings_missing': 'No Embeddings',
-                'matches_missing': 'No Matches',
-                'persona_missing': 'No Persona',
-                'onboarding_incomplete': 'Onboarding...'
-            };
-            return labels[status] || status;
-        }
-
-        function filterUsers() {
-            const statusFilter = document.getElementById('statusFilter').value;
-            const searchFilter = document.getElementById('searchFilter').value.toLowerCase();
-
-            const filtered = allUsers.filter(user => {
-                const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
-                const matchesSearch = !searchFilter || user.email.toLowerCase().includes(searchFilter);
-                return matchesStatus && matchesSearch;
-            });
-
-            renderUsers(filtered);
-        }
-
-        // ==================== PAGE 3: MATCHING DIAGNOSTICS ====================
-        async function loadMatchingDiagnostics(forceRefresh = false) {
-            // Use cache if valid and not forcing refresh
-            if (!forceRefresh && isCacheValid('matching') && allMatchingUsers.length > 0) {
-                renderMatchingUsers(allMatchingUsers);
-                updateMatchingStats(allMatchingUsers);
-                populateIntentFilter(allMatchingUsers);
-                document.getElementById('lastRefresh').textContent = `Cached: ${new Date(cache.matching.timestamp).toLocaleTimeString()}`;
-                return;
-            }
-
-            document.getElementById('matchingTableBody').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading matching data...</td></tr>';
-
+        async function toggleUserLever(userId, key) {
+            const levers = userLeversCache[userId];
+            if (!levers) return;
+            const next = !levers[key];
             try {
-                const response = await fetch(`${ADMIN_BASE}/admin/matching-diagnostics`);
-                const data = await response.json();
-
-                if (data.code === 200) {
-                    allMatchingUsers = data.result || [];
-
-                    // Save to cache
-                    cache.matching = { data: allMatchingUsers, summary: data.summary, timestamp: Date.now() };
-                    saveCacheToStorage();
-
-                    updateMatchingSummary(data.summary);
-                    renderMatchingUsers(allMatchingUsers);
-                    populateIntentFilter(allMatchingUsers);
-                    document.getElementById('lastRefresh').textContent = `Last refresh: ${new Date().toLocaleTimeString()}`;
-                } else {
-                    document.getElementById('matchingTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${data.message}</td></tr>`;
-                }
-            } catch (error) {
-                document.getElementById('matchingTableBody').innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
+                const data = await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ user_id: userId, [key]: next }),
+                });
+                userLeversCache[userId] = (data && data.result) || data || {};
+                renderUsers(currentUserList());
+            } catch (e) {
+                alert('Lever update failed: ' + e.message);
             }
         }
 
-        function updateMatchingStats(users) {
-            // Recalculate stats from cached data
-            const summary = {
-                total_users: users.length,
-                with_multi_vector: users.filter(u => u.embeddings?.multi_vector_complete >= 6).length,
-                with_basic_embeddings: users.filter(u => u.embeddings?.has_basic).length,
-                with_matches: users.filter(u => u.matches?.backend_count > 0).length,
-                intent_breakdown: {}
-            };
-            users.forEach(u => {
-                const intent = u.intent_classification?.inferred_intent || 'unknown';
-                summary.intent_breakdown[intent] = (summary.intent_breakdown[intent] || 0) + 1;
-            });
-            updateMatchingSummary(summary);
-        }
-
-        function updateMatchingSummary(summary) {
-            if (!summary) return;
-            document.getElementById('matchingTotalUsers').textContent = summary.total_users || 0;
-            document.getElementById('matchingWithMV').textContent = summary.with_multi_vector || 0;
-            document.getElementById('matchingWithBasic').textContent = summary.with_basic_embeddings || 0;
-            document.getElementById('matchingWithMatches').textContent = summary.with_matches || 0;
-
-            // Intent breakdown
-            if (summary.intent_breakdown && Object.keys(summary.intent_breakdown).length > 0) {
-                document.getElementById('intentBreakdown').classList.remove('hidden');
-                document.getElementById('intentTags').innerHTML = Object.entries(summary.intent_breakdown)
-                    .map(([intent, count]) => `
-                        <div class="flex items-center gap-2 px-3 py-1.5 bg-gray-700 rounded-full">
-                            <span class="text-sm font-medium">${intent}</span>
-                            <span class="text-xs bg-gray-600 px-2 py-0.5 rounded-full">${count}</span>
-                        </div>
-                    `).join('');
-            }
-        }
-
-        function populateIntentFilter(users) {
-            const intents = new Set(users.map(u => u.intent_classification?.inferred_intent).filter(Boolean));
-            const select = document.getElementById('intentFilter');
-            select.innerHTML = '<option value="all">All Intents</option>' +
-                Array.from(intents).map(i => `<option value="${i}">${i}</option>`).join('');
-        }
-
-        function renderMatchingUsers(users) {
-            const tbody = document.getElementById('matchingTableBody');
-
-            if (!users || users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No users found</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = users.map(user => {
-                const emb = user.embeddings || {};
-                const intent = user.intent_classification || {};
-                const temporal = user.temporal_weighting || {};
-                const blocking = user.same_objective_blocking || {};
-                const matches = user.matches || {};
-                const matchCount = matches.backend_count || matches.dynamo_matches?.length || 0;
-                const isExpanded = expandedRows.has(user.user_id);
-
-                const hasBasic = emb.has_basic;
-                const hasMV = (emb.multi_vector_complete || 0) >= 4;
-                const boostPct = Math.round((temporal.activity_boost || 1) * 100);
-
-                return `
-                <tr class="user-row border-t border-gray-700 cursor-pointer ${isExpanded ? 'bg-gray-750' : ''}" onclick="toggleMatchingRow('${user.user_id}')">
-                    <td class="px-4 py-3">
-                        <span class="text-gray-400">${isExpanded ? '▼' : '▶'}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="font-medium">${user.name || 'No name'}</div>
-                        <div class="text-gray-400 text-sm">${user.email}</div>
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="flex flex-col gap-1">
-                            <span class="px-2 py-0.5 rounded text-xs ${hasBasic ? 'bg-green-600' : 'bg-red-600'}">${hasBasic ? 'Basic' : 'None'}</span>
-                            <span class="px-2 py-0.5 rounded text-xs ${hasMV ? 'bg-purple-600' : 'bg-gray-600'}">Emb: ${emb.count || emb.multi_vector_complete || 0}</span>
-                        </div>
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="font-medium text-sm">${intent.inferred_intent || 'Unknown'}</div>
-                        ${intent.archetype ? `<div class="text-xs text-gray-400">${intent.archetype}</div>` : ''}
-                    </td>
-                    <td class="px-4 py-3">
-                        ${user.dealbreakers?.length > 0
-                            ? `<span class="text-red-400 text-sm font-medium">${user.dealbreakers.length} set</span>`
-                            : '<span class="text-gray-400 text-sm">None</span>'}
-                    </td>
-                    <td class="px-4 py-3">
-                        <div class="${boostPct >= 100 ? 'text-green-400' : boostPct >= 80 ? 'text-yellow-400' : 'text-red-400'} font-mono text-sm">${boostPct}%</div>
-                        <div class="text-xs text-gray-400">${temporal.boost_reason || ''}</div>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="px-2 py-0.5 rounded text-xs ${blocking.enabled ? 'bg-yellow-600' : 'bg-gray-600'}">${blocking.enabled ? 'Active' : 'Off'}</span>
-                    </td>
-                    <td class="px-4 py-3">
-                        <span class="${matchCount > 0 ? 'text-green-400' : 'text-gray-400'} font-medium">${matchCount}</span>
-                    </td>
-                </tr>
-                ${isExpanded ? renderExpandedRow(user) : ''}
-            `}).join('');
-        }
-
-        function renderExpandedRow(user) {
-            const emb = user.embeddings || {};
-            const intent = user.intent_classification || {};
-            const temporal = user.temporal_weighting || {};
-            const blocking = user.same_objective_blocking || {};
-            const matches = user.matches || {};
-            const persona = user.persona || {};
-            const matchCount = matches.backend_count || matches.dynamo_matches?.length || 0;
-
-            const mvDetails = emb.multi_vector_details || {};
-
-            return `
-            <tr class="bg-gray-850 border-t border-gray-600">
-                <td colspan="8" class="px-4 py-4">
-                    <div class="grid grid-cols-3 gap-4">
-                        <!-- Embeddings Detail -->
-                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h4 class="font-semibold text-sm mb-3">Embeddings</h4>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between"><span class="text-gray-400">Count:</span><span>${emb.count || 0}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Types:</span><span>${emb.types?.join(', ') || 'None'}</span></div>
-                                <div class="mt-3">
-                                    <span class="text-gray-400 block mb-2">Multi-Vector:</span>
-                                    <div class="grid grid-cols-2 gap-2">
-                                        ${Object.entries(mvDetails).map(([dim, info]) => `
-                                            <div class="flex items-center gap-2 text-xs">
-                                                <div class="w-2 h-2 rounded-full ${info.req && info.off ? 'bg-green-500' : 'bg-red-500'}"></div>
-                                                <span class="capitalize">${dim.replace('_', ' ')}</span>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Intent & Persona -->
-                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h4 class="font-semibold text-sm mb-3">Intent & Persona</h4>
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between"><span class="text-gray-400">Intent:</span><span>${intent.inferred_intent || 'Unknown'}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span>${intent.archetype || 'None'}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-400">User Type:</span><span>${intent.user_type || 'None'}</span></div>
-                                ${persona.requirements_preview ? `<div class="mt-2"><span class="text-gray-400 block">Requirements:</span><p class="text-xs mt-1">${persona.requirements_preview}</p></div>` : ''}
-                                ${persona.offerings_preview ? `<div><span class="text-gray-400 block">Offerings:</span><p class="text-xs mt-1">${persona.offerings_preview}</p></div>` : ''}
-                            </div>
-                        </div>
-
-                        <!-- Matches -->
-                        <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                            <h4 class="font-semibold text-sm mb-3">Matches (${matchCount})</h4>
-                            ${matchCount === 0 ? '<p class="text-gray-400 text-sm">No matches</p>' : `
-                                <div class="space-y-3 max-h-64 overflow-y-auto">
-                                    ${(matches.bidirectional_scores?.length ? matches.bidirectional_scores :
-                                       matches.backend_matches?.length ? matches.backend_matches :
-                                       matches.dynamo_matches || []).slice(0, 5).map(m => `
-                                        <div class="text-xs p-3 bg-gray-700 rounded border border-gray-600">
-                                            <div class="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <span class="font-medium text-white">${m.matched_user_name || m.user_id?.slice(0, 8) || 'Unknown'}</span>
-                                                    ${m.matched_archetype ? `<span class="ml-2 text-purple-400 text-xs">${m.matched_archetype}</span>` : ''}
-                                                </div>
-                                                ${(m.final_score || m.similarity_score || m.compatibility_score) ? `<span class="text-green-400 font-mono">${Math.round((m.final_score || m.similarity_score || m.compatibility_score) * 100)}%</span>` : ''}
-                                            </div>
-                                            ${m.match_reason ? `<div class="text-yellow-400 text-xs mb-2 bg-yellow-900/20 px-2 py-1 rounded">${m.match_reason}</div>` : ''}
-                                            ${m.forward_score ? `<div class="text-gray-400 text-xs">F: ${Math.round(m.forward_score * 100)}% R: ${Math.round(m.reverse_score * 100)}%</div>` : ''}
-                                            ${m.explanation ? `<div class="text-blue-400 text-xs mt-1">${m.explanation}</div>` : ''}
-                                            ${m.matched_offerings ? `
-                                            <details class="mt-2">
-                                                <summary class="text-gray-400 cursor-pointer hover:text-gray-300 text-xs">View persona details</summary>
-                                                <div class="mt-2 pl-2 border-l-2 border-gray-600 text-xs space-y-1">
-                                                    ${m.matched_offerings ? `<div><span class="text-green-400">Offers:</span> <span class="text-gray-300">${m.matched_offerings}</span></div>` : ''}
-                                                    ${m.matched_requirements ? `<div><span class="text-orange-400">Needs:</span> <span class="text-gray-300">${m.matched_requirements}</span></div>` : ''}
-                                                </div>
-                                            </details>
-                                            ` : ''}
-                                        </div>
-                                    `).join('')}
-                                    ${matchCount > 5 ? `<p class="text-gray-400 text-xs text-center mt-2">+${matchCount - 5} more matches</p>` : ''}
-                                </div>
-                            `}
-                        </div>
-                    </div>
-
-                    <!-- Temporal & Blocking Info -->
-                    <div class="mt-4 flex gap-4">
-                        <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 flex-1 text-sm">
-                            <span class="text-gray-400">Temporal:</span>
-                            <span class="ml-2">${temporal.days_inactive || 0} days inactive, ${Math.round((temporal.activity_boost || 1) * 100)}% boost (${temporal.boost_reason || 'N/A'})</span>
-                        </div>
-                        ${blocking.enabled ? `
-                            <div class="bg-yellow-900/30 p-3 rounded-lg border border-yellow-700 flex-1 text-sm">
-                                <span class="text-yellow-400">Blocking:</span>
-                                <span class="ml-2">Same intent (${blocking.intent}), would block ${blocking.would_block?.length || 0} users</span>
-                            </div>
-                        ` : ''}
-                    </div>
-                </td>
-            </tr>
-            `;
-        }
-
-        function toggleMatchingRow(userId) {
-            if (expandedRows.has(userId)) {
-                expandedRows.delete(userId);
-            } else {
-                expandedRows.add(userId);
-            }
-            renderMatchingUsers(allMatchingUsers);
-        }
-
-        function filterMatchingUsers() {
-            const searchFilter = document.getElementById('matchingSearchFilter').value.toLowerCase();
-            const intentFilter = document.getElementById('intentFilter').value;
-
-            const filtered = allMatchingUsers.filter(user => {
-                const matchesSearch = !searchFilter ||
-                    user.email?.toLowerCase().includes(searchFilter) ||
-                    user.name?.toLowerCase().includes(searchFilter) ||
-                    user.user_id.toLowerCase().includes(searchFilter);
-                const matchesIntent = intentFilter === 'all' ||
-                    user.intent_classification?.inferred_intent === intentFilter;
-                return matchesSearch && matchesIntent;
-            });
-
-            renderMatchingUsers(filtered);
-        }
-
-        // ==================== SHARED: USER MODAL ====================
-        async function showUserDetail(userId) {
-            currentUserId = userId;
+        async function deleteUser(userId) {
             const user = allUsers.find(u => u.user_id === userId);
-            if (!user) return;
-
-            document.getElementById('modalUserName').textContent = user.name || 'No name';
-            document.getElementById('modalUserEmail').textContent = user.email;
-            document.getElementById('modalUserId').textContent = `ID: ${userId}`;
-            document.getElementById('modalContent').innerHTML = '<p class="text-gray-400">Loading diagnostics...</p>';
-            document.getElementById('userModal').classList.remove('hidden');
-            document.getElementById('userModal').classList.add('flex');
-
-            try {
-                const response = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(user.email)}`);
-                const data = await response.json();
-
-                if (data.code === 200) {
-                    renderModalContent(data.result);
-                } else {
-                    document.getElementById('modalContent').innerHTML = `<p class="text-red-400">Error: ${data.message}</p>`;
-                }
-            } catch (error) {
-                document.getElementById('modalContent').innerHTML = `<p class="text-red-400">Error: ${error.message}</p>`;
+            const email = (user && user.email) || userId;
+            const typed = prompt(`Permanently delete ${email}?\n\nThis removes the user from all systems and CANNOT be undone.\n\nType DELETE to confirm.`);
+            if (typed !== 'DELETE') {
+                if (typed !== null) alert('Not deleted: confirmation text did not match.');
+                return;
             }
-        }
-
-        function renderModalContent(result) {
-            const onb = result.onboarding?.details || {};
-            const persona = result.persona?.details || {};
-            const emb = result.embeddings || {};
-            const matches = result.matches || {};
-
-            // Parse embedding types to categorize basic vs multi-vector vs focus slots
-            const embTypes = emb.details?.types || [];
-            const basicTypes = embTypes.filter(t => ['Requirements', 'Offerings', 'Combined', 'requirements', 'offerings', 'combined'].includes(t));
-            const mvTypes = embTypes.filter(t =>
-                t.includes('primary_goal') || t.includes('industry') || t.includes('stage') ||
-                t.includes('geography') || t.includes('engagement') || t.includes('dealbreaker')
-            );
-            const focusSlotTypes = embTypes.filter(t => t.startsWith('focus_slot_'));
-
-            const html = `
-                <!-- Summary Cards Row -->
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                    <div class="bg-gray-700 rounded-lg p-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${result.account?.status === 'found' ? 'bg-green-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-xs">Account</span>
-                        </div>
-                        <p class="text-white font-medium text-sm">${result.account?.status === 'found' ? 'Found' : 'Not Found'}</p>
-                    </div>
-                    <div class="bg-gray-700 rounded-lg p-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${onb.slots_filled >= 8 ? 'bg-green-500' : onb.slots_filled >= 5 ? 'bg-yellow-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-xs">Slots Filled</span>
-                        </div>
-                        <p class="text-white font-medium text-sm">${onb.slots_filled || 0} / ${onb.slots_total || 11}</p>
-                    </div>
-                    <div class="bg-gray-700 rounded-lg p-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${emb.count > 0 ? 'bg-green-500' : 'bg-red-500'}"></div>
-                            <span class="text-gray-400 text-xs">Embeddings</span>
-                        </div>
-                        <p class="text-white font-medium text-sm">${emb.count || 0}</p>
-                    </div>
-                    <div class="bg-gray-700 rounded-lg p-3">
-                        <div class="flex items-center gap-2 mb-1">
-                            <div class="w-2 h-2 rounded-full ${matches.count > 0 ? 'bg-green-500' : 'bg-yellow-500'}"></div>
-                            <span class="text-gray-400 text-xs">Matches</span>
-                        </div>
-                        <p class="text-white font-medium text-sm">${matches.count || 0}</p>
-                    </div>
-                </div>
-
-                <!-- Detailed 3-Column Grid (like Matching Diagnostics) -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <!-- Onboarding & Slots -->
-                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                        <h4 class="font-semibold text-sm mb-3 text-blue-400">Onboarding & Slots</h4>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="${onb.backend_status === 'completed' ? 'text-green-400' : 'text-yellow-400'}">${onb.backend_status || 'unknown'}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Questions:</span><span>${onb.questions_answered || 0}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Slots Filled:</span><span class="${onb.slots_filled >= 8 ? 'text-green-400' : 'text-yellow-400'}">${onb.slots_filled || 0}/${onb.slots_total || 11}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Persona Status:</span><span>${onb.persona_status || 'N/A'}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Needs Matching:</span><span>${onb.needs_matchmaking ? 'Yes' : 'No'}</span></div>
-                        </div>
-                        ${persona.name ? `
-                        <div class="mt-4 pt-3 border-t border-gray-700">
-                            <h5 class="text-xs text-gray-400 mb-2">Persona Slots:</h5>
-                            <div class="grid grid-cols-2 gap-1 text-xs">
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.name ? 'bg-green-500' : 'bg-red-500'}"></div><span>Name</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.archetype ? 'bg-green-500' : 'bg-red-500'}"></div><span>Archetype</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.designation ? 'bg-green-500' : 'bg-red-500'}"></div><span>Designation</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.experience ? 'bg-green-500' : 'bg-red-500'}"></div><span>Experience</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.focus ? 'bg-green-500' : 'bg-red-500'}"></div><span>Focus</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.profile_essence ? 'bg-green-500' : 'bg-red-500'}"></div><span>Profile Essence</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.investment_philosophy ? 'bg-green-500' : 'bg-red-500'}"></div><span>Strategy</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.what_theyre_looking_for ? 'bg-green-500' : 'bg-red-500'}"></div><span>Looking For</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.engagement_style ? 'bg-green-500' : 'bg-red-500'}"></div><span>Style</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_requirements ? 'bg-green-500' : 'bg-red-500'}"></div><span>Requirements</span></div>
-                                <div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${persona.has_offerings ? 'bg-green-500' : 'bg-red-500'}"></div><span>Offerings</span></div>
-                            </div>
-                        </div>
-                        ` : ''}
-                    </div>
-
-                    <!-- Embeddings Detail -->
-                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                        <h4 class="font-semibold text-sm mb-3 text-purple-400">Embeddings</h4>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between"><span class="text-gray-400">Total Count:</span><span class="${emb.count > 0 ? 'text-green-400' : 'text-red-400'}">${emb.count || 0}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Last Created:</span><span class="text-xs">${emb.details?.last_created ? new Date(emb.details.last_created).toLocaleDateString() : 'Never'}</span></div>
-                        </div>
-                        ${embTypes.length > 0 ? `
-                        <div class="mt-4 pt-3 border-t border-gray-700">
-                            <h5 class="text-xs text-gray-400 mb-2">Basic Embeddings:</h5>
-                            <div class="flex flex-wrap gap-1 mb-3">
-                                ${['Requirements', 'Offerings', 'Combined'].map(t => {
-                                    const hasIt = basicTypes.some(bt => bt.toLowerCase() === t.toLowerCase());
-                                    return `<span class="px-2 py-0.5 rounded text-xs ${hasIt ? 'bg-green-600' : 'bg-gray-600'}">${t}</span>`;
-                                }).join('')}
-                            </div>
-                            <h5 class="text-xs text-gray-400 mb-2">Multi-Vector (6 dimensions):</h5>
-                            <div class="grid grid-cols-2 gap-1 text-xs">
-                                ${['primary_goal', 'industry', 'stage', 'geography', 'engagement_style', 'dealbreakers'].map(dim => {
-                                    const hasReq = embTypes.some(t => t.includes(`requirements_${dim}`) || t.includes(`req_${dim}`));
-                                    const hasOff = embTypes.some(t => t.includes(`offerings_${dim}`) || t.includes(`off_${dim}`));
-                                    const status = hasReq && hasOff ? 'bg-green-500' : (hasReq || hasOff) ? 'bg-yellow-500' : 'bg-red-500';
-                                    return `<div class="flex items-center gap-1"><div class="w-1.5 h-1.5 rounded-full ${status}"></div><span class="capitalize">${dim.replace('_', ' ')}</span></div>`;
-                                }).join('')}
-                            </div>
-                            ${focusSlotTypes.length > 0 ? `
-                            <h5 class="text-xs text-gray-400 mt-3 mb-2">Focus Slot Embeddings (${focusSlotTypes.length}):</h5>
-                            <div class="flex flex-wrap gap-1">
-                                ${focusSlotTypes.map(t => {
-                                    const slotName = t.replace('focus_slot_', '').replace(/_/g, ' ');
-                                    return `<span class="px-2 py-0.5 rounded text-xs bg-orange-600 text-white">${slotName}</span>`;
-                                }).join('')}
-                            </div>
-                            ` : ''}
-                        </div>
-                        ` : '<p class="text-gray-400 text-xs mt-2">No embeddings generated</p>'}
-                    </div>
-
-                    <!-- Matches & Persona -->
-                    <div class="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                        <h4 class="font-semibold text-sm mb-3 text-green-400">Persona & Matches</h4>
-                        ${persona.name ? `
-                        <div class="space-y-2 text-sm mb-4">
-                            <div class="flex justify-between"><span class="text-gray-400">Name:</span><span class="truncate max-w-32">${persona.name}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Archetype:</span><span class="text-xs">${persona.archetype || 'N/A'}</span></div>
-                            <div class="flex justify-between"><span class="text-gray-400">Focus:</span><span class="text-xs truncate max-w-32">${persona.focus || 'N/A'}</span></div>
-                        </div>
-                        ` : '<p class="text-gray-400 text-sm mb-4">Persona not generated</p>'}
-                        <div class="pt-3 border-t border-gray-700">
-                            <div class="flex justify-between text-sm"><span class="text-gray-400">Cached Matches:</span><span>${matches.count || 0}</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-400">Backend Matches:</span><span>${matches.details?.backend_count || 0}</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-gray-400">Last Sync:</span><span class="text-xs">${matches.details?.stored_at ? new Date(matches.details.stored_at).toLocaleDateString() : 'Never'}</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Issues Section -->
-                ${result.issues && result.issues.length > 0 ? `
-                    <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 mb-6">
-                        <h3 class="text-red-400 font-medium mb-2">Issues Found (${result.issues.length})</h3>
-                        <ul class="text-red-300 text-sm space-y-1">
-                            ${result.issues.map(i => `<li>• ${i}</li>`).join('')}
-                        </ul>
-                    </div>
-                ` : `
-                    <div class="bg-green-900/30 border border-green-800 rounded-lg p-3 mb-6">
-                        <p class="text-green-400 text-sm">✓ No issues detected - user journey complete</p>
-                    </div>
-                `}
-
-                <!-- Timeline -->
-                ${result.timeline && result.timeline.length > 0 ? `
-                    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
-                        <h4 class="font-semibold text-sm mb-3">Timeline</h4>
-                        <div class="flex flex-wrap gap-3 text-xs">
-                            ${result.timeline.map(t => `
-                                <div class="flex items-center gap-2 bg-gray-700 px-3 py-1.5 rounded">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                                    <span class="text-gray-400">${t.event.replace(/_/g, ' ')}</span>
-                                    <span class="text-gray-400">${t.timestamp ? new Date(t.timestamp).toLocaleString() : ''}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-
-                <!-- Action Buttons -->
-                <div class="flex flex-wrap gap-3 mb-4">
-                    <button onclick="regenerateEmbeddingsModal()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium">Regenerate Embeddings</button>
-                    <button onclick="regenerateMatchesModal()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm ${emb.count === 0 ? 'opacity-50 cursor-not-allowed' : ''}" ${emb.count === 0 ? 'disabled' : ''}>Recalculate Matches</button>
-                </div>
-                <div id="modalActionStatus" class="text-sm mb-4"></div>
-
-                <!-- Raw Response -->
-                <details class="bg-gray-700 rounded-lg">
-                    <summary class="p-3 cursor-pointer text-gray-400 hover:text-white text-sm">View Raw Response</summary>
-                    <pre class="p-3 text-xs text-gray-400 overflow-x-auto border-t border-gray-600 max-h-60">${JSON.stringify(result, null, 2)}</pre>
-                </details>
-            `;
-            document.getElementById('modalContent').innerHTML = html;
-        }
-
-        function closeModal(event) {
-            if (!event || event.target === document.getElementById('userModal')) {
-                document.getElementById('userModal').classList.add('hidden');
-                document.getElementById('userModal').classList.remove('flex');
-            }
-        }
-
-        // ==================== ACTIONS ====================
-        async function regenerateEmbeddings(userId, btn) {
-            btn.disabled = true;
-            btn.textContent = '...';
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                if (data.code === 200) {
-                    btn.textContent = 'Done!';
-                    btn.className = 'px-2 py-1 bg-green-600 rounded text-xs';
-                    setTimeout(() => loadUsers(), 30000);
-                } else {
-                    btn.textContent = 'Error';
-                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                }
-            } catch (error) {
-                btn.textContent = 'Error';
-                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-            }
-        }
-
-        async function regenerateMatches(userId, btn) {
-            btn.disabled = true;
-            btn.textContent = '...';
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                if (data.code === 200) {
-                    btn.textContent = data.result?.count || '0';
-                    btn.className = 'px-2 py-1 bg-blue-600 rounded text-xs';
-                    setTimeout(() => loadUsers(), 2000);
-                } else {
-                    btn.textContent = 'Error';
-                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                }
-            } catch (error) {
-                btn.textContent = 'Error';
-                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-            }
-        }
-
-        async function generateMultiVector(userId, btn) {
-            btn.disabled = true;
-            btn.textContent = '...';
-            try {
-                const response = await fetch(`${API_BASE}/admin/generate-multi-vector-embeddings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                if (data.code === 200) {
-                    btn.textContent = `${data.total_embeddings || 0}`;
-                    btn.className = 'px-2 py-1 bg-purple-600 rounded text-xs';
-                    setTimeout(() => loadUsers(), 2000);
-                } else {
-                    btn.textContent = 'Error';
-                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                }
-            } catch (error) {
-                btn.textContent = 'Error';
-                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-            }
-        }
-
-        async function hardDeleteUser(userId, email, btn) {
-            // Confirm before deleting
-            const confirmed = confirm(
-                `⚠️ PERMANENT DELETE\n\n` +
-                `Are you sure you want to permanently delete:\n` +
-                `${email}\n\n` +
-                `This will remove the user from:\n` +
-                `• Supabase (account, profiles, matches)\n` +
-                `• AI Database (embeddings)\n\n` +
-                `This action CANNOT be undone!`
-            );
-
-            if (!confirmed) return;
-
-            btn.disabled = true;
-            btn.innerHTML = '⏳'; btn.setAttribute('aria-label', 'Deleting user...');
-
             try {
                 const response = await fetch(`${API_BASE}/admin/hard-delete-user/${userId}`, {
                     method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
                 });
                 const data = await response.json();
-
-                if (data.code === 200) {
-                    btn.innerHTML = '✅'; btn.setAttribute('aria-label', 'User deleted');
-                    btn.className = 'px-2 py-1 bg-green-600 rounded text-xs';
-
-                    // Remove user from local cache and re-render
+                if (data.code === 200 || data.code === 207) {
                     allUsers = allUsers.filter(u => u.user_id !== userId);
-                    delete cache.users;  // Invalidate cache
-                    renderUsers(allUsers);
+                    expandedUserRows.delete(userId);
+                    delete userDiagnosticsCache[userId];
+                    delete userLeversCache[userId];
+                    cache.users = { data: allUsers, timestamp: Date.now() };
+                    saveCacheToStorage();
                     updateUserStats(allUsers);
-
-                    alert(`✅ User ${email} permanently deleted!\n\n${JSON.stringify(data.result, null, 2)}`);
-                } else if (data.code === 207) {
-                    // Partial success
-                    btn.innerHTML = '⚠️'; btn.setAttribute('aria-label', 'User partially deleted');
-                    btn.className = 'px-2 py-1 bg-yellow-600 rounded text-xs';
-                    alert(`⚠️ User partially deleted!\n\nSome data may remain:\n${data.result.errors?.join('\n') || 'Unknown errors'}`);
-                    loadUsers(true);  // Force refresh
+                    renderUsers(currentUserList());
+                    alert(data.code === 207 ? 'User partially deleted. Some data may remain.' : `User ${email} permanently deleted.`);
                 } else {
-                    btn.innerHTML = '❌'; btn.setAttribute('aria-label', 'Delete failed');
-                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                    alert(`❌ Error: ${data.message || 'Unknown error'}`);
+                    alert(`Error: ${data.message || 'delete failed'}`);
                 }
             } catch (error) {
-                btn.innerHTML = '❌';
-                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                alert(`❌ Error: ${error.message}`);
+                alert(`Error: ${error.message}`);
             }
-        }
-
-        async function loadWiringAudit() {
-            const panel = document.getElementById('wiringAuditPanel');
-            const out = document.getElementById('wiringAuditOutput');
-            panel.classList.remove('hidden');
-            out.textContent = 'Running wiring audit...';
-            try {
-                const response = await fetch(`${ADMIN_BASE}/admin/wiring-audit`);
-                const data = await response.json();
-                out.textContent = JSON.stringify(data, null, 2);
-            } catch (error) {
-                out.textContent = `Error: ${error.message}`;
-            }
-        }
-
-        async function regenerateAllMatchesBulk() {
-            const c1 = confirm(
-                '\u26a0 DANGEROUS: REGENERATE ALL MATCHES\n\n' +
-                'This queues LLM scoring for EVERY user in production.\n' +
-                'Cost: ~$0.02 per user \u00d7 ~270 users \u2248 $5+\n' +
-                'Time: ~30-60 minutes for the full sweep.\n\n' +
-                'Continue?'
-            );
-            if (!c1) return;
-            const c2 = prompt('Type exactly: REGENERATE ALL MATCHES');
-            if (c2 !== 'REGENERATE ALL MATCHES') {
-                alert('Mismatch \u2014 aborted.');
-                return;
-            }
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-all-matches`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                alert('Bulk regeneration triggered:\n\n' + JSON.stringify(data, null, 2));
-            } catch (error) {
-                alert('Error: ' + error.message);
-            }
-        }
-
-        async function regenerateEmbeddingsSync(userId, btn) {
-            btn.disabled = true;
-            btn.textContent = '...';
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings-sync`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: userId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                if (data.code === 200) {
-                    btn.textContent = 'Done!';
-                    btn.className = 'px-2 py-1 bg-green-700 rounded text-xs';
-                    setTimeout(() => loadUsers(true), 2000);
-                } else {
-                    btn.textContent = 'Error';
-                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                }
-            } catch (error) {
-                btn.textContent = 'Error';
-                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-            }
-        }
-
-        async function recoverUser(userId, btn) {
-            const ok = confirm('Recover user (ai-side cleanup for stuck onboarding)?\n\nClears stale slot/persona state. Safe to retry.');
-            if (!ok) return;
-            btn.disabled = true;
-            btn.textContent = '...';
-            try {
-                const response = await fetch(`${ADMIN_BASE}/admin/recover-user/${userId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                if (data.code === 200 || response.ok) {
-                    btn.textContent = '\u2713'; btn.setAttribute('aria-label', 'Recovery succeeded');
-                    btn.className = 'px-2 py-1 bg-green-700 rounded text-xs';
-                    setTimeout(() => loadUsers(true), 2000);
-                } else {
-                    btn.textContent = 'Error';
-                    btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-                }
-            } catch (error) {
-                btn.textContent = 'Error';
-                btn.className = 'px-2 py-1 bg-red-600 rounded text-xs';
-            }
-        }
-
-        async function regenerateEmbeddingsModal() {
-            const statusEl = document.getElementById('modalActionStatus');
-            statusEl.innerHTML = '<span class="text-yellow-400">Generating embeddings...</span>';
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-embeddings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                if (data.code === 200) {
-                    statusEl.innerHTML = '<span class="text-green-400">Embeddings triggered! Refresh in 30s.</span>';
-                    setTimeout(loadUsers, 30000);
-                } else {
-                    statusEl.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
-                }
-            } catch (error) {
-                statusEl.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
-            }
-        }
-
-        async function regenerateMatchesModal() {
-            const statusEl = document.getElementById('modalActionStatus');
-            statusEl.innerHTML = '<span class="text-yellow-400">Calculating matches...</span>';
-            try {
-                const response = await fetch(`${API_BASE}/admin/regenerate-matches`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: currentUserId, admin_key: ADMIN_KEY })
-                });
-                const data = await response.json();
-                if (data.code === 200) {
-                    statusEl.innerHTML = `<span class="text-green-400">Found ${data.result?.count || 0} matches.</span>`;
-                    setTimeout(loadUsers, 2000);
-                } else {
-                    statusEl.innerHTML = `<span class="text-red-400">Error: ${data.message || data.detail}</span>`;
-                }
-            } catch (error) {
-                statusEl.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
-            }
-        }
-
-        // ESC to close modal
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
-        });
-
-        // ==========================================
-        // USER SESSIONS TAB
-        // ==========================================
-
-        async function loadSessions(forceRefresh = false) {
-            const platform = document.getElementById('sessions-platform-filter')?.value || '';
-            const days = document.getElementById('sessions-days-filter')?.value || '30';
-            const tbody = document.getElementById('sessions-table-body');
-            tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-400">Loading sessions...</td></tr>';
-
-            try {
-                const params = new URLSearchParams({ days });
-                if (platform) params.append('platform', platform);
-
-                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/user-sessions?${params}`);
-                const data = await response.json();
-                const result = data.result || data;
-
-                // Update summary cards
-                const summary = result.summary || {};
-                document.getElementById('stat-total-users').textContent = summary.total_users || 0;
-                document.getElementById('stat-web-users').textContent = summary.web_users || 0;
-                document.getElementById('stat-mobile-users').textContent = (summary.mobile_app_users || 0) + (summary.mobile_browser_users || 0);
-                document.getElementById('stat-active-today').textContent = summary.active_today || 0;
-
-                // Render table
-                const sessions = result.sessions || [];
-                if (sessions.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-400">No session data yet. Sessions are recorded when users log in after the tracking update.</td></tr>';
-                    return;
-                }
-
-                tbody.innerHTML = sessions.map(s => {
-                    const platformBadge = getPlatformBadge(s.platform);
-                    const deviceStr = [s.device, s.os].filter(Boolean).join(' / ') || '-';
-                    const lastActive = s.last_active ? formatRelativeTime(new Date(s.last_active)) : '-';
-                    const locationStr = s.ip || '-';
-                    const timezoneStr = s.timezone || '-';
-                    const testBadge = s.is_test ? '<span class="ml-1 text-[10px] bg-yellow-600 px-1 rounded">TEST</span>' : '';
-
-                    return `<tr class="border-b border-gray-700/50 hover:bg-gray-750">
-                        <td class="py-3 px-2">
-                            <div class="font-medium text-white">${s.name || 'Unknown'}${testBadge}</div>
-                            <div class="text-xs text-gray-400">${s.email || ''}</div>
-                        </td>
-                        <td class="py-3 px-2">${platformBadge}</td>
-                        <td class="py-3 px-2 text-gray-300">${deviceStr}</td>
-                        <td class="py-3 px-2 text-gray-300">${locationStr}</td>
-                        <td class="py-3 px-2 text-gray-300 text-xs">${timezoneStr}</td>
-                        <td class="py-3 px-2 text-gray-300">${lastActive}</td>
-                        <td class="py-3 px-2 text-center">${s.session_count || 0}</td>
-                        <td class="py-3 px-2 text-center">${s.total_events || 0}</td>
-                    </tr>`;
-                }).join('');
-            } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-red-400">Error: ${error.message}</td></tr>`;
-            }
-        }
-
-        function getPlatformBadge(platform) {
-            switch (platform) {
-                case 'web': return '<span class="px-2 py-1 bg-blue-600/30 text-blue-300 rounded text-xs">Web</span>';
-                case 'mobile-app': return '<span class="px-2 py-1 bg-green-600/30 text-green-300 rounded text-xs">Mobile App</span>';
-                case 'mobile-browser': return '<span class="px-2 py-1 bg-purple-600/30 text-purple-300 rounded text-xs">Mobile Browser</span>';
-                default: return '<span class="px-2 py-1 bg-gray-600/30 text-gray-400 rounded text-xs">Unknown</span>';
-            }
-        }
-
-        function formatRelativeTime(date) {
-            const now = new Date();
-            const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / 60000);
-            const diffHours = Math.floor(diffMs / 3600000);
-            const diffDays = Math.floor(diffMs / 86400000);
-            if (diffMins < 1) return 'Just now';
-            if (diffMins < 60) return `${diffMins}m ago`;
-            if (diffHours < 24) return `${diffHours}h ago`;
-            if (diffDays === 1) return 'Yesterday';
-            if (diffDays < 7) return `${diffDays}d ago`;
-            return date.toLocaleDateString();
         }
 
         // ==========================================
-        // MATCH ANALYTICS TAB
+        // EMAIL + MATCHES TABS
         // ==========================================
 
         async function loadEmailHealth() {
@@ -2652,79 +1067,6 @@
             }
         }
 
-        async function loadMatchQuality() {
-            const days = document.getElementById('quality-days-filter')?.value || '30';
-            try {
-                const response = await fetch(`${ADMIN_BASE}/admin/match-quality-counters?days=${days}`);
-                const data = await response.json();
-                const r = data.result || {};
-                const summary = r.summary || {};
-                const rates = r.rates || {};
-
-                document.getElementById('quality-scoring-calls').textContent =
-                    (summary.scoring_calls_total ?? 0).toLocaleString();
-                document.getElementById('quality-parse-rate').textContent =
-                    rates.parse_failure_rate != null
-                        ? (rates.parse_failure_rate * 100).toFixed(2) + '%'
-                        : '-';
-                document.getElementById('quality-below-min-rate').textContent =
-                    rates.score_below_min_rate != null
-                        ? (rates.score_below_min_rate * 100).toFixed(1) + '%'
-                        : '-';
-                document.getElementById('quality-floor-rate').textContent =
-                    rates.calibration_floor_rate != null
-                        ? (rates.calibration_floor_rate * 100).toFixed(1) + '%'
-                        : '-';
-
-                // Counter totals
-                const totalsBox = document.getElementById('quality-totals');
-                const counterRows = Object.entries(summary).sort((a, b) => b[1] - a[1]);
-                if (counterRows.length === 0 || counterRows.every(([_, v]) => v === 0)) {
-                    totalsBox.innerHTML = '<p class="text-gray-400">No counter activity in this window. Counters populate as users hit matching.</p>';
-                } else {
-                    totalsBox.innerHTML = counterRows.map(([name, count]) => `
-                        <div class="flex justify-between items-center py-2 border-b border-gray-700">
-                            <span class="text-gray-200 font-mono text-xs">${name}</span>
-                            <span class="text-gray-300">${count.toLocaleString()}</span>
-                        </div>
-                    `).join('');
-                }
-
-                // Per-day breakdown
-                const byDayBox = document.getElementById('quality-by-day');
-                const byDay = r.by_day || {};
-                const allDays = new Set();
-                Object.values(byDay).forEach(perCounter => {
-                    Object.keys(perCounter).forEach(d => allDays.add(d));
-                });
-                const sortedDays = [...allDays].sort().reverse();
-
-                if (sortedDays.length === 0) {
-                    byDayBox.innerHTML = '<p class="text-gray-400">No counter activity in this window.</p>';
-                } else {
-                    const counterNames = Object.keys(byDay);
-                    let table = '<table class="w-full"><thead><tr class="text-gray-400 border-b border-gray-700"><th class="text-left p-2">Date</th>';
-                    counterNames.forEach(name => {
-                        table += `<th class="text-right p-2">${name.replace(/_/g, ' ')}</th>`;
-                    });
-                    table += '</tr></thead><tbody>';
-                    sortedDays.forEach(day => {
-                        table += `<tr class="border-b border-gray-800"><td class="p-2 text-gray-300">${day}</td>`;
-                        counterNames.forEach(name => {
-                            const v = (byDay[name] || {})[day] || 0;
-                            table += `<td class="text-right p-2 ${v > 0 ? 'text-gray-200' : 'text-gray-600'}">${v}</td>`;
-                        });
-                        table += '</tr>';
-                    });
-                    table += '</tbody></table>';
-                    byDayBox.innerHTML = table;
-                }
-            } catch (error) {
-                document.getElementById('quality-totals').innerHTML =
-                    `<p class="text-red-400">Error: ${error.message}</p>`;
-            }
-        }
-
         async function loadMatchAnalytics() {
             try {
                 const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-analytics`);
@@ -2739,43 +1081,6 @@
                 document.getElementById('funnel-declined').textContent = f.declined || 0;
                 document.getElementById('funnel-messaged').textContent = f.messaged || 0;
                 document.getElementById('funnel-stale').textContent = f.stale_matches || 0;
-
-                // Score vs Reality
-                const scoreDiv = document.getElementById('score-reality');
-                const scores = result.score_vs_reality || [];
-                scoreDiv.innerHTML = scores.map(s => `
-                    <div class="bg-gray-750 rounded-lg p-4">
-                        <div class="text-lg font-bold text-white">${s.approval_rate}%</div>
-                        <div class="text-xs text-gray-400">Score ${s.range}</div>
-                        <div class="text-xs text-gray-400 mt-1">${s.approved}/${s.total} approved</div>
-                    </div>
-                `).join('') || '<div class="col-span-4 text-gray-400 text-sm">No score data yet</div>';
-
-                // Per-user table
-                const tbody = document.getElementById('analytics-user-table');
-                const users = (result.users || []).filter(u => u.total_matches > 0);
-                if (users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-gray-400">No match data yet</td></tr>';
-                } else {
-                    tbody.innerHTML = users.map(u => {
-                        const approvalRate = u.total_matches > 0 ? Math.round(((u.approved || 0) / u.total_matches) * 100) : 0;
-                        const testBadge = u.is_test ? '<span class="ml-1 text-[10px] bg-yellow-600 px-1 rounded">TEST</span>' : '';
-                        return `<tr class="border-b border-gray-700/50 hover:bg-gray-750">
-                            <td class="py-3 px-2">
-                                <span class="text-white">${u.name || 'Unknown'}${testBadge}</span>
-                                <span class="text-xs text-gray-400 block">${u.email || ''}</span>
-                            </td>
-                            <td class="py-3 px-2 text-center text-gray-300">${u.total_matches}</td>
-                            <td class="py-3 px-2 text-center text-green-400">${u.approved || 0}</td>
-                            <td class="py-3 px-2 text-center text-red-400">${u.passed || 0}</td>
-                            <td class="py-3 px-2 text-center text-yellow-400">${u.pending || 0}</td>
-                            <td class="py-3 px-2 text-center text-purple-400">${u.messaged || 0}</td>
-                            <td class="py-3 px-2 text-center">
-                                <span class="${approvalRate >= 50 ? 'text-green-400' : approvalRate >= 20 ? 'text-yellow-400' : 'text-red-400'}">${approvalRate}%</span>
-                            </td>
-                        </tr>`;
-                    }).join('');
-                }
 
                 // Phase status
                 const phaseDiv = document.getElementById('phase-status');
@@ -3049,6 +1354,7 @@
                 const data = await adminFetch(`${BACKEND_BASE}/events/${eventId}/admin`);
                 currentEventDetail = (data && data.result) || data;
                 renderEventDetail(currentEventDetail);
+                loadEventReport(eventId);
             } catch (e) {
                 body.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
             }
@@ -3125,7 +1431,54 @@
                     <textarea id="broadcast-body" rows="5" placeholder="Body (HTML)" class="w-full bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-mono"></textarea>
                     <button onclick="submitBroadcast('${ev.id}', ${ev.participant_count || participants.length})" class="mt-2 text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 rounded-lg">Send broadcast</button>
                     <p id="broadcast-result" class="text-xs mt-2"></p>
+                </div>
+
+                <div id="event-report-box" class="bg-gray-800 rounded-xl p-5 mt-6">
+                    <h4 class="font-semibold text-gray-200 mb-3">Networking report</h4>
+                    <p class="text-gray-400 text-sm">Loading report...</p>
                 </div>`;
+        }
+
+        // loadEventReport — per-event networking analytics. Calls
+        // GET /events/:id/report (AdminKeyGuard) for participant count,
+        // connections made, and the attendee goal breakdown.
+        async function loadEventReport(eventId) {
+            const box = document.getElementById('event-report-box');
+            if (!box) return;
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/events/${eventId}/report`);
+                const r = (data && data.result) || data || {};
+                const goals = r.goal_breakdown || {};
+                const goalRows = Object.entries(goals).sort((a, b) => b[1] - a[1]);
+                box.innerHTML = `
+                    <h4 class="font-semibold text-gray-200 mb-3">Networking report</h4>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                        <div class="bg-gray-750 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold">${r.total_participants ?? 0}</div>
+                            <div class="text-xs text-gray-400">Participants</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-green-400">${r.connections_made ?? 0}</div>
+                            <div class="text-xs text-gray-400">Connections made</div>
+                        </div>
+                        <div class="bg-gray-750 rounded-lg p-3 text-center">
+                            <div class="text-xl font-bold text-purple-400">${r.complementary_connections ?? 0}</div>
+                            <div class="text-xs text-gray-400">Complementary</div>
+                        </div>
+                    </div>
+                    ${goalRows.length > 0 ? `
+                        <h5 class="text-xs text-gray-400 uppercase mb-2">Attendee goals</h5>
+                        <div class="space-y-1">
+                            ${goalRows.map(([g, c]) => `
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-300">${escapeHtml(g)}</span>
+                                    <span class="text-gray-400">${c}</span>
+                                </div>`).join('')}
+                        </div>` : '<p class="text-gray-400 text-sm">No goal data yet.</p>'}
+                `;
+            } catch (e) {
+                box.innerHTML = `<h4 class="font-semibold text-gray-200 mb-3">Networking report</h4><p class="text-red-400 text-sm">${escapeHtml(e.message)}</p>`;
+            }
         }
 
         async function toggleVip(eventId, userId, currentlyVip) {
@@ -3372,70 +1725,99 @@
         }
 
         // ====================================================================
-        // USER LEVERS TAB — boost / freeze / verify by user UUID
+        // MODERATION TAB — abuse-report review (added 2026-05-21 per May-21)
         // ====================================================================
+        // Lists reported-user cases from the V1 backend
+        // (GET /admin/moderation/reports) and lets the operator move a
+        // case to reviewed / actioned / dismissed (PATCH .../:id) and
+        // freeze the reported user (PATCH /admin/users/levers).
 
-        const LEVER_KEYS = [
-            { key: 'is_boosted', label: 'Boost', hint: '+20% matching weight' },
-            { key: 'is_frozen', label: 'Freeze', hint: 'excluded from matching + messaging' },
-            { key: 'is_manual_verified', label: 'Verified', hint: 'trust badge' },
-        ];
-        let currentLevers = null; // last-loaded { user_id, is_boosted, is_frozen, is_manual_verified }
+        const REPORT_STATUS_BADGE = {
+            pending: 'bg-yellow-900 text-yellow-300',
+            reviewed: 'bg-blue-900 text-blue-300',
+            actioned: 'bg-green-900 text-green-300',
+            dismissed: 'bg-gray-700 text-gray-300',
+        };
 
-        function initLeversTab() {
-            // No auth gate; the surface is always shown. Nothing to load
-            // until the operator pastes a UUID.
-        }
-
-        async function loadUserLevers() {
-            const userId = document.getElementById('levers-user-id').value.trim();
-            const errEl = document.getElementById('levers-error');
-            const resultEl = document.getElementById('levers-result');
-            errEl.textContent = '';
-            if (!userId) { errEl.textContent = 'Paste a user UUID'; return; }
+        async function loadModeration() {
+            const listEl = document.getElementById('moderation-list');
+            const status = document.getElementById('moderation-status-filter').value;
+            listEl.innerHTML = '<p class="text-gray-400">Loading reports...</p>';
             try {
-                // PATCH with only user_id (no flags) is a no-op on the backend
-                // that returns the user's current lever state.
-                const data = await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
-                    method: 'PATCH',
-                    body: JSON.stringify({ user_id: userId }),
-                });
-                currentLevers = (data && data.result) || data;
-                renderLevers();
-                resultEl.classList.remove('hidden');
+                const data = await adminFetch(`${BACKEND_BASE}/admin/moderation/reports?status=${encodeURIComponent(status)}`);
+                let reports = (data && data.result) || data || [];
+                if (!Array.isArray(reports)) reports = [];
+                renderModeration(reports);
             } catch (e) {
-                errEl.textContent = e.message;
-                resultEl.classList.add('hidden');
+                listEl.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
             }
         }
 
-        function renderLevers() {
-            if (!currentLevers) return;
-            document.getElementById('levers-result').innerHTML = `
-                <p class="text-xs text-gray-400 mb-3">User ${escapeHtml(currentLevers.user_id)}</p>
-                <div class="flex gap-3 flex-wrap">
-                    ${LEVER_KEYS.map(l => {
-                        const on = !!currentLevers[l.key];
-                        return `<button onclick="toggleUserLever('${l.key}')" title="${escapeHtml(l.hint)}"
-                            class="px-4 py-2 rounded-lg text-sm font-medium ${on ? 'bg-green-700 text-green-100' : 'bg-gray-700 text-gray-300'}">
-                            ${l.label}: ${on ? 'on' : 'off'}
-                        </button>`;
-                    }).join('')}
-                </div>`;
+        function reportFullName(first, last, fallback) {
+            const n = [first, last].filter(Boolean).join(' ');
+            return n || fallback || 'Unknown';
         }
 
-        async function toggleUserLever(key) {
-            if (!currentLevers) return;
-            const next = !currentLevers[key];
+        function renderModeration(reports) {
+            const listEl = document.getElementById('moderation-list');
+            if (reports.length === 0) {
+                listEl.innerHTML = '<p class="text-gray-400">No reports in this view.</p>';
+                return;
+            }
+            listEl.innerHTML = reports.map(r => {
+                const reported = reportFullName(r.reported_first_name, r.reported_last_name, r.reported_email);
+                const reporter = reportFullName(r.reporter_first_name, r.reporter_last_name, r.reporter_email);
+                const when = r.created_at ? new Date(r.created_at).toLocaleString() : '--';
+                const badge = REPORT_STATUS_BADGE[r.status] || 'bg-gray-700 text-gray-300';
+                return `
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                    <div class="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                        <div>
+                            <span class="font-semibold">${escapeHtml(reported)}</span>
+                            ${r.reported_is_frozen ? '<span class="ml-2 text-xs px-2 py-0.5 rounded bg-red-900 text-red-300">Frozen</span>' : ''}
+                            <div class="text-xs text-gray-400">${escapeHtml(r.reported_email || '')}</div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded text-xs ${badge}">${escapeHtml(r.status)}</span>
+                    </div>
+                    <p class="text-sm text-gray-300"><span class="text-gray-400">Reason:</span> ${escapeHtml(r.reason || '--')}</p>
+                    ${r.details ? `<p class="text-sm text-gray-300 mt-1"><span class="text-gray-400">Details:</span> ${escapeHtml(r.details)}</p>` : ''}
+                    <p class="text-xs text-gray-400 mt-2">Reported by ${escapeHtml(reporter)} · ${escapeHtml(when)}</p>
+                    <div class="flex gap-2 flex-wrap mt-3">
+                        <button onclick="setReportStatus('${r.id}','reviewed')" class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg">Mark reviewed</button>
+                        <button onclick="setReportStatus('${r.id}','actioned')" class="text-xs px-3 py-1.5 bg-green-700 hover:bg-green-800 rounded-lg">Mark actioned</button>
+                        <button onclick="setReportStatus('${r.id}','dismissed')" class="text-xs px-3 py-1.5 bg-gray-600 hover:bg-gray-700 rounded-lg">Dismiss</button>
+                        ${!r.reported_is_frozen && r.reported_id
+                            ? `<button onclick="freezeReportedUser('${r.reported_id}', this)" class="text-xs px-3 py-1.5 bg-red-700 hover:bg-red-800 rounded-lg">Freeze reported user</button>`
+                            : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function setReportStatus(reportId, status) {
             try {
-                const data = await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
+                await adminFetch(`${BACKEND_BASE}/admin/moderation/reports/${reportId}`, {
                     method: 'PATCH',
-                    body: JSON.stringify({ user_id: currentLevers.user_id, [key]: next }),
+                    body: JSON.stringify({ status }),
                 });
-                currentLevers = (data && data.result) || data;
-                renderLevers();
+                loadModeration();
             } catch (e) {
-                alert('Lever toggle failed: ' + e.message);
+                alert('Status update failed: ' + e.message);
+            }
+        }
+
+        async function freezeReportedUser(userId, btn) {
+            if (!confirm('Freeze this user? They will be excluded from matching and messaging.')) return;
+            btn.disabled = true;
+            try {
+                await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ user_id: userId, is_frozen: true }),
+                });
+                loadModeration();
+            } catch (e) {
+                btn.disabled = false;
+                alert('Freeze failed: ' + e.message);
             }
         }
     </script>
