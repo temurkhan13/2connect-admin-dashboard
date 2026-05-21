@@ -93,6 +93,12 @@
             <button onclick="switchTab('announcements')" id="tab-announcements" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Announcements
             </button>
+            <button onclick="switchTab('metrics')" id="tab-metrics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Metrics
+            </button>
+            <button onclick="switchTab('levers')" id="tab-levers" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                User Levers
+            </button>
             <a href="architecture.html" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive flex items-center gap-2 hover:bg-gray-700">
                 <span>🌐</span> Web Architecture
             </a>
@@ -980,6 +986,75 @@
                 </div>
             </div>
         </div>
+
+        <!-- PAGE 10: Metrics (operator: ported 2026-05-21 per May-21).
+             30-day funnel + shareable snapshot. -->
+        <div id="page-metrics" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">30-day funnel</h2>
+                <div class="flex gap-2 items-center">
+                    <span id="metrics-admin-status" class="text-xs text-gray-400"></span>
+                    <button onclick="loadMetrics()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
+                </div>
+            </div>
+
+            <div id="metrics-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
+                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
+                <p class="text-sm text-gray-400 mb-4">Metrics call role-gated backend endpoints. Sign in with an admin account.</p>
+                <div class="flex gap-2 flex-wrap items-center">
+                    <input id="metrics-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
+                    <input id="metrics-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
+                    <button onclick="adminLogin('metrics')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
+                    <span id="metrics-login-error" class="text-xs text-red-400"></span>
+                </div>
+            </div>
+
+            <div id="metrics-surface" class="hidden">
+                <div id="metrics-cards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"></div>
+                <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-gray-200">Per-day breakdown (most recent first)</h3>
+                        <button onclick="issueSnapshot()" class="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded-lg">Share snapshot</button>
+                    </div>
+                    <div id="metrics-by-day" class="text-xs font-mono overflow-x-auto">
+                        <p class="text-gray-400">Loading...</p>
+                    </div>
+                    <p id="metrics-snapshot-result" class="text-xs mt-2"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 11: User Levers (operator: ported 2026-05-21 per May-21).
+             Paste a user UUID, view + toggle boost / freeze / verify. -->
+        <div id="page-levers" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-xl font-semibold">User Levers</h2>
+                <span id="levers-admin-status" class="text-xs text-gray-400"></span>
+            </div>
+
+            <div id="levers-login-panel" class="bg-gray-800 rounded-xl p-6 mb-6 hidden">
+                <h3 class="font-semibold text-gray-200 mb-2">Admin sign-in required</h3>
+                <p class="text-sm text-gray-400 mb-4">User levers call role-gated backend endpoints. Sign in with an admin account.</p>
+                <div class="flex gap-2 flex-wrap items-center">
+                    <input id="levers-admin-email" type="email" placeholder="admin email" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
+                    <input id="levers-admin-password" type="password" placeholder="password" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm" />
+                    <button onclick="adminLogin('levers')" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-medium">Sign in</button>
+                    <span id="levers-login-error" class="text-xs text-red-400"></span>
+                </div>
+            </div>
+
+            <div id="levers-surface" class="hidden">
+                <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                    <p class="text-xs text-gray-400 mb-3">Paste a user UUID (copy one from the User Journey tab) and load to view + toggle their levers. Boost = +20% matching weight. Freeze = excluded from matching + messaging. Verified = trust badge.</p>
+                    <div class="flex gap-2 items-center flex-wrap">
+                        <input id="levers-user-id" type="text" placeholder="User UUID" class="bg-gray-700 text-white px-3 py-2 rounded-lg text-sm flex-1 min-w-[20rem]" />
+                        <button onclick="loadUserLevers()" class="text-xs px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium">Load</button>
+                    </div>
+                    <p id="levers-error" class="text-xs text-red-400 mt-2"></p>
+                </div>
+                <div id="levers-result" class="hidden bg-gray-800 rounded-xl p-5"></div>
+            </div>
+        </div>
         </main>
 
     <script>
@@ -1207,6 +1282,10 @@
                 initEventsTab();
             } else if (tab === 'announcements') {
                 initAnnouncementsTab();
+            } else if (tab === 'metrics') {
+                initMetricsTab();
+            } else if (tab === 'levers') {
+                initLeversTab();
             }
         }
 
@@ -2947,6 +3026,8 @@
                 // Refresh every operator tab's auth-gated state.
                 initEventsTab();
                 initAnnouncementsTab();
+                initMetricsTab();
+                initLeversTab();
             } catch (e) {
                 errEl.textContent = e.message || 'Login failed';
             }
@@ -3295,6 +3376,172 @@
             } catch (e) {
                 resEl.textContent = e.message;
                 resEl.classList.add('text-red-400');
+            }
+        }
+
+        // ====================================================================
+        // METRICS TAB — 30-day funnel + shareable snapshot
+        // ====================================================================
+
+        const METRIC_SERIES = [
+            { key: 'signups', label: 'Signups' },
+            { key: 'verified', label: 'Verified' },
+            { key: 'onboarded', label: 'Onboarded' },
+            { key: 'first_match', label: 'First match' },
+            { key: 'first_message', label: 'First message' },
+        ];
+
+        function initMetricsTab() {
+            const authed = !!adminJWT;
+            document.getElementById('metrics-login-panel').classList.toggle('hidden', authed);
+            document.getElementById('metrics-surface').classList.toggle('hidden', !authed);
+            document.getElementById('metrics-admin-status').textContent =
+                authed ? 'admin session active' : 'not signed in';
+            if (authed) loadMetrics();
+        }
+
+        function sumSeries(rows) {
+            return (rows || []).reduce((s, r) => s + (Number(r.count) || 0), 0);
+        }
+
+        async function loadMetrics() {
+            if (!adminJWT) return;
+            const byDayEl = document.getElementById('metrics-by-day');
+            byDayEl.innerHTML = '<p class="text-gray-400">Loading...</p>';
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/admin/metrics/daily?days=30`);
+                renderMetrics((data && data.result) || data || {});
+            } catch (e) {
+                byDayEl.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        function renderMetrics(m) {
+            // Five summary cards = 30-day totals per series.
+            document.getElementById('metrics-cards').innerHTML = METRIC_SERIES.map(s => `
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">${s.label}</p>
+                    <p class="text-2xl font-bold">${sumSeries(m[s.key])}</p>
+                </div>
+            `).join('');
+
+            // Per-day table: union of all days across series, most recent first.
+            const dayMap = {};
+            for (const s of METRIC_SERIES) {
+                for (const row of (m[s.key] || [])) {
+                    if (!dayMap[row.day]) dayMap[row.day] = {};
+                    dayMap[row.day][s.key] = Number(row.count) || 0;
+                }
+            }
+            const days = Object.keys(dayMap).sort().reverse();
+            if (days.length === 0) {
+                document.getElementById('metrics-by-day').innerHTML = '<p class="text-gray-400">No metric activity in this window.</p>';
+                return;
+            }
+            document.getElementById('metrics-by-day').innerHTML = `
+                <table class="w-full">
+                    <thead class="text-left text-gray-400 border-b border-gray-700">
+                        <tr><th class="px-2 py-1">Day</th>${METRIC_SERIES.map(s => `<th class="px-2 py-1 text-right">${s.label}</th>`).join('')}</tr>
+                    </thead>
+                    <tbody>
+                        ${days.map(d => `
+                            <tr class="border-b border-gray-700">
+                                <td class="px-2 py-1">${escapeHtml(d)}</td>
+                                ${METRIC_SERIES.map(s => `<td class="px-2 py-1 text-right">${dayMap[d][s.key] || 0}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        async function issueSnapshot() {
+            const resEl = document.getElementById('metrics-snapshot-result');
+            resEl.className = 'text-xs mt-2';
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/admin/snapshots`, { method: 'POST' });
+                const r = (data && data.result) || data || {};
+                if (!r.url) throw new Error('No snapshot URL in response');
+                try {
+                    await navigator.clipboard.writeText(r.url);
+                    resEl.textContent = `Snapshot URL copied to clipboard (valid until ${r.expires_at || '30 days'}).`;
+                } catch (_) {
+                    resEl.textContent = `Snapshot URL: ${r.url}`;
+                }
+                resEl.classList.add('text-green-400');
+            } catch (e) {
+                resEl.textContent = e.message;
+                resEl.classList.add('text-red-400');
+            }
+        }
+
+        // ====================================================================
+        // USER LEVERS TAB — boost / freeze / verify by user UUID
+        // ====================================================================
+
+        const LEVER_KEYS = [
+            { key: 'is_boosted', label: 'Boost', hint: '+20% matching weight' },
+            { key: 'is_frozen', label: 'Freeze', hint: 'excluded from matching + messaging' },
+            { key: 'is_manual_verified', label: 'Verified', hint: 'trust badge' },
+        ];
+        let currentLevers = null; // last-loaded { user_id, is_boosted, is_frozen, is_manual_verified }
+
+        function initLeversTab() {
+            const authed = !!adminJWT;
+            document.getElementById('levers-login-panel').classList.toggle('hidden', authed);
+            document.getElementById('levers-surface').classList.toggle('hidden', !authed);
+            document.getElementById('levers-admin-status').textContent =
+                authed ? 'admin session active' : 'not signed in';
+        }
+
+        async function loadUserLevers() {
+            const userId = document.getElementById('levers-user-id').value.trim();
+            const errEl = document.getElementById('levers-error');
+            const resultEl = document.getElementById('levers-result');
+            errEl.textContent = '';
+            if (!userId) { errEl.textContent = 'Paste a user UUID'; return; }
+            try {
+                // PATCH with only user_id (no flags) is a no-op on the backend
+                // that returns the user's current lever state.
+                const data = await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ user_id: userId }),
+                });
+                currentLevers = (data && data.result) || data;
+                renderLevers();
+                resultEl.classList.remove('hidden');
+            } catch (e) {
+                errEl.textContent = e.message;
+                resultEl.classList.add('hidden');
+            }
+        }
+
+        function renderLevers() {
+            if (!currentLevers) return;
+            document.getElementById('levers-result').innerHTML = `
+                <p class="text-xs text-gray-400 mb-3">User ${escapeHtml(currentLevers.user_id)}</p>
+                <div class="flex gap-3 flex-wrap">
+                    ${LEVER_KEYS.map(l => {
+                        const on = !!currentLevers[l.key];
+                        return `<button onclick="toggleUserLever('${l.key}')" title="${escapeHtml(l.hint)}"
+                            class="px-4 py-2 rounded-lg text-sm font-medium ${on ? 'bg-green-700 text-green-100' : 'bg-gray-700 text-gray-300'}">
+                            ${l.label}: ${on ? 'on' : 'off'}
+                        </button>`;
+                    }).join('')}
+                </div>`;
+        }
+
+        async function toggleUserLever(key) {
+            if (!currentLevers) return;
+            const next = !currentLevers[key];
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/admin/users/levers`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ user_id: currentLevers.user_id, [key]: next }),
+                });
+                currentLevers = (data && data.result) || data;
+                renderLevers();
+            } catch (e) {
+                alert('Lever toggle failed: ' + e.message);
             }
         }
     </script>
