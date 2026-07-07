@@ -153,9 +153,117 @@
             <button onclick="switchTab('moderation')" id="tab-moderation" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
                 Moderation
             </button>
+            <button onclick="switchTab('diagnostics')" id="tab-diagnostics" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Diagnostics
+            </button>
+            <button onclick="switchTab('sessions')" id="tab-sessions" class="px-6 py-3 font-medium text-sm rounded-t-lg tab-inactive">
+                Sessions
+            </button>
         </div>
 
         <!-- Tab Content -->
+
+        <!-- Diagnostics -->
+        <div id="page-diagnostics" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6 flex-wrap gap-2">
+                <h2 class="text-xl font-semibold">Diagnostics &amp; Repair</h2>
+            </div>
+
+            <!-- Pipeline health row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div class="bg-gray-800 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-gray-200">Pipeline wiring audit</h3>
+                        <button onclick="loadWiringAudit()" class="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 rounded text-sm">Run audit</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-3">GREEN / YELLOW / RED end-to-end check on the latest completed user.</p>
+                    <div id="wiringAuditPanel" class="hidden">
+                        <pre id="wiringAuditOutput" class="text-xs text-gray-300 bg-gray-900 rounded p-3 overflow-x-auto max-h-80 overflow-y-auto"></pre>
+                    </div>
+                </div>
+                <div class="bg-gray-800 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <h3 class="font-semibold text-gray-200">Match quality counters</h3>
+                        <div class="flex items-center gap-2">
+                            <select id="quality-days-filter" onchange="loadMatchQuality()" class="bg-gray-700 text-sm rounded px-2 py-1">
+                                <option value="7">7d</option>
+                                <option value="30" selected>30d</option>
+                                <option value="90">90d</option>
+                            </select>
+                            <button onclick="loadMatchQuality()" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div class="bg-gray-700 rounded p-2"><p class="text-gray-400 text-xs">Scoring calls</p><p id="quality-scoring-calls" class="font-medium">-</p></div>
+                        <div class="bg-gray-700 rounded p-2"><p class="text-gray-400 text-xs">Parse-fail rate</p><p id="quality-parse-rate" class="font-medium">-</p></div>
+                        <div class="bg-gray-700 rounded p-2"><p class="text-gray-400 text-xs">Below-min rate</p><p id="quality-below-min-rate" class="font-medium">-</p></div>
+                        <div class="bg-gray-700 rounded p-2"><p class="text-gray-400 text-xs">Calibration-floor</p><p id="quality-floor-rate" class="font-medium">-</p></div>
+                    </div>
+                    <div id="quality-totals" class="text-sm"></div>
+                </div>
+            </div>
+
+            <!-- Per-user diagnostics + repair -->
+            <div class="bg-gray-800 rounded-xl p-5 mb-8">
+                <h3 class="font-semibold text-gray-200 mb-3">Per-user diagnostics &amp; repair</h3>
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <input id="diag-email" type="email" placeholder="user@email.com" class="bg-gray-700 rounded px-3 py-2 text-sm flex-1 min-w-[220px]" onkeydown="if(event.key==='Enter')diagLookup()" />
+                    <button onclick="diagLookup()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm text-white">Look up</button>
+                </div>
+                <div id="diag-result"></div>
+            </div>
+
+            <!-- Bulk maintenance -->
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="font-semibold text-gray-200 mb-3">Bulk maintenance</h3>
+                <button onclick="regenerateAllMatchesBulk()" class="px-4 py-2 bg-red-800 hover:bg-red-700 rounded text-sm">Regenerate all matches</button>
+                <p class="text-xs text-gray-500 mt-2">Queues LLM scoring for every completed user. Requires confirmation.</p>
+            </div>
+        </div>
+
+        <!-- Sessions -->
+        <div id="page-sessions" class="tab-content hidden">
+            <div class="flex items-center justify-between mb-6 flex-wrap gap-2">
+                <h2 class="text-xl font-semibold">Sessions</h2>
+                <div class="flex items-center gap-2">
+                    <select id="sessions-platform-filter" onchange="loadSessions()" class="bg-gray-700 text-sm rounded px-2 py-1">
+                        <option value="">All platforms</option>
+                        <option value="web">Web</option>
+                        <option value="mobile-app">Mobile app</option>
+                        <option value="mobile-browser">Mobile browser</option>
+                    </select>
+                    <select id="sessions-days-filter" onchange="loadSessions()" class="bg-gray-700 text-sm rounded px-2 py-1">
+                        <option value="7">7d</option>
+                        <option value="30" selected>30d</option>
+                        <option value="90">90d</option>
+                    </select>
+                    <button onclick="loadSessions()" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm">Refresh</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <div class="bg-gray-800 rounded-xl p-4"><p class="text-gray-400 text-xs">Total users</p><p id="sess-total" class="text-lg font-semibold">-</p></div>
+                <div class="bg-gray-800 rounded-xl p-4"><p class="text-gray-400 text-xs">Web</p><p id="sess-web" class="text-lg font-semibold">-</p></div>
+                <div class="bg-gray-800 rounded-xl p-4"><p class="text-gray-400 text-xs">Mobile</p><p id="sess-mobile" class="text-lg font-semibold">-</p></div>
+                <div class="bg-gray-800 rounded-xl p-4"><p class="text-gray-400 text-xs">Active today</p><p id="sess-active" class="text-lg font-semibold">-</p></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-1 overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left text-gray-400 border-b border-gray-700">
+                        <tr>
+                            <th class="px-4 py-2">User</th>
+                            <th class="px-4 py-2">Platform</th>
+                            <th class="px-4 py-2">Device</th>
+                            <th class="px-4 py-2">Location</th>
+                            <th class="px-4 py-2">Timezone</th>
+                            <th class="px-4 py-2">Last active</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessions-table-body">
+                        <tr><td colspan="6" class="py-8 text-center text-gray-400">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <!-- Moderation: abuse-report review (added 2026-05-21 per
              May-21). Lists reported-user cases from the V1 backend
@@ -491,6 +599,20 @@
                 <!-- Detail view -->
                 <div id="events-detail-view" class="hidden">
                     <button onclick="closeEventDetail()" class="text-sm text-gray-400 hover:text-gray-200 mb-4">&larr; Back to events</button>
+                    <!-- Live per-attendee funnel (placed FIRST so it is the headline of the event detail): polls /events/:id/attendees/live -->
+                    <div id="event-live-section" class="mb-8">
+                        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <h3 class="font-semibold text-gray-200">Live attendee funnel</h3>
+                            <div class="flex items-center gap-3 text-xs text-gray-400">
+                                <span id="event-live-updated"></span>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="event-live-auto" checked onchange="toggleEventLivePolling()" /> Auto-refresh</label>
+                                <button onclick="loadAttendeesLive(currentEventLiveId)" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">Refresh</button>
+                            </div>
+                        </div>
+                        <div id="event-live-table" class="bg-gray-800 rounded-xl p-1 overflow-x-auto">
+                            <p class="text-gray-400 p-4">Loading attendee funnel...</p>
+                        </div>
+                    </div>
                     <div id="event-detail-body">
                         <p class="text-gray-400">Loading...</p>
                     </div>
@@ -774,6 +896,10 @@
                 loadEmailHealth();
             } else if (tab === 'moderation') {
                 loadModeration();
+            } else if (tab === 'diagnostics') {
+                initDiagnosticsTab();
+            } else if (tab === 'sessions') {
+                loadSessions();
             }
         }
 
@@ -1250,6 +1376,18 @@
         let allEvents = [];            // last events/admin/list payload
         let currentEventDetail = null; // event currently open in detail view
 
+        // Live attendee funnel state. currentEventLiveId guards the poll so
+        // it stops when the detail view closes or the operator changes tab.
+        let currentEventLiveId = null;
+        let eventLivePollTimer = null;
+        const LIVE_STAGE_BADGE = {
+            onboarding: 'bg-yellow-900 text-yellow-300',
+            persona: 'bg-blue-900 text-blue-300',
+            persona_failed: 'bg-red-900 text-red-300',
+            matching: 'bg-purple-900 text-purple-300',
+            matches_found: 'bg-green-900 text-green-300',
+        };
+
         // The event create form fields. Keep in sync with the V1 backend
         // CreateEventDto; access_code + organizer_id default server-side.
         const EVENT_CREATE_FIELDS = [
@@ -1432,6 +1570,7 @@
                 currentEventDetail = (data && data.result) || data;
                 renderEventDetail(currentEventDetail);
                 loadEventReport(eventId);
+                startEventLivePolling(eventId);
             } catch (e) {
                 body.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
             }
@@ -1440,7 +1579,146 @@
         function closeEventDetail() {
             document.getElementById('events-detail-view').classList.add('hidden');
             document.getElementById('events-list-view').classList.remove('hidden');
+            stopEventLivePolling();
+            currentEventLiveId = null;
             currentEventDetail = null;
+        }
+
+        // ── Live attendee funnel ────────────────────────────────
+        // Per-attendee operational view inside an event: pipeline stage,
+        // new matches since the attendee last opened the app, the last nudge
+        // we sent them, and how many people they are actively chatting with.
+        // Polls GET /events/:id/attendees/live every 12s while the detail
+        // view is open; self-stops when the view hides or the tab changes.
+        function startEventLivePolling(eventId) {
+            currentEventLiveId = eventId;
+            loadAttendeesLive(eventId);
+            stopEventLivePolling();
+            const auto = document.getElementById('event-live-auto');
+            if (auto && auto.checked) {
+                eventLivePollTimer = setInterval(() => {
+                    const dv = document.getElementById('events-detail-view');
+                    if (!dv || dv.classList.contains('hidden') || currentEventLiveId !== eventId) {
+                        stopEventLivePolling();
+                        return;
+                    }
+                    loadAttendeesLive(eventId);
+                }, 12000);
+            }
+        }
+
+        function stopEventLivePolling() {
+            if (eventLivePollTimer) { clearInterval(eventLivePollTimer); eventLivePollTimer = null; }
+        }
+
+        function toggleEventLivePolling() {
+            if (currentEventLiveId) startEventLivePolling(currentEventLiveId);
+        }
+
+        async function loadAttendeesLive(eventId) {
+            if (!eventId) return;
+            const tableEl = document.getElementById('event-live-table');
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/events/${eventId}/attendees/live`);
+                const payload = (data && data.result) || data;
+                renderAttendeesLive(payload);
+            } catch (e) {
+                if (tableEl) tableEl.innerHTML = `<p class="text-red-400 p-4">${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        function fmtAgo(iso) {
+            if (!iso) return '';
+            const t = new Date(iso).getTime();
+            if (isNaN(t)) return '';
+            const s = Math.floor((Date.now() - t) / 1000);
+            if (s < 60) return 'just now';
+            const m = Math.floor(s / 60);
+            if (m < 60) return m + 'm ago';
+            const h = Math.floor(m / 60);
+            if (h < 24) return h + 'h ago';
+            return Math.floor(h / 24) + 'd ago';
+        }
+
+        function fmtDateTime(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return '';
+            return d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function renderAttendeesLive(payload) {
+            const tableEl = document.getElementById('event-live-table');
+            const updatedEl = document.getElementById('event-live-updated');
+            if (!tableEl) return;
+            const rows = (payload && payload.attendees) || [];
+            if (updatedEl) updatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
+            if (rows.length === 0) {
+                tableEl.innerHTML = '<p class="text-gray-400 p-4">No attendees yet.</p>';
+                return;
+            }
+            tableEl.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead class="text-left text-gray-400 border-b border-gray-700">
+                        <tr>
+                            <th class="px-4 py-2">Attendee</th>
+                            <th class="px-4 py-2">Registered</th>
+                            <th class="px-4 py-2">Pipeline stage</th>
+                            <th class="px-4 py-2 text-right">New matches<br><span class="text-[10px] font-normal">since last opened</span></th>
+                            <th class="px-4 py-2">Last online</th>
+                            <th class="px-4 py-2 text-right">Chatting with</th>
+                            <th class="px-4 py-2">Last nudge</th>
+                            <th class="px-4 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(a => {
+                            const badge = LIVE_STAGE_BADGE[a.stage] || 'bg-gray-700 text-gray-300';
+                            const nm = a.new_matches_since_last_open || 0;
+                            const nmPill = nm > 0
+                                ? `<span class="px-2 py-0.5 rounded text-xs bg-green-900 text-green-300 font-semibold">${nm}</span>`
+                                : `<span class="px-2 py-0.5 rounded text-xs bg-gray-700 text-gray-400">0</span>`;
+                            const nudge = a.last_nudge
+                                ? `<span class="text-gray-300">${escapeHtml(a.last_nudge.subject || a.last_nudge.type || 'nudge')}</span><br><span class="text-[10px] text-gray-500">${fmtAgo(a.last_nudge.sent_at)}</span>`
+                                : '<span class="text-gray-500">--</span>';
+                            const totalTag = a.stage === 'matches_found'
+                                ? ` <span class="text-[10px] text-gray-500">${a.total_matches} total</span>` : '';
+                            const vip = a.is_vip ? ' <span class="text-[10px] px-1 rounded bg-amber-900 text-amber-300">VIP</span>' : '';
+                            return `
+                                <tr class="border-b border-gray-700">
+                                    <td class="px-4 py-2"><span class="text-gray-200">${escapeHtml(a.name)}</span>${vip}<br><span class="text-[10px] text-gray-500">${escapeHtml(a.email || '')}</span></td>
+                                    <td class="px-4 py-2 text-gray-300">${a.registered_at ? fmtDateTime(a.registered_at) : '<span class="text-gray-500">--</span>'}</td>
+                                    <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs ${badge}">${escapeHtml(a.stage_label)}</span>${totalTag}</td>
+                                    <td class="px-4 py-2 text-right">${nmPill}</td>
+                                    <td class="px-4 py-2 text-gray-300">${a.last_online_at ? fmtAgo(a.last_online_at) : '<span class="text-gray-500">Never</span>'}</td>
+                                    <td class="px-4 py-2 text-right text-gray-300">${a.active_chat_count || 0}</td>
+                                    <td class="px-4 py-2">${nudge}</td>
+                                    <td class="px-4 py-2"><button onclick="nudgeFunnelAttendee('${a.user_id}','${a.stage}', this)" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Nudge</button></td>
+                                </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        async function nudgeFunnelAttendee(userId, stage, btn) {
+            const type = stage === 'matches_found' ? 'check_matches' : 'complete_profile';
+            const label = type === 'check_matches' ? 'new-matches' : 'finish-profile';
+            if (!confirm(`Send a ${label} nudge to this attendee?`)) return;
+            btn.disabled = true;
+            const orig = btn.textContent;
+            btn.textContent = '...';
+            try {
+                await adminFetch(`${BACKEND_BASE}/events/${currentEventLiveId}/attendees/${userId}/nudge`, {
+                    method: 'POST',
+                    body: JSON.stringify({ type }),
+                });
+                btn.textContent = 'Sent';
+                setTimeout(() => loadAttendeesLive(currentEventLiveId), 1500);
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = orig;
+                alert('Nudge failed: ' + e.message);
+            }
         }
 
         // reviewEvent — admin approves or rejects a pending,
@@ -1926,6 +2204,206 @@
             } catch (e) {
                 btn.disabled = false;
                 alert('Freeze failed: ' + e.message);
+            }
+        }
+
+        let diagLoaded = false;
+        let diagUserId = null;
+
+        function initDiagnosticsTab() {
+            if (diagLoaded) return;
+            diagLoaded = true;
+            loadMatchQuality();
+        }
+
+        async function loadWiringAudit() {
+            const panel = document.getElementById('wiringAuditPanel');
+            const out = document.getElementById('wiringAuditOutput');
+            panel.classList.remove('hidden');
+            out.textContent = 'Running...';
+            try {
+                const res = await fetch(`${ADMIN_BASE}/admin/wiring-audit`);
+                out.textContent = JSON.stringify(await res.json(), null, 2);
+            } catch (e) {
+                out.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function loadMatchQuality() {
+            const days = document.getElementById('quality-days-filter')?.value || '30';
+            const pct = (v, d = 1) => v != null ? (v * 100).toFixed(d) + '%' : '-';
+            try {
+                const res = await fetch(`${ADMIN_BASE}/admin/match-quality-counters?days=${days}`);
+                const r = (await res.json()).result || {};
+                const summary = r.summary || {};
+                const rates = r.rates || {};
+                document.getElementById('quality-scoring-calls').textContent = (summary.scoring_calls_total ?? 0).toLocaleString();
+                document.getElementById('quality-parse-rate').textContent = pct(rates.parse_failure_rate, 2);
+                document.getElementById('quality-below-min-rate').textContent = pct(rates.score_below_min_rate);
+                document.getElementById('quality-floor-rate').textContent = pct(rates.calibration_floor_rate);
+                const rows = Object.entries(summary).sort((a, b) => b[1] - a[1]);
+                const box = document.getElementById('quality-totals');
+                if (!rows.length || rows.every(([, v]) => v === 0)) {
+                    box.innerHTML = '<p class="text-gray-400 text-xs">No counter activity in this window.</p>';
+                } else {
+                    box.innerHTML = rows.map(([name, count]) => `
+                        <div class="flex justify-between items-center py-1.5 border-b border-gray-700">
+                            <span class="text-gray-300 font-mono text-xs">${escapeHtml(name)}</span>
+                            <span class="text-gray-300">${Number(count).toLocaleString()}</span>
+                        </div>`).join('');
+                }
+            } catch (e) {
+                document.getElementById('quality-totals').innerHTML = `<p class="text-red-400 text-xs">Error: ${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        async function diagLookup() {
+            const email = document.getElementById('diag-email').value.trim();
+            const out = document.getElementById('diag-result');
+            if (!email) { out.innerHTML = ''; return; }
+            out.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
+            diagUserId = null;
+            try {
+                const res = await fetch(`${API_BASE}/admin/user-diagnostics?email=${encodeURIComponent(email)}`);
+                const data = await res.json();
+                if (data.code !== 200) {
+                    out.innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(data.message || 'Not found')}</p>`;
+                    return;
+                }
+                renderDiag(data.result);
+            } catch (e) {
+                out.innerHTML = `<p class="text-red-400 text-sm">Error: ${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        function renderDiag(r) {
+            const onb = r.onboarding?.details || {};
+            const emb = r.embeddings || {};
+            const matches = r.matches || {};
+            diagUserId = r.account?.details?.user_id || null;
+            const dot = ok => `<span class="inline-block w-2 h-2 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}"></span>`;
+            const card = (label, val, ok) => `
+                <div class="bg-gray-700 rounded-lg p-3">
+                    <div class="flex items-center gap-2 mb-1">${dot(ok)}<span class="text-gray-400 text-xs">${label}</span></div>
+                    <p class="text-white text-sm font-medium">${val}</p>
+                </div>`;
+            const repair = diagUserId ? `
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="diagRegenEmbeddings(this)" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs">Regenerate embeddings</button>
+                    <button onclick="diagMultiVector(this)" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs">Generate multi-vector</button>
+                    <button onclick="diagRegenMatches(this)" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-xs">Regenerate matches</button>
+                    <button onclick="diagRecover(this)" class="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 rounded text-xs">Recover</button>
+                </div>` : '<p class="text-xs text-gray-500">No user id resolved; repair actions unavailable.</p>';
+            document.getElementById('diag-result').innerHTML = `
+                <div class="mb-3">
+                    <p class="text-white font-medium">${escapeHtml(r.account?.details?.name || r.name || 'No name')}</p>
+                    <p class="text-gray-400 text-xs">${escapeHtml(r.email || '')}${diagUserId ? ' &middot; ' + diagUserId : ''}</p>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    ${card('Account', r.account?.status === 'found' ? 'Found' : 'Not found', r.account?.status === 'found')}
+                    ${card('Slots filled', `${onb.slots_filled || 0} / ${onb.slots_total || 11}`, (onb.slots_filled || 0) >= 8)}
+                    ${card('Embeddings', emb.count || 0, (emb.count || 0) > 0)}
+                    ${card('Matches', matches.count || 0, (matches.count || 0) > 0)}
+                </div>
+                ${repair}
+                <div id="diag-action-status" class="text-xs mt-3"></div>`;
+        }
+
+        function diagStatus(msg, cls) {
+            const el = document.getElementById('diag-action-status');
+            if (el) el.innerHTML = `<span class="${cls}">${escapeHtml(msg)}</span>`;
+        }
+
+        async function diagPost(url, body, btn, label) {
+            if (!diagUserId) return;
+            btn.disabled = true;
+            const orig = btn.textContent;
+            btn.textContent = '...';
+            diagStatus(`${label}...`, 'text-yellow-400');
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const data = await res.json();
+                if (data.code === 200 || res.ok) {
+                    diagStatus(`${label} done.`, 'text-green-400');
+                    setTimeout(diagLookup, 1500);
+                } else {
+                    diagStatus(`${label} failed: ${data.message || res.status}`, 'text-red-400');
+                }
+            } catch (e) {
+                diagStatus(`${label} failed: ${e.message}`, 'text-red-400');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = orig;
+            }
+        }
+
+        function diagRegenEmbeddings(btn) {
+            diagPost(`${API_BASE}/admin/regenerate-embeddings-sync`, { user_id: diagUserId, admin_key: ADMIN_KEY }, btn, 'Regenerate embeddings');
+        }
+        function diagMultiVector(btn) {
+            diagPost(`${API_BASE}/admin/generate-multi-vector-embeddings`, { user_id: diagUserId, admin_key: ADMIN_KEY }, btn, 'Generate multi-vector');
+        }
+        function diagRegenMatches(btn) {
+            diagPost(`${API_BASE}/admin/regenerate-matches`, { user_id: diagUserId, admin_key: ADMIN_KEY }, btn, 'Regenerate matches');
+        }
+        function diagRecover(btn) {
+            if (!confirm('Recover this user? Clears stale onboarding state. Safe to retry.')) return;
+            diagPost(`${ADMIN_BASE}/admin/recover-user/${diagUserId}`, {}, btn, 'Recover');
+        }
+
+        async function regenerateAllMatchesBulk() {
+            if (!confirm('Regenerate matches for every completed user? This queues LLM scoring across production and can take 30-60 minutes.')) return;
+            if (prompt('Type REGENERATE to confirm') !== 'REGENERATE') return;
+            try {
+                const res = await fetch(`${API_BASE}/admin/regenerate-all-matches`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ admin_key: ADMIN_KEY }),
+                });
+                alert(JSON.stringify(await res.json(), null, 2));
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function loadSessions() {
+            const platform = document.getElementById('sessions-platform-filter').value;
+            const days = document.getElementById('sessions-days-filter').value || '30';
+            const tbody = document.getElementById('sessions-table-body');
+            tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-400">Loading...</td></tr>';
+            try {
+                const params = new URLSearchParams({ days });
+                if (platform) params.append('platform', platform);
+                const res = await fetch(`${BACKEND_BASE}/dashboard/admin/user-sessions?${params}`);
+                const result = (await res.json()).result || {};
+                const s = result.summary || {};
+                document.getElementById('sess-total').textContent = s.total_users ?? 0;
+                document.getElementById('sess-web').textContent = s.web_users ?? 0;
+                document.getElementById('sess-mobile').textContent = (s.mobile_app_users || 0) + (s.mobile_browser_users || 0);
+                document.getElementById('sess-active').textContent = s.active_today ?? 0;
+                const rows = result.sessions || [];
+                if (!rows.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-400">No session data in this window.</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = rows.map(r => {
+                    const device = [r.device, r.os].filter(Boolean).join(' / ') || '-';
+                    const test = r.is_test ? ' <span class="text-[10px] px-1 rounded bg-yellow-900 text-yellow-300">TEST</span>' : '';
+                    return `<tr class="border-b border-gray-700">
+                        <td class="px-4 py-2"><span class="text-gray-200">${escapeHtml(r.name || 'Unknown')}</span>${test}<br><span class="text-[10px] text-gray-500">${escapeHtml(r.email || '')}</span></td>
+                        <td class="px-4 py-2 text-gray-300">${escapeHtml(r.platform || '-')}</td>
+                        <td class="px-4 py-2 text-gray-300">${escapeHtml(device)}</td>
+                        <td class="px-4 py-2 text-gray-300">${escapeHtml(r.ip || '-')}</td>
+                        <td class="px-4 py-2 text-gray-300">${escapeHtml(r.timezone || '-')}</td>
+                        <td class="px-4 py-2 text-gray-300">${r.last_active ? fmtAgo(r.last_active) : '-'}</td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-red-400">Error: ${escapeHtml(e.message)}</td></tr>`;
             }
         }
     </script>
