@@ -304,7 +304,10 @@
         <div id="page-users" class="tab-content hidden">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-xl font-semibold">Users</h2>
-                <button onclick="loadUsers(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
+                <div class="flex gap-2">
+                    <button onclick="exportUsersCsv()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm font-medium">Export CSV</button>
+                    <button onclick="loadUsers(true)" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium">Refresh</button>
+                </div>
             </div>
 
             <div class="grid grid-cols-3 gap-4 mb-4">
@@ -621,6 +624,7 @@
                             <div class="flex items-center gap-3 text-xs text-gray-400">
                                 <span id="event-live-updated"></span>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="event-live-auto" checked onchange="toggleEventLivePolling()" /> Auto-refresh</label>
+                                <button onclick="exportAttendeesCsv()" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">Export CSV</button>
                                 <button onclick="loadAttendeesLive(currentEventLiveId)" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">Refresh</button>
                             </div>
                         </div>
@@ -699,7 +703,31 @@
                         <p class="text-gray-500 text-sm col-span-full">Loading...</p>
                     </div>
                 </div>
+                <!-- Event readiness: upcoming events (by date) with a
+                     registered/onboarded/matched bar. No auto-pick; the events
+                     with an event_date in the future are listed. -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wide">Upcoming events</h3>
+                        <button onclick="loadUpcomingEvents()" class="text-xs text-gray-400 hover:text-gray-200">Refresh</button>
+                    </div>
+                    <div id="upcoming-events" class="space-y-3">
+                        <p class="text-gray-500 text-sm">Loading...</p>
+                    </div>
+                </div>
+
                 <div id="metrics-cards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"></div>
+
+                <!-- Onboarding progress: where the in-progress users sit, by how
+                     far they got and how long they have been stuck. Client-side
+                     from the users list. -->
+                <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                    <h3 class="font-semibold text-gray-200 mb-3">Onboarding progress (in-progress users)</h3>
+                    <div id="onboarding-progress" class="text-sm">
+                        <p class="text-gray-400">Loading...</p>
+                    </div>
+                </div>
+
                 <div class="bg-gray-800 rounded-xl p-5 mb-6">
                     <div class="flex items-center justify-between mb-3">
                         <h3 class="font-semibold text-gray-200">Per-day breakdown (most recent first)</h3>
@@ -1766,11 +1794,13 @@
             return d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
+        let lastAttendeeRows = [];
         function renderAttendeesLive(payload) {
             const tableEl = document.getElementById('event-live-table');
             const updatedEl = document.getElementById('event-live-updated');
             if (!tableEl) return;
             const rows = (payload && payload.attendees) || [];
+            lastAttendeeRows = rows;
             if (updatedEl) updatedEl.textContent = 'Updated ' + new Date().toLocaleTimeString();
             if (rows.length === 0) {
                 tableEl.innerHTML = '<p class="text-gray-400 p-4">No attendees yet.</p>';
@@ -2152,9 +2182,170 @@
         ];
 
         function initMetricsTab() {
-            // No auth gate; load the funnel + attention strip on open.
+            // No auth gate; load the funnel + attention strip + event readiness
+            // + onboarding progress on open.
             loadMetrics();
             loadAttention();
+            loadUpcomingEvents();
+            loadOnboardingProgress();
+        }
+
+        // ── Event readiness (B) ──────────────────────────────────
+        // Lists events with a future event_date and, for each, aggregates its
+        // live attendee funnel into registered / onboarded / with-matches.
+        // Bounded work: only future-dated events (usually 1-3) are fetched.
+        function daysUntil(dateStr) {
+            const d = new Date(dateStr).getTime();
+            if (!d) return null;
+            return Math.round((d - Date.now()) / 86400000);
+        }
+
+        async function loadUpcomingEvents() {
+            const el = document.getElementById('upcoming-events');
+            if (!el) return;
+            try {
+                const data = await adminFetch(`${BACKEND_BASE}/events/admin/list`);
+                let list = (data && data.result && (data.result.events || data.result)) || [];
+                if (!Array.isArray(list)) list = list.events || [];
+                // Future-dated events, soonest first. (status is unreliable, so
+                // we key off event_date.)
+                const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+                const upcoming = list
+                    .filter(e => e.event_date && new Date(e.event_date).getTime() >= startOfToday.getTime())
+                    .sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
+                    .slice(0, 5);
+                if (upcoming.length === 0) {
+                    el.innerHTML = '<p class="text-gray-500 text-sm">No events with a future date.</p>';
+                    return;
+                }
+                // Render shells first, then fill readiness per event.
+                el.innerHTML = upcoming.map(e => {
+                    const dleft = daysUntil(e.event_date);
+                    const when = dleft === 0 ? 'today' : dleft === 1 ? 'in 1 day' : dleft > 0 ? `in ${dleft} days` : `${-dleft}d ago`;
+                    return `<button onclick="openEventDetail('${e.id}')" class="w-full text-left bg-gray-800 rounded-xl p-4 border border-gray-700 hover:bg-gray-750 transition-colors block">
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            <div><span class="font-semibold text-gray-200">${escapeHtml(e.name || 'Untitled event')}</span>
+                                <span class="text-xs text-gray-500 ml-2">${new Date(e.event_date).toLocaleDateString()} · ${when}</span></div>
+                            <div id="ev-ready-${e.id}" class="text-xs text-gray-500">reading readiness…</div>
+                        </div>
+                        <div id="ev-bar-${e.id}" class="mt-3"></div>
+                    </button>`;
+                }).join('');
+                // Fill readiness (bounded parallel).
+                await Promise.all(upcoming.map(async e => {
+                    try {
+                        const fd = await adminFetch(`${BACKEND_BASE}/events/${e.id}/attendees/live`);
+                        const res = (fd && fd.result) || fd || {};
+                        const rows = res.attendees || [];
+                        const registered = res.attendee_count ?? rows.length;
+                        const onboarded = rows.filter(r => r.stage && r.stage !== 'onboarding' && r.stage !== 'registered').length;
+                        const withMatches = rows.filter(r => (r.total_matches || 0) > 0).length;
+                        const readyEl = document.getElementById(`ev-ready-${e.id}`);
+                        const barEl = document.getElementById(`ev-bar-${e.id}`);
+                        if (readyEl) readyEl.innerHTML = `<span class="text-gray-300">${registered}</span> registered · <span class="text-gray-300">${onboarded}</span> onboarded · <span class="text-gray-300">${withMatches}</span> matched`;
+                        if (barEl && registered > 0) {
+                            const pOn = Math.round(onboarded / registered * 100);
+                            const pMa = Math.round(withMatches / registered * 100);
+                            barEl.innerHTML = `<div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden flex">
+                                <div class="bg-green-500 h-2" style="width:${pMa}%"></div>
+                                <div class="bg-blue-500/70 h-2" style="width:${Math.max(0, pOn - pMa)}%"></div>
+                            </div>
+                            <p class="text-[10px] text-gray-500 mt-1">green = matched, blue = onboarded (not yet matched)</p>`;
+                        }
+                    } catch (err) {
+                        const readyEl = document.getElementById(`ev-ready-${e.id}`);
+                        if (readyEl) readyEl.textContent = 'readiness unavailable';
+                    }
+                }));
+            } catch (e) {
+                el.innerHTML = `<p class="text-red-400 text-sm">Failed to load events: ${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        // ── Onboarding progress (F) ──────────────────────────────
+        // Buckets in-progress users by how far they got (slots filled) and how
+        // long they have been at it. Client-side from the users list.
+        async function loadOnboardingProgress() {
+            const el = document.getElementById('onboarding-progress');
+            if (!el) return;
+            try {
+                if (!allUsers || allUsers.length === 0) {
+                    const r = await fetch(`${API_BASE}/admin/list-users`);
+                    const d = await r.json();
+                    if (d.code === 200) allUsers = d.result || [];
+                }
+                const inProgress = allUsers.filter(u => u.onboarding_status !== 'completed');
+                if (inProgress.length === 0) { el.innerHTML = '<p class="text-gray-400">No in-progress users.</p>'; return; }
+                const now = Date.now();
+                const parseTs = t => t ? new Date(String(t).replace(' ', 'T')).getTime() : 0;
+                const pct = u => (u.slots_total > 0) ? (u.slots_filled || 0) / u.slots_total : 0;
+                const bands = [
+                    { label: 'Barely started (0–33%)', test: u => pct(u) < 0.34 },
+                    { label: 'Partway (34–66%)', test: u => pct(u) >= 0.34 && pct(u) < 0.67 },
+                    { label: 'Almost done (67–99%)', test: u => pct(u) >= 0.67 },
+                ];
+                const stale = inProgress.filter(u => parseTs(u.created_at) && (now - parseTs(u.created_at)) > 48 * 3600 * 1000).length;
+                const total = inProgress.length;
+                const rowFor = (label, count) => {
+                    const p = total > 0 ? Math.round(count / total * 100) : 0;
+                    return `<div class="mb-2">
+                        <div class="flex justify-between text-xs mb-1"><span class="text-gray-300">${label}</span><span class="text-gray-400">${count} (${p}%)</span></div>
+                        <div class="w-full bg-gray-700 rounded-full h-1.5"><div class="bg-blue-500 h-1.5 rounded-full" style="width:${p}%"></div></div>
+                    </div>`;
+                };
+                el.innerHTML =
+                    `<p class="text-gray-400 mb-3">${total} users in progress · <span class="text-amber-400">${stale}</span> stuck &gt;48h</p>` +
+                    bands.map(b => rowFor(b.label, inProgress.filter(b.test).length)).join('');
+            } catch (e) {
+                el.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
+            }
+        }
+
+        // ── CSV export (A) ───────────────────────────────────────
+        // Serializes an array of objects to CSV and downloads it. Exports the
+        // FULL passed array (callers pass the filtered list, not the capped
+        // render list, so nothing is silently truncated).
+        function downloadCsv(filename, rows, columns) {
+            const esc = v => {
+                const s = v == null ? '' : String(v);
+                return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+            };
+            const header = columns.map(c => esc(c.label)).join(',');
+            const body = rows.map(r => columns.map(c => esc(typeof c.get === 'function' ? c.get(r) : r[c.key])).join(',')).join('\n');
+            const blob = new Blob([header + '\n' + body], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function exportUsersCsv() {
+            const rows = currentUserList();
+            if (!rows.length) { alert('No users to export.'); return; }
+            downloadCsv(`users-${new Date().toISOString().slice(0, 10)}.csv`, rows, [
+                { label: 'Name', key: 'name' },
+                { label: 'Email', key: 'email' },
+                { label: 'Onboarding', key: 'onboarding_status' },
+                { label: 'Persona', key: 'persona_status' },
+                { label: 'Slots filled', get: u => `${u.slots_filled ?? ''}/${u.slots_total ?? ''}` },
+                { label: 'Embeddings', key: 'embeddings_count' },
+                { label: 'Matches', get: u => u.matches_count ?? u.match_count ?? 0 },
+                { label: 'Created', key: 'created_at' },
+            ]);
+        }
+
+        function exportAttendeesCsv() {
+            if (!lastAttendeeRows.length) { alert('No attendees to export.'); return; }
+            downloadCsv(`attendees-${new Date().toISOString().slice(0, 10)}.csv`, lastAttendeeRows, [
+                { label: 'Name', key: 'name' },
+                { label: 'Email', key: 'email' },
+                { label: 'VIP', get: a => a.is_vip ? 'yes' : '' },
+                { label: 'Pipeline stage', get: a => a.stage_label || a.stage || '' },
+                { label: 'Total matches', key: 'total_matches' },
+                { label: 'Registered', key: 'registered_at' },
+                { label: 'Last online', key: 'last_online_at' },
+            ]);
         }
 
         // Attention strip: exceptions worth a look, computed client-side from
