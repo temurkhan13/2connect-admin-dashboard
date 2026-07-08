@@ -512,7 +512,7 @@
                 </div>
             </div>
 
-            <div id="email-summary" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div id="email-summary" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div class="bg-gray-800 rounded-lg p-4">
                     <p class="text-gray-400 text-sm">Total sent</p>
                     <p id="email-total-sent" class="text-2xl font-bold">-</p>
@@ -520,10 +520,17 @@
                 <div class="bg-gray-800 rounded-lg p-4">
                     <p class="text-gray-400 text-sm">Success rate</p>
                     <p id="email-success-rate" class="text-2xl font-bold text-green-400">-</p>
+                    <p class="text-[10px] text-gray-500 mt-1">of real sends</p>
                 </div>
                 <div class="bg-gray-800 rounded-lg p-4">
                     <p class="text-gray-400 text-sm">Failures</p>
                     <p id="email-failures" class="text-2xl font-bold text-red-400">-</p>
+                    <p class="text-[10px] text-gray-500 mt-1">real delivery failures</p>
+                </div>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <p class="text-gray-400 text-sm">Suppressed</p>
+                    <p id="email-suppressed" class="text-2xl font-bold text-gray-400">-</p>
+                    <p class="text-[10px] text-gray-500 mt-1">test domains (not sent)</p>
                 </div>
                 <div class="bg-gray-800 rounded-lg p-4">
                     <p class="text-gray-400 text-sm">Last send</p>
@@ -992,13 +999,21 @@
             document.getElementById('usersInProgress').textContent = users.filter(u => !isOnboarded(u)).length;
         }
 
+        const USER_RENDER_CAP = 250;
         function renderUsers(users) {
             const tbody = document.getElementById('usersTableBody');
             if (!users || users.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">No users found</td></tr>';
                 return;
             }
-            tbody.innerHTML = users.map(user => {
+            // Cap the DOM rows to keep the table responsive; large unfiltered
+            // lists otherwise freeze the renderer. Refine via search/filter.
+            const capped = users.length > USER_RENDER_CAP;
+            const shown = capped ? users.slice(0, USER_RENDER_CAP) : users;
+            const capNote = capped
+                ? `<tr><td colspan="4" class="px-4 py-3 text-center text-gray-500 text-sm bg-gray-800/50">Showing first ${USER_RENDER_CAP} of ${users.length}. Use search or the status filter to narrow the list.</td></tr>`
+                : '';
+            tbody.innerHTML = shown.map(user => {
                 const expanded = expandedUserRows.has(user.user_id);
                 const onboarded = isOnboarded(user);
                 const matches = user.matches_count ?? user.match_count ?? 0;
@@ -1024,7 +1039,7 @@
                     <td class="px-4 py-3 text-right text-gray-400 text-sm">${expanded ? 'Close' : 'Manage'}</td>
                 </tr>
                 ${expanded ? renderUserDetailRow(user) : ''}
-            `}).join('');
+            `}).join('') + capNote;
         }
 
         // The user list currently rendered, respecting active filters.
@@ -1210,6 +1225,7 @@
                     ? (summary.success_rate * 100).toFixed(1) + '%'
                     : '-';
                 document.getElementById('email-failures').textContent = summary.failure_count ?? '0';
+                document.getElementById('email-suppressed').textContent = summary.suppressed_count ?? '0';
                 document.getElementById('email-last-send').textContent = summary.last_send_at
                     ? new Date(summary.last_send_at).toLocaleString()
                     : 'never';
@@ -1220,13 +1236,18 @@
                     tplBox.innerHTML = '<p class="text-gray-400">No emails in this window.</p>';
                 } else {
                     tplBox.innerHTML = byTemplate.map(t => {
-                        const sr = t.total > 0 ? (t.success_count / t.total * 100).toFixed(1) : '0.0';
+                        const suppressed = t.suppressed_count || 0;
+                        const realSends = t.total - suppressed;
+                        const sr = realSends > 0 ? (t.success_count / realSends * 100).toFixed(1) : '100.0';
                         const fc = t.failure_count > 0
                             ? `<span class="text-red-400">${t.failure_count} failed</span>`
                             : '<span class="text-gray-400">0 failed</span>';
+                        const sup = suppressed > 0
+                            ? ` · <span class="text-gray-500">${suppressed} suppressed</span>`
+                            : '';
                         return `<div class="flex justify-between items-center py-2 border-b border-gray-700">
                             <span class="text-gray-200">${t.log_context}</span>
-                            <span class="text-gray-400">${t.total} sent · ${sr}% success · ${fc}</span>
+                            <span class="text-gray-400">${realSends} sent · ${sr}% success · ${fc}${sup}</span>
                         </div>`;
                     }).join('');
                 }
@@ -2390,7 +2411,14 @@
                     tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-gray-400">No session data in this window.</td></tr>';
                     return;
                 }
-                tbody.innerHTML = rows.map(r => {
+                // Cap DOM rows to keep the table responsive on large windows.
+                const SESSION_RENDER_CAP = 300;
+                const sessCapped = rows.length > SESSION_RENDER_CAP;
+                const sessShown = sessCapped ? rows.slice(0, SESSION_RENDER_CAP) : rows;
+                const sessCapNote = sessCapped
+                    ? `<tr><td colspan="6" class="px-4 py-3 text-center text-gray-500 text-sm bg-gray-800/50">Showing first ${SESSION_RENDER_CAP} of ${rows.length}. Narrow with the platform or time-window filter.</td></tr>`
+                    : '';
+                tbody.innerHTML = sessShown.map(r => {
                     const device = [r.device, r.os].filter(Boolean).join(' / ') || '-';
                     const test = r.is_test ? ' <span class="text-[10px] px-1 rounded bg-yellow-900 text-yellow-300">TEST</span>' : '';
                     return `<tr class="border-b border-gray-700">
@@ -2401,7 +2429,7 @@
                         <td class="px-4 py-2 text-gray-300">${escapeHtml(r.timezone || '-')}</td>
                         <td class="px-4 py-2 text-gray-300">${r.last_active ? fmtAgo(r.last_active) : '-'}</td>
                     </tr>`;
-                }).join('');
+                }).join('') + sessCapNote;
             } catch (e) {
                 tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-red-400">Error: ${escapeHtml(e.message)}</td></tr>`;
             }
