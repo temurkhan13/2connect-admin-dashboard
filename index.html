@@ -707,7 +707,7 @@
                         <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wide">Needs attention</h3>
                         <button onclick="loadAttention()" class="text-xs text-gray-400 hover:text-gray-200">Refresh</button>
                     </div>
-                    <div id="attention-strip" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div id="attention-strip" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                         <p class="text-gray-500 text-sm col-span-full">Loading...</p>
                     </div>
                 </div>
@@ -2432,9 +2432,21 @@
                     pending = Array.isArray(reports) ? reports.length : 0;
                 } catch (e) { pending = 0; }
 
+                // Placeholder personas — content check (real users only), from
+                // the persona-health endpoint. Distinct from "persona not
+                // generated": here status says completed but content is a
+                // placeholder.
+                let placeholderReal = 0;
+                try {
+                    const ph = await fetch(`${BACKEND_BASE}/dashboard/admin/persona-health`);
+                    const phr = (await ph.json()).result || {};
+                    placeholderReal = phr.real_count || 0;
+                } catch (e) { placeholderReal = 0; }
+
                 el.innerHTML =
                     attentionCard(stuck, 'Stuck in onboarding', 'started &gt;48h ago, not done', "switchTab('users'); document.getElementById('usersStatusFilter').value='in_progress'; renderUsers(currentUserList());") +
                     attentionCard(personaMissing, 'Persona not generated', 'onboarded, persona incomplete', "switchTab('users')") +
+                    attentionCard(placeholderReal, 'Placeholder personas', 'completed but content is a stub', "switchTab('diagnostics')") +
                     attentionCard(noEmbeddings, 'No embeddings', 'onboarded, 0 embeddings', "switchTab('users')") +
                     attentionCard(pending, 'Moderation reports', 'awaiting review', "switchTab('moderation')");
             } catch (e) {
