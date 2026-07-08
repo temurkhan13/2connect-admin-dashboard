@@ -396,6 +396,14 @@
                             <div class="text-xs text-gray-400">Stale (14d+)</div>
                         </div>
                     </div>
+
+                    <!-- Match quality by tier -->
+                    <div class="bg-gray-800 rounded-xl p-5 mb-6">
+                        <h3 class="font-semibold text-gray-200 mb-3">Match quality by tier</h3>
+                        <div id="tier-distribution" class="space-y-2 text-sm">
+                            <p class="text-gray-400">Loading...</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- SUB-TAB: Engagement -->
@@ -1400,6 +1408,37 @@
             }
         }
 
+        const TIER_META = {
+            perfect: { label: 'Perfect (85+)', color: 'bg-green-500' },
+            strong: { label: 'Strong (70-84)', color: 'bg-emerald-500' },
+            worth_exploring: { label: 'Worth exploring (55-69)', color: 'bg-blue-500' },
+            low: { label: 'Low (<55)', color: 'bg-gray-500' },
+            untiered: { label: 'Untiered (legacy)', color: 'bg-gray-600' },
+        };
+        async function loadTierDistribution() {
+            const el = document.getElementById('tier-distribution');
+            if (!el) return;
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-tier-distribution`);
+                const data = await response.json();
+                const r = data.result || data;
+                const tiers = r.by_tier || [];
+                const total = r.total || 0;
+                if (!tiers.length) { el.innerHTML = '<p class="text-gray-400">No match data.</p>'; return; }
+                el.innerHTML = tiers.map(t => {
+                    const meta = TIER_META[t.tier] || { label: t.tier, color: 'bg-gray-500' };
+                    const pct = total > 0 ? Math.round(t.count / total * 100) : 0;
+                    const avg = t.avg_score != null ? ` · avg ${t.avg_score}` : '';
+                    return `<div>
+                        <div class="flex justify-between text-xs mb-1"><span class="text-gray-300">${meta.label}</span><span class="text-gray-400">${t.count} (${pct}%)${avg}</span></div>
+                        <div class="w-full bg-gray-700 rounded-full h-2"><div class="${meta.color} h-2 rounded-full" style="width:${pct}%"></div></div>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                el.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
+            }
+        }
+
         async function loadMatchAnalytics() {
             try {
                 const response = await fetch(`${BACKEND_BASE}/dashboard/admin/match-analytics`);
@@ -1431,6 +1470,9 @@
                         </div>` : ''}
                     </div>`;
                 }).join('');
+
+                // Match quality by tier (separate endpoint).
+                loadTierDistribution();
 
                 // Load engagement sub-tab data from analytics events
                 loadEngagementData();
