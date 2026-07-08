@@ -687,6 +687,18 @@
             </div>
 
             <div id="metrics-surface">
+                <!-- Attention strip: exceptions that need a look, not totals.
+                     All computed client-side from the users list + moderation
+                     (no pipeline dependency). Each card links to the detail. -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wide">Needs attention</h3>
+                        <button onclick="loadAttention()" class="text-xs text-gray-400 hover:text-gray-200">Refresh</button>
+                    </div>
+                    <div id="attention-strip" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <p class="text-gray-500 text-sm col-span-full">Loading...</p>
+                    </div>
+                </div>
                 <div id="metrics-cards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6"></div>
                 <div class="bg-gray-800 rounded-xl p-5 mb-6">
                     <div class="flex items-center justify-between mb-3">
@@ -2140,8 +2152,61 @@
         ];
 
         function initMetricsTab() {
-            // No auth gate; load the funnel on open.
+            // No auth gate; load the funnel + attention strip on open.
             loadMetrics();
+            loadAttention();
+        }
+
+        // Attention strip: exceptions worth a look, computed client-side from
+        // the users list (already an admin endpoint) + moderation. No pipeline
+        // dependency, no new endpoint. Deliberately excludes global zero-match
+        // (V1 matching is event-scoped, so a global count is misleading).
+        function attentionCard(count, label, sub, onclick, tone) {
+            const bad = count > 0;
+            const ring = tone === 'always' ? 'border-gray-700'
+                : (bad ? 'border-amber-600/40' : 'border-green-600/30');
+            const num = tone === 'always' ? 'text-gray-200'
+                : (bad ? 'text-amber-400' : 'text-green-400');
+            return `<button onclick="${onclick}" class="text-left bg-gray-800 rounded-lg p-4 border ${ring} hover:bg-gray-750 transition-colors">
+                <p class="text-2xl font-bold ${num}">${count}</p>
+                <p class="text-gray-300 text-sm mt-1">${label}</p>
+                <p class="text-gray-500 text-[11px]">${sub}</p>
+            </button>`;
+        }
+
+        async function loadAttention() {
+            const el = document.getElementById('attention-strip');
+            if (!el) return;
+            try {
+                // Reuse the loaded users list; fetch it once if not cached yet.
+                if (!allUsers || allUsers.length === 0) {
+                    const r = await fetch(`${API_BASE}/admin/list-users`);
+                    const d = await r.json();
+                    if (d.code === 200) { allUsers = d.result || []; }
+                }
+                const now = Date.now();
+                const parseTs = (t) => t ? new Date(String(t).replace(' ', 'T')).getTime() : 0;
+                const isDone = (u) => u.onboarding_status === 'completed';
+                const stuck = allUsers.filter(u => !isDone(u) && parseTs(u.created_at) && (now - parseTs(u.created_at)) > 48 * 3600 * 1000).length;
+                const personaMissing = allUsers.filter(u => isDone(u) && u.persona_status !== 'completed').length;
+                const noEmbeddings = allUsers.filter(u => isDone(u) && (u.embeddings_count || 0) === 0).length;
+
+                // Pending moderation reports (existing endpoint).
+                let pending = 0;
+                try {
+                    const md = await adminFetch(`${BACKEND_BASE}/admin/moderation/reports?status=pending`);
+                    const reports = (md && md.result) || md || [];
+                    pending = Array.isArray(reports) ? reports.length : 0;
+                } catch (e) { pending = 0; }
+
+                el.innerHTML =
+                    attentionCard(stuck, 'Stuck in onboarding', 'started &gt;48h ago, not done', "switchTab('users'); document.getElementById('usersStatusFilter').value='in_progress'; renderUsers(currentUserList());") +
+                    attentionCard(personaMissing, 'Persona not generated', 'onboarded, persona incomplete', "switchTab('users')") +
+                    attentionCard(noEmbeddings, 'No embeddings', 'onboarded, 0 embeddings', "switchTab('users')") +
+                    attentionCard(pending, 'Moderation reports', 'awaiting review', "switchTab('moderation')");
+            } catch (e) {
+                el.innerHTML = `<p class="text-red-400 text-sm col-span-full">Attention strip failed: ${escapeHtml(e.message)}</p>`;
+            }
         }
 
         function sumSeries(rows) {
@@ -2160,13 +2225,22 @@
         }
 
         function renderMetrics(m) {
-            // Five summary cards = 30-day totals per series.
-            document.getElementById('metrics-cards').innerHTML = METRIC_SERIES.map(s => `
+            // Five summary cards = 30-day totals per series, each with its
+            // conversion rate off the top of the funnel (signups) so the drop
+            // at each stage is visible at a glance.
+            const signups = sumSeries(m.signups) || 0;
+            document.getElementById('metrics-cards').innerHTML = METRIC_SERIES.map(s => {
+                const val = sumSeries(m[s.key]);
+                const pct = (s.key !== 'signups' && signups > 0)
+                    ? `<p class="text-[11px] text-gray-500 mt-1">${(val / signups * 100).toFixed(0)}% of signups</p>`
+                    : (s.key === 'signups' ? '<p class="text-[11px] text-gray-500 mt-1">last 30 days</p>' : '');
+                return `
                 <div class="bg-gray-800 rounded-lg p-4">
                     <p class="text-gray-400 text-sm">${s.label}</p>
-                    <p class="text-2xl font-bold">${sumSeries(m[s.key])}</p>
-                </div>
-            `).join('');
+                    <p class="text-2xl font-bold">${val}</p>
+                    ${pct}
+                </div>`;
+            }).join('');
 
             // Per-day table: union of all days across series, most recent first.
             const dayMap = {};
