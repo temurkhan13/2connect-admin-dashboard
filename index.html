@@ -83,28 +83,30 @@
     </style>
 </head>
 <body class="bg-gray-900 text-gray-300 min-h-screen">
-    <!-- Apr-28 audit Phase 1: client-side password gate. SHA-256 hashed,
-         localStorage TTL'd session. Casual-access prevention, not crypto-grade
-         security — anyone with DevTools can read the hash and brute-force. For
-         a 1-2-user internal admin tool this is meaningfully better than the
-         pre-Apr-28 URL-as-only-protection model. -->
+    <!-- Login gate. The access key is entered here and validated server-side
+         against a guarded admin endpoint (401 on a wrong key) before the
+         dashboard loads. The key is not shipped in the page source; it is held
+         only in this browser for the session after a successful sign-in. -->
     <div id="auth-gate" class="fixed inset-0 z-[100] bg-gray-900 flex items-center justify-center" role="dialog" aria-labelledby="auth-gate-heading" aria-modal="true">
         <div class="bg-gray-800 border border-gray-700 rounded-xl p-8 max-w-md w-full mx-4">
-            <h2 id="auth-gate-heading" class="text-xl font-semibold text-gray-200 mb-2">2Connect Admin</h2>
-            <p class="text-gray-400 text-sm mb-6">Enter the admin password to continue.</p>
+            <div class="flex items-center gap-2 mb-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                <h2 id="auth-gate-heading" class="text-xl font-semibold text-gray-200">2Connect Admin</h2>
+            </div>
+            <p class="text-gray-400 text-sm mb-6">Sign in with your admin access key to continue.</p>
             <form id="auth-form" class="space-y-4" autocomplete="off">
-                <label for="auth-password" class="sr-only">Admin password</label>
+                <label for="auth-password" class="sr-only">Admin access key</label>
                 <input type="password" id="auth-password" autocomplete="current-password"
+                       placeholder="Access key"
                        class="w-full px-4 py-2 bg-gray-700 border border-gray-700 rounded text-gray-300 focus:outline-none focus:border-blue-500"
                        aria-required="true" />
                 <p id="auth-error" class="text-red-400 text-sm hidden" role="alert" aria-live="polite"></p>
-                <button type="submit" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white font-medium">
+                <button type="submit" id="auth-submit" class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed rounded text-white font-medium">
                     Sign in
                 </button>
-                <p class="text-gray-400 text-xs mt-4 leading-relaxed">
-                    Session persists for 7 days. To change the password, recompute its
-                    SHA-256 hex and replace the <code class="text-gray-400">AUTH_HASH</code> constant in
-                    <code class="text-gray-400">index.html</code>.
+                <p class="text-gray-500 text-xs mt-4 leading-relaxed">
+                    Your key is verified with the server and kept only in this browser.
+                    The session lasts 12 hours; after that you will sign in again.
                 </p>
             </form>
         </div>
@@ -121,9 +123,12 @@
                 <!-- Platform-status pill: the client-appropriate replacement
                      for the engineering System Health tab. One call to
                      /admin/system-health, one indicator. -->
-                <div id="platformStatus" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800 text-sm mb-1">
-                    <span id="platformStatusDot" class="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
-                    <span id="platformStatusText" class="text-gray-400">Checking platform...</span>
+                <div class="inline-flex items-center gap-2">
+                    <div id="platformStatus" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800 text-sm mb-1">
+                        <span id="platformStatusDot" class="w-2.5 h-2.5 rounded-full bg-gray-500"></span>
+                        <span id="platformStatusText" class="text-gray-400">Checking platform...</span>
+                    </div>
+                    <button onclick="adminSignOut()" title="Sign out" class="px-3 py-1.5 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-200 text-sm mb-1">Sign out</button>
                 </div>
                 <p id="lastRefresh" class="text-gray-400 text-xs"></p>
             </div>
@@ -699,7 +704,10 @@
         const API_BASE = 'https://ai.2connect.ai/api/v1';
         const BACKEND_BASE = 'https://api.2connect.ai/api/v1';
         const ADMIN_BASE = 'https://ai.2connect.ai'; // Admin endpoints at root
-        const ADMIN_KEY = 'migrate-2connect-2026';
+        // The access key is entered at login and validated server-side, not
+        // shipped in the bundle. Populated by the login gate before any admin
+        // call fires.
+        let ADMIN_KEY = '';
         // ====================================================================
         // Apr-28 frontend audit additions
         // ====================================================================
@@ -747,65 +755,119 @@
             return response.json();
         }
 
-        // Phase 1 — password gate. SHA-256 hashed, 7-day localStorage session.
-        // NOT crypto-grade — anyone with DevTools can read the hash and
-        // brute-force. Meaningful protection against random-URL-discovery only.
-        // To rotate the password: compute a new SHA-256 hex and replace the
-        // AUTH_HASH constant. Defaults to '2Connect-Admin-Dashboard-2026!'.
-        const AUTH_HASH = '8226496ae4d732514e2b755a44bb3f5cbf9b83cc6f74468b4cc0e86aed868a2d';
-        const AUTH_KEY = 'admin_session_v1';
-        const AUTH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+        // Login gate. The operator enters the admin access key; it is validated
+        // server-side against a guarded endpoint (401 on a wrong key) before the
+        // dashboard loads. On success the key is held in this browser for the
+        // session and sent on every admin call. It is never embedded in the page
+        // source. The session lasts 12h, then re-login.
+        const AUTH_STORAGE = 'admin_auth_v2';
+        const AUTH_TTL_MS = 12 * 60 * 60 * 1000;
 
-        async function sha256Hex(s) {
-            const buf = new TextEncoder().encode(s);
-            const h = await crypto.subtle.digest('SHA-256', buf);
-            return Array.from(new Uint8Array(h))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-        }
-
-        function isAuthed() {
+        // Validate a key against a guarded admin endpoint. Returns true (valid),
+        // false (rejected: 401/403), or null (could not reach the server).
+        async function validateAdminKey(key) {
             try {
-                const raw = localStorage.getItem(AUTH_KEY);
-                if (!raw) return false;
-                const { ts } = JSON.parse(raw);
-                return Date.now() - ts < AUTH_TTL_MS;
+                const res = await fetch(`${BACKEND_BASE}/admin/metrics/daily?days=7`, {
+                    headers: { 'X-Admin-Key': key },
+                });
+                if (res.ok) return true;
+                if (res.status === 401 || res.status === 403) return false;
+                return null;
             } catch (e) {
-                return false;
+                return null;
             }
         }
 
-        function setAuthed() {
+        function loadStoredKey() {
             try {
-                localStorage.setItem(AUTH_KEY, JSON.stringify({ ts: Date.now() }));
-            } catch (e) { /* localStorage full or disabled — gate stays */ }
+                const raw = localStorage.getItem(AUTH_STORAGE);
+                if (!raw) return null;
+                const { key, ts } = JSON.parse(raw);
+                if (!key || Date.now() - ts > AUTH_TTL_MS) return null;
+                return key;
+            } catch (e) {
+                return null;
+            }
         }
 
-        function wireAuthGate() {
+        function storeKey(key) {
+            try {
+                localStorage.setItem(AUTH_STORAGE, JSON.stringify({ key, ts: Date.now() }));
+            } catch (e) { /* storage disabled — session stays in memory only */ }
+        }
+
+        function clearStoredKey() {
+            try { localStorage.removeItem(AUTH_STORAGE); } catch (e) { /* ignore */ }
+        }
+
+        // Runs once the key is confirmed valid. Nothing that needs the key may
+        // fire before this.
+        function startDashboard() {
+            loadCacheFromStorage();
+            loadPlatformStatus();
+            switchTab('metrics');
+        }
+
+        function showAuthError(el, msg) {
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function initAuth() {
             const gate = document.getElementById('auth-gate');
-            if (!gate) return;
-            if (isAuthed()) {
-                gate.remove();
-                return;
-            }
+            if (!gate) { startDashboard(); return; }
             const form = document.getElementById('auth-form');
             const input = document.getElementById('auth-password');
             const errorEl = document.getElementById('auth-error');
-            if (!form || !input || !errorEl) return;
+            const submitBtn = document.getElementById('auth-submit');
+
+            // Resume a still-valid session, re-validating the stored key so a
+            // rotated/revoked key falls back to the login form.
+            const stored = loadStoredKey();
+            if (stored) {
+                const ok = await validateAdminKey(stored);
+                if (ok === true) {
+                    ADMIN_KEY = stored;
+                    gate.remove();
+                    startDashboard();
+                    return;
+                }
+                if (ok === false) clearStoredKey();
+                // ok === null (offline): fall through to the login form.
+            }
+
+            input.focus();
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const hash = await sha256Hex(input.value);
-                if (hash === AUTH_HASH) {
-                    setAuthed();
+                const key = input.value.trim();
+                if (!key) return;
+                errorEl.classList.add('hidden');
+                submitBtn.disabled = true;
+                const prevLabel = submitBtn.textContent;
+                submitBtn.textContent = 'Verifying...';
+                const ok = await validateAdminKey(key);
+                submitBtn.disabled = false;
+                submitBtn.textContent = prevLabel;
+                if (ok === true) {
+                    ADMIN_KEY = key;
+                    storeKey(key);
                     gate.remove();
-                } else {
-                    errorEl.textContent = 'Wrong password.';
-                    errorEl.classList.remove('hidden');
+                    startDashboard();
+                } else if (ok === false) {
+                    showAuthError(errorEl, 'Invalid access key.');
                     input.value = '';
                     input.focus();
+                } else {
+                    showAuthError(errorEl, 'Could not reach the server. Check your connection and try again.');
                 }
             });
-            input.focus();
+        }
+
+        // Sign out: clear the session and return to the login gate.
+        function adminSignOut() {
+            clearStoredKey();
+            ADMIN_KEY = '';
+            location.reload();
         }
 
         // Phase 2 — Escape-key handler closes the user-detail modal. Mirrors
@@ -911,15 +973,12 @@
         }
 
 
-        // Load on page load. Apr-28 audit: auth-gate + Escape key.
-        // The casual password gate is the only access control; admin
-        // actions still send ADMIN_KEY. Overview is the landing tab.
+        // Load on page load. The login gate runs first and validates the
+        // access key with the server; the dashboard (data loads + landing tab)
+        // starts only after a successful sign-in, inside startDashboard().
         document.addEventListener('DOMContentLoaded', () => {
             wireEscapeKey();
-            wireAuthGate();
-            loadCacheFromStorage();
-            loadPlatformStatus();
-            switchTab('metrics');
+            initAuth();
         });
 
         // ==================== HEADER: PLATFORM STATUS PILL ====================
