@@ -211,6 +211,27 @@
                 </div>
             </div>
 
+            <!-- Persona pipeline events (fallback fired / JSON repaired) -->
+            <div class="bg-gray-800 rounded-xl p-5 mb-8">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="font-semibold text-gray-200">Persona pipeline events</h3>
+                    <div class="flex items-center gap-2">
+                        <select id="pe-days" onchange="loadPersonaEvents()" class="bg-gray-700 text-sm rounded px-2 py-1">
+                            <option value="7" selected>7d</option>
+                            <option value="30">30d</option>
+                            <option value="90">90d</option>
+                        </select>
+                        <button onclick="loadPersonaEvents()" class="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded text-sm">Refresh</button>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mb-3">Transient persona failures + near-misses that state checks miss. A fallback is now a real failure (retried, then marked failed); a repair is a malformed output the fix silently saved. A rising repair count is early warning the model's JSON output is degrading.</p>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="bg-gray-700 rounded p-2"><p class="text-gray-400 text-xs">Fallbacks fired</p><p id="pe-fallbacks" class="font-medium text-2xl">-</p></div>
+                    <div class="bg-gray-700 rounded p-2"><p class="text-gray-400 text-xs">Repairs (saved)</p><p id="pe-repairs" class="font-medium text-2xl">-</p></div>
+                </div>
+                <div id="pe-recent" class="space-y-2 text-sm"><p class="text-gray-400">Loading...</p></div>
+            </div>
+
             <!-- Per-user diagnostics + repair -->
             <div class="bg-gray-800 rounded-xl p-5 mb-8">
                 <h3 class="font-semibold text-gray-200 mb-3">Per-user diagnostics &amp; repair</h3>
@@ -719,7 +740,7 @@
                         <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wide">Needs attention</h3>
                         <button onclick="loadAttention()" class="text-xs text-gray-400 hover:text-gray-200">Refresh</button>
                     </div>
-                    <div id="attention-strip" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div id="attention-strip" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <p class="text-gray-500 text-sm col-span-full">Loading...</p>
                     </div>
                 </div>
@@ -2455,10 +2476,20 @@
                     placeholderReal = phr.real_count || 0;
                 } catch (e) { placeholderReal = 0; }
 
+                // Persona fallbacks fired in the last 7 days (transient events
+                // the state checks miss). From the persona-events endpoint.
+                let fallbacks7d = 0;
+                try {
+                    const pe = await fetch(`${BACKEND_BASE}/dashboard/admin/persona-events?days=7`);
+                    const per = (await pe.json()).result || {};
+                    fallbacks7d = per.fallbacks || 0;
+                } catch (e) { fallbacks7d = 0; }
+
                 el.innerHTML =
                     attentionCard(stuck, 'Stuck in onboarding', 'started &gt;48h ago, not done', "switchTab('users'); document.getElementById('usersStatusFilter').value='in_progress'; renderUsers(currentUserList());") +
                     attentionCard(personaMissing, 'Persona not generated', 'onboarded, persona incomplete', "switchTab('users')") +
                     attentionCard(placeholderReal, 'Placeholder personas', 'completed but content is a stub', "switchTab('diagnostics')") +
+                    attentionCard(fallbacks7d, 'Persona fallbacks (7d)', 'transient failures, see Diagnostics', "switchTab('diagnostics')") +
                     attentionCard(noEmbeddings, 'No embeddings', 'onboarded, 0 embeddings', "switchTab('users')") +
                     attentionCard(pending, 'Moderation reports', 'awaiting review', "switchTab('moderation')");
             } catch (e) {
@@ -2652,6 +2683,40 @@
             if (diagLoaded) return;
             diagLoaded = true;
             loadMatchQuality();
+            loadPersonaEvents();
+        }
+
+        async function loadPersonaEvents() {
+            const days = document.getElementById('pe-days')?.value || '7';
+            const fbEl = document.getElementById('pe-fallbacks');
+            const rpEl = document.getElementById('pe-repairs');
+            const recentEl = document.getElementById('pe-recent');
+            try {
+                const response = await fetch(`${BACKEND_BASE}/dashboard/admin/persona-events?days=${days}`);
+                const r = (await response.json()).result || {};
+                const fb = r.fallbacks || 0, rp = r.repairs || 0;
+                fbEl.textContent = fb;
+                fbEl.className = 'font-medium text-2xl ' + (fb > 0 ? 'text-amber-400' : 'text-green-400');
+                rpEl.textContent = rp;
+                rpEl.className = 'font-medium text-2xl text-gray-300';
+                const recent = r.recent || [];
+                if (!recent.length) {
+                    recentEl.innerHTML = `<p class="text-green-400">No persona pipeline events in the last ${days} days. ✓</p>`;
+                    return;
+                }
+                recentEl.innerHTML = recent.map(e => {
+                    const isFb = e.event_type === 'persona_fallback_fired';
+                    const badge = isFb ? 'bg-amber-900 text-amber-300' : 'bg-gray-700 text-gray-300';
+                    const label = isFb ? 'fallback' : 'repair';
+                    return `<div class="flex justify-between items-center py-2 border-b border-gray-700">
+                        <span><span class="text-[10px] px-1.5 py-0.5 rounded ${badge}">${label}</span>
+                            <span class="text-gray-200 ml-2">${escapeHtml(e.name || e.user_id || '?')}</span></span>
+                        <span class="text-gray-500 text-xs">${e.created_at ? new Date(e.created_at).toLocaleString() : ''}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                recentEl.innerHTML = `<p class="text-red-400">${escapeHtml(e.message)}</p>`;
+            }
         }
 
         async function loadWiringAudit() {
