@@ -221,6 +221,18 @@
                 <div id="diag-result"></div>
             </div>
 
+            <!-- Match inspector: why did / didn't A match B -->
+            <div class="bg-gray-800 rounded-xl p-5 mb-8">
+                <h3 class="font-semibold text-gray-200 mb-3">Match inspector</h3>
+                <p class="text-xs text-gray-500 mb-3">Enter two users (email or ID) to see the stored match between them, or why they never matched. Read-only.</p>
+                <div class="flex gap-2 mb-4 flex-wrap">
+                    <input id="inspect-a" type="text" placeholder="user A (email or ID)" class="bg-gray-700 rounded px-3 py-2 text-sm flex-1 min-w-[200px]" />
+                    <input id="inspect-b" type="text" placeholder="user B (email or ID)" class="bg-gray-700 rounded px-3 py-2 text-sm flex-1 min-w-[200px]" onkeydown="if(event.key==='Enter')inspectMatch()" />
+                    <button onclick="inspectMatch()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded text-sm text-white">Inspect</button>
+                </div>
+                <div id="inspect-result"></div>
+            </div>
+
             <!-- Bulk maintenance -->
             <div class="bg-gray-800 rounded-xl p-5">
                 <h3 class="font-semibold text-gray-200 mb-3">Bulk maintenance</h3>
@@ -2779,6 +2791,63 @@
         function diagRecover(btn) {
             if (!confirm('Recover this user? Clears stale onboarding state. Safe to retry.')) return;
             diagPost(`${ADMIN_BASE}/admin/recover-user/${diagUserId}`, {}, btn, 'Recover');
+        }
+
+        // Match inspector (E). Resolves each input (email or ID) to a user id,
+        // then reads the stored match / event overlap. Read-only.
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        function resolveUserId(input) {
+            const v = (input || '').trim();
+            if (!v) return null;
+            if (UUID_RE.test(v)) return v;
+            const u = (allUsers || []).find(x => (x.email || '').toLowerCase() === v.toLowerCase());
+            return u ? u.user_id : null;
+        }
+
+        async function inspectMatch() {
+            const el = document.getElementById('inspect-result');
+            const aId = resolveUserId(document.getElementById('inspect-a').value);
+            const bId = resolveUserId(document.getElementById('inspect-b').value);
+            if (!aId || !bId) {
+                el.innerHTML = '<p class="text-red-400 text-sm">Could not resolve one or both users. Use an exact email (must be in the loaded users list) or a user ID.</p>';
+                return;
+            }
+            if (aId === bId) { el.innerHTML = '<p class="text-amber-400 text-sm">Enter two different users.</p>'; return; }
+            el.innerHTML = '<p class="text-gray-400 text-sm">Inspecting...</p>';
+            try {
+                const params = new URLSearchParams({ user_a: aId, user_b: bId });
+                const r = await fetch(`${BACKEND_BASE}/dashboard/admin/match-inspect?${params}`);
+                const data = await r.json();
+                if (!r.ok) throw new Error((data && data.message) || `HTTP ${r.status}`);
+                const res = data.result || data;
+                const a = res.users.a, b = res.users.b, m = res.match || {};
+                const evList = (arr) => arr.length ? arr.map(e => escapeHtml(e.name)).join(', ') : '<span class="text-gray-500">none</span>';
+                let matchHtml;
+                if (m.exists) {
+                    const bd = m.score_breakdown ? Object.entries(m.score_breakdown).map(([k, v]) => `<span class="text-gray-400">${escapeHtml(k)}</span> ${escapeHtml(String(v))}`).join(' · ') : '<span class="text-gray-500">no breakdown stored</span>';
+                    const tp = Array.isArray(m.talking_points) && m.talking_points.length ? '<ul class="list-disc ml-5 mt-1 text-gray-300">' + m.talking_points.map(t => `<li>${escapeHtml(t)}</li>`).join('') + '</ul>' : '';
+                    const exp = m.explanation ? escapeHtml(typeof m.explanation === 'string' ? m.explanation : (m.explanation.explanation || JSON.stringify(m.explanation))) : '';
+                    matchHtml = `<div class="bg-gray-900 rounded p-3 text-sm space-y-2">
+                        <div><span class="px-2 py-0.5 rounded text-xs bg-green-800 text-green-200">${escapeHtml(m.tier || 'untiered')}</span>
+                            <span class="text-gray-400 ml-2">status ${escapeHtml(m.status || '-')} · scores ${m.score_a ?? '?'} / ${m.score_b ?? '?'}${m.conversation_started ? ' · messaging started' : ''}</span></div>
+                        <div class="text-xs">${bd}</div>
+                        ${exp ? `<div class="text-gray-300">${exp}</div>` : ''}
+                        ${tp ? `<div class="text-xs text-gray-400">Talking points:${tp}</div>` : ''}
+                    </div>`;
+                } else {
+                    matchHtml = '<p class="text-gray-400 text-sm">No stored match between these two users.</p>';
+                }
+                el.innerHTML = `
+                    <div class="grid grid-cols-2 gap-3 mb-3 text-sm">
+                        <div class="bg-gray-900 rounded p-3"><div class="font-medium text-gray-200">${escapeHtml(a.name)}</div><div class="text-xs text-gray-500">${escapeHtml(a.email)} · ${escapeHtml(a.onboarding_status)}</div><div class="text-xs text-gray-400 mt-1">Events: ${evList(res.events.a)}</div></div>
+                        <div class="bg-gray-900 rounded p-3"><div class="font-medium text-gray-200">${escapeHtml(b.name)}</div><div class="text-xs text-gray-500">${escapeHtml(b.email)} · ${escapeHtml(b.onboarding_status)}</div><div class="text-xs text-gray-400 mt-1">Events: ${evList(res.events.b)}</div></div>
+                    </div>
+                    <p class="text-xs mb-2 ${res.events.shared.length ? 'text-gray-400' : 'text-amber-400'}">Shared events: ${res.events.shared.length ? evList(res.events.shared) : 'none'}</p>
+                    ${matchHtml}
+                    <p class="text-xs text-gray-500 mt-2">${escapeHtml(res.hint)}</p>`;
+            } catch (e) {
+                el.innerHTML = `<p class="text-red-400 text-sm">${escapeHtml(e.message)}</p>`;
+            }
         }
 
         async function regenerateAllMatchesBulk() {
