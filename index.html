@@ -2276,7 +2276,7 @@
                 el.innerHTML = upcoming.map(e => {
                     const dleft = daysUntil(e.event_date);
                     const when = dleft === 0 ? 'today' : dleft === 1 ? 'in 1 day' : dleft > 0 ? `in ${dleft} days` : `${-dleft}d ago`;
-                    return `<button onclick="openEventDetail('${e.id}')" class="w-full text-left bg-gray-800 rounded-xl p-4 border border-gray-700 hover:bg-gray-750 transition-colors block">
+                    return `<button onclick="switchTab('events');openEventDetail('${e.id}')" class="w-full text-left bg-gray-800 rounded-xl p-4 border border-gray-700 hover:bg-gray-750 transition-colors block">
                         <div class="flex items-center justify-between gap-3 flex-wrap">
                             <div><span class="font-semibold text-gray-200">${escapeHtml(e.name || 'Untitled event')}</span>
                                 <span class="text-xs text-gray-500 ml-2">${new Date(e.event_date).toLocaleDateString()} · ${when}</span></div>
